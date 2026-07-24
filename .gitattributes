@@ -1,0 +1,9 @@
+# เครื่องนี้ตั้ง core.autocrlf=true — ถ้าไม่ล็อกไว้ git จะแปลง LF เป็น CRLF ตอน checkout
+# แล้ว bash จะพังเพราะเจอ \r ท้ายบรรทัด (npm run bundle เรียก bash scripts/bundle-artifact.sh)
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.cmd  text eol=crlf
+
+*.png  binary
+*.zip  binary
