@@ -1,0 +1,29 @@
+[build]
+  publish = "dist"
+  # ระบุชัดเจน: โปรเจกต์มีทั้ง Vite (PWA) และ Parcel (bundle.html ไฟล์เดียว)
+  # ถ้าไม่บอก Netlify จะถามว่าจะใช้ตัวไหน แล้วพังตอน deploy แบบไม่มี stdin
+  command = "npm run build"
+
+# SPA: ทุก path ตกมาที่ index.html (แอปไม่มี router แต่กัน 404 ตอนเปิดจากไอคอนโฮมสกรีน)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# service worker ห้าม cache ที่ CDN ไม่งั้นอัปเดตเวอร์ชันใหม่แล้วเครื่องผู้ใช้ไม่รู้
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Content-Type = "application/manifest+json"
+
+# ไฟล์ hashed ของ Vite เปลี่ยนชื่อทุก build อยู่แล้ว cache ยาวได้
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

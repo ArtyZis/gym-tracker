@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-bundle/
+.parcel-cache/
+bundle.html
+.tools/
+.env
+.env.local
+
+# Local Netlify folder
+.netlify

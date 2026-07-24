@@ -1,0 +1,240 @@
+@import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg0: #04070d;
+  --bg1: #070d18;
+  --cyan: #4fd8ff;
+  --cyan-dim: #1f6f8a;
+  --blue: #3d7bff;
+  --ink: #eaf4ff;
+  --mut: #7e93ac;
+  --dim: #3e5068;
+  --good: #4ade9c;
+  --warn: #ffc15e;
+  --bad: #ff6b6b;
+  --glass: #6eaaff0e;
+  --glass-hi: #78c8ff1a;
+  --edge: #8ccdff29;
+  --edge-hi: #96d7ff59;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  background: #04070d;
+  height: 100%;
+}
+
+body,
+#root {
+  min-height: 100dvh;
+}
+
+body {
+  background:
+    radial-gradient(90% 45% at 50% -6%, #3d7bff29, transparent 65%),
+    radial-gradient(70% 40% at 90% 108%, #4fd8ff14, transparent 60%),
+    linear-gradient(180deg, var(--bg1), var(--bg0) 42%);
+  color: var(--ink);
+  overscroll-behavior-y: none;
+  background-attachment: fixed;
+  margin: 0;
+  font-family: "Noto Sans Thai", "Chakra Petch", sans-serif;
+  font-size: 15px;
+}
+
+.font-disp {
+  font-family: "Chakra Petch", "Noto Sans Thai", sans-serif;
+}
+
+.font-mono2 {
+  font-variant-numeric: tabular-nums;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.glass {
+  background: linear-gradient(160deg, var(--glass-hi), var(--glass) 55%);
+  border: 1px solid var(--edge);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px #bee6ff1a,
+    0 12px 34px #00000073;
+}
+
+.glass-soft {
+  backdrop-filter: blur(10px);
+  background: #78b4ff0b;
+  border: 1px solid #8ccdff1a;
+  border-radius: 14px;
+}
+
+.glass-inset {
+  background: #060c168c;
+  border: 1px solid #8ccdff1a;
+  border-radius: 12px;
+  box-shadow: inset 0 2px 8px #00000059;
+}
+
+.edge-glow {
+  box-shadow:
+    0 0 0 1px #4fd8ff47,
+    0 0 22px #4fd8ff26,
+    inset 0 1px #bee6ff1a;
+}
+
+.text-glow {
+  text-shadow: 0 0 14px #4fd8ff8c;
+}
+
+.btn-cy {
+  letter-spacing: 0.04em;
+  color: #03131c;
+  background: linear-gradient(#4fd8fff2, #3d96dcf2);
+  border: none;
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 600;
+  transition:
+    transform 0.12s,
+    box-shadow 0.2s;
+  box-shadow:
+    0 0 18px #4fd8ff4d,
+    inset 0 1px #ffffff59;
+}
+
+.btn-cy:active {
+  transform: scale(0.97);
+}
+
+.btn-gh {
+  letter-spacing: 0.03em;
+  color: var(--cyan);
+  backdrop-filter: blur(8px);
+  background: #4fd8ff0f;
+  border: 1px solid #78cdff47;
+  border-radius: 12px;
+  padding: 12px 15px;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.btn-gh:active {
+  background: #4fd8ff1f;
+  transform: scale(0.97);
+}
+
+.btn-danger {
+  color: var(--bad);
+  background: transparent;
+  border: 1px solid #ff6b6b66;
+  border-radius: 12px;
+  padding: 12px 15px;
+  font-family: "Chakra Petch", sans-serif;
+}
+
+input,
+select,
+textarea {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--ink) !important;
+  background: #060c1699 !important;
+  border: 1px solid #8ccdff29 !important;
+  border-radius: 12px !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px #4fd8ff1f;
+  border-color: #4fd8ff8c !important;
+  outline: none !important;
+}
+
+.hairline {
+  border-top: 1px dashed #8ccdff24;
+}
+
+.scroll-x {
+  scrollbar-width: none;
+  overflow-x: auto;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes rise {
+  0% {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rise {
+  animation: 0.28s both rise;
+}
+
+@keyframes rise-up {
+  0% {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-up {
+  animation: 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) both rise-up;
+}
+
+@keyframes pulse-cy {
+  0%,
+  to {
+    box-shadow: 0 0 0 0 #4fd8ff59;
+  }
+  50% {
+    box-shadow: 0 0 0 7px #4fd8ff00;
+  }
+}
+
+.pulse-cy {
+  animation: 1.6s infinite pulse-cy;
+}
+
+@keyframes pr-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.pr-pop {
+  animation: 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.4) both pr-pop;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
