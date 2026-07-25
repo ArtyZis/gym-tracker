@@ -1,13 +1,15 @@
 import { useMemo } from "react";
 import { useApp } from "../AppContext";
 import { computeStreak, heatmapGrid } from "../lib/streak";
+import { Kicker } from "./ui";
 
+// ระดับความเข้มของ heatmap อิงสี accent (color-mix ให้เปลี่ยนสีตามธีม)
 const LEVEL_FILL = [
-  "rgba(120,180,255,.08)",
-  "rgba(79,216,255,.25)",
-  "rgba(79,216,255,.45)",
-  "rgba(79,216,255,.72)",
-  "#4FD8FF",
+  "rgba(125,180,255,.07)",
+  "color-mix(in srgb, var(--acc) 25%, transparent)",
+  "color-mix(in srgb, var(--acc) 45%, transparent)",
+  "color-mix(in srgb, var(--acc) 72%, transparent)",
+  "var(--acc)",
 ];
 
 const CELL = 13;
@@ -30,24 +32,33 @@ export default function StreakCard() {
 
   return (
     <div className="glass p-4 mb-3">
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em]" style={{ color: "var(--cyan-dim)" }}>
-          สตรีคการฝึก
-        </div>
-        <span className="font-mono2 text-[10px]" style={{ color: "var(--dim)" }}>
-          {WEEKS} สัปดาห์ล่าสุด
-        </span>
-      </div>
+      <Kicker right={<span className="font-mono2 text-[9.5px]" style={{ color: "var(--dim)" }}>{WEEKS} สัปดาห์ล่าสุด</span>}>
+        สตรีคการฝึก
+      </Kicker>
 
       <div className="flex items-center gap-4 mb-3.5">
-        <div className={`text-center px-4 py-2 glass-inset ${streak.current > 0 ? "edge-glow" : ""}`}>
+        <div
+          className="text-center px-4 py-2.5 rounded-2xl shrink-0"
+          style={
+            streak.current > 0
+              ? {
+                  background: "linear-gradient(160deg, var(--acc-18), color-mix(in srgb, var(--blue) 6%, transparent))",
+                  border: "1px solid color-mix(in srgb, var(--acc) 24%, transparent)",
+                  boxShadow: "0 0 22px -6px var(--acc-40), inset 0 1px 0 #bfe6ff1a",
+                }
+              : { background: "#08111ccc", border: "1px solid var(--edge)" }
+          }
+        >
           <div
-            className="font-disp font-bold text-[30px] leading-none"
-            style={{ color: streak.current > 0 ? "var(--cyan)" : "var(--dim)" }}
+            className="font-disp font-bold text-[32px] leading-none"
+            style={{
+              color: streak.current > 0 ? "var(--acc)" : "var(--dim)",
+              textShadow: streak.current > 0 ? "0 0 16px color-mix(in srgb, var(--acc) 55%, transparent)" : "none",
+            }}
           >
             {streak.current}
           </div>
-          <div className="font-mono2 text-[9px] mt-1" style={{ color: "var(--mut)" }}>
+          <div className="font-mono2 text-[9px] mt-1.5" style={{ color: "var(--mut)" }}>
             วันต่อเนื่อง{streak.current > 0 ? " 🔥" : ""}
           </div>
         </div>
@@ -100,8 +111,10 @@ export default function StreakCard() {
                   width={CELL}
                   height={CELL}
                   rx={3.5}
-                  fill={LEVEL_FILL[cell.level]}
-                  style={cell.level === 4 ? { filter: "drop-shadow(0 0 3px rgba(79,216,255,.8))" } : undefined}
+                  style={{
+                    fill: LEVEL_FILL[cell.level],
+                    ...(cell.level === 4 ? { filter: "drop-shadow(0 0 3px color-mix(in srgb, var(--acc) 80%, transparent))" } : {}),
+                  }}
                 >
                   <title>
                     {cell.date} · {cell.count} เซต

@@ -6,6 +6,7 @@ import { forecastPR } from "../lib/forecast";
 import { shareWeeklyCard } from "../lib/share";
 import StreakCard from "./StreakCard";
 import BodyCompCard from "./BodyCompCard";
+import { Kicker } from "./ui";
 
 // อัตราส่วนน้ำหนักที่ยกได้ต่อน้ำหนักตัว: [เริ่มต้น, กลาง, สูง]
 const STRENGTH_STANDARDS: Record<string, { ratios: [number, number, number] }> = {
@@ -76,10 +77,8 @@ export default function ProgressView() {
       <div className="glass p-4 mb-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-1" style={{ color: "var(--cyan-dim)" }}>
-              การ์ดสรุปสัปดาห์
-            </div>
-            <p className="text-[11.5px] leading-relaxed" style={{ color: "var(--mut)" }}>
+            <Kicker>การ์ดสรุปสัปดาห์</Kicker>
+            <p className="text-[11.5px] leading-relaxed -mt-1" style={{ color: "var(--mut)" }}>
               สร้างภาพสรุป volume · PR ใหม่ · สตรีค ไว้แชร์ลง social
             </p>
           </div>
@@ -99,9 +98,9 @@ export default function ProgressView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
+        <Kicker right={data.bodyweight.length ? <span className="font-mono2 text-[11px]" style={{ color: "var(--acc)" }}>{bw} kg</span> : undefined}>
           น้ำหนักตัว
-        </div>
+        </Kicker>
         <div className="flex gap-2 mb-2">
           <input
             type="number"
@@ -115,7 +114,7 @@ export default function ProgressView() {
             บันทึก
           </button>
         </div>
-        <Spark pts={data.bodyweight.slice(-12).map((b) => b.kg)} color="#4FD8FF" />
+        <Spark pts={data.bodyweight.slice(-12).map((b) => b.kg)} color="var(--acc)" />
         {data.bodyweight.length > 0 && (
           <div className="flex justify-between font-mono2 text-[10.5px] mt-1" style={{ color: "var(--mut)" }}>
             <span>{data.bodyweight.slice(-6)[0]?.date}</span>
@@ -127,9 +126,9 @@ export default function ProgressView() {
       <BodyCompCard />
 
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-3" style={{ color: "var(--cyan-dim)" }}>
-          ระดับความแข็งแรง · Strength Level
-        </div>
+        <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>@ {bw} kg</span>}>
+          ระดับความแข็งแรง
+        </Kicker>
         {Object.keys(STRENGTH_STANDARDS).map((key) => {
           const match = data.exercises.find((e) => standardKey(e.name) === key && e.type === "weight");
           if (!match) return null;
@@ -153,8 +152,8 @@ export default function ProgressView() {
                   className="h-full rounded-full"
                   style={{
                     width: `${Math.min(100, (current / adv) * 100)}%`,
-                    background: "linear-gradient(90deg,#3D7BFF,#4FD8FF)",
-                    boxShadow: "0 0 10px rgba(79,216,255,.5)",
+                    background: "linear-gradient(90deg, var(--blue), var(--acc))",
+                    boxShadow: "0 0 10px var(--acc-40)",
                     transition: "width .6s",
                   }}
                 />
@@ -167,15 +166,10 @@ export default function ProgressView() {
             </div>
           );
         })}
-        <p className="text-[11px]" style={{ color: "var(--dim)" }}>
-          คำนวณจากน้ำหนักตัว {bw} kg
-        </p>
       </div>
 
       <div className="glass p-4">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
-          สถิติแต่ละท่า
-        </div>
+        <Kicker>สถิติแต่ละท่า</Kicker>
         <select value={exId} onChange={(e) => setExId(e.target.value)} className="w-full px-3.5 py-2.5 mb-2 text-[14px]">
           {data.exercises.map((e) => (
             <option key={e.id} value={e.id}>
@@ -183,7 +177,7 @@ export default function ProgressView() {
             </option>
           ))}
         </select>
-        <Spark pts={points} color="#4ADE9C" />
+        <Spark pts={points} color="#6ff0c0" />
         {forecast && ex && (
           <div className="glass-inset px-3 py-2.5 my-2">
             <div className="font-mono2 text-[9px] uppercase tracking-[.18em] mb-1" style={{ color: "var(--cyan-dim)" }}>
@@ -264,10 +258,10 @@ export function Spark({ pts, color }: { pts: number[]; color: string }) {
   const area = `${line} L${coords[coords.length - 1][0].toFixed(1)},45 L${coords[0][0].toFixed(1)},45 Z`;
   return (
     <svg viewBox="0 0 300 52" className="w-full h-[52px]" preserveAspectRatio="none">
-      <path d={area} fill={color} opacity=".1" />
-      <path d={line} fill="none" stroke={color} strokeWidth="2" style={{ filter: `drop-shadow(0 0 4px ${color})` }} />
+      <path d={area} style={{ fill: color, opacity: 0.1 }} />
+      <path d={line} fill="none" style={{ stroke: color, strokeWidth: 2, filter: `drop-shadow(0 0 4px ${color})` }} />
       {coords.map((c, i) => (
-        <circle key={i} cx={c[0]} cy={c[1]} r="2.4" fill={color} />
+        <circle key={i} cx={c[0]} cy={c[1]} r="2.4" style={{ fill: color }} />
       ))}
     </svg>
   );
