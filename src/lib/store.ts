@@ -50,6 +50,8 @@ export interface Settings {
   heightCm?: number;
   soundEnabled?: boolean; // เสียงตอนกดติ๊ก/ครบท่า/PR — undefined = เปิด (default)
   smartRest?: boolean; // ใช้เวลาพักที่ระบบแนะนำต่อท่า — undefined = เปิด (default)
+  accent?: string; // สีธีม (accent) — undefined = cyan #4fd8ff (ค่าเดิมของแบรนด์)
+  showCoachNotes?: boolean; // โน้ตโค้ชในการ์ดท่า — undefined = แสดง (default)
 }
 
 // โปรแกรมที่บันทึกไว้ (routine) — สลับ/ลบได้

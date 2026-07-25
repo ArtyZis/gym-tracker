@@ -4,6 +4,7 @@ import { AppContext } from "./AppContext";
 import type { Data } from "./lib/store";
 import { DAY_TH, JS_DAYS, createDefault, store } from "./lib/store";
 import { setSoundEnabled } from "./lib/sound";
+import { resolveAccent } from "./lib/accent";
 import TodayView from "./components/TodayView";
 import ProgramView from "./components/ProgramView";
 import AnalyzerView from "./components/AnalyzerView";
@@ -81,6 +82,11 @@ export default function App() {
     setSoundEnabled(data.settings.soundEnabled !== false);
   }, [data.settings.soundEnabled]);
 
+  // สีธีม (accent) — set ลง --acc ที่ root, undefined = cyan เดิม
+  useEffect(() => {
+    document.documentElement.style.setProperty("--acc", resolveAccent(data.settings.accent));
+  }, [data.settings.accent]);
+
   const update = useCallback((fn: (draft: Data) => void) => {
     setData((cur) => {
       const next = structuredClone(cur);
@@ -101,25 +107,48 @@ export default function App() {
     <AppContext.Provider value={{ data, update, toast, rest }}>
       <div className="mx-auto max-w-[520px] flex flex-col relative" style={{ minHeight: "100dvh" }}>
         <header
-          className="px-5 pb-3 flex items-start justify-between gap-3"
+          className="px-4 pb-3 flex items-center justify-between gap-3"
           style={{ paddingTop: "calc(18px + env(safe-area-inset-top))" }}
         >
-          <div className="min-w-0 flex-1">
-            <div className="font-mono2 text-[9.5px] tracking-[.24em] uppercase" style={{ color: "var(--cyan-dim)" }}>
-              Hypertrophy System
-            </div>
-            <h1
-              className="font-disp font-bold text-[19px] min-[400px]:text-[22px] leading-tight tracking-wide text-glow break-words"
-              style={{ color: "var(--ink)" }}
+          <div className="min-w-0 flex-1 flex items-center gap-2.5">
+            {/* โลโก้ tile + glow — ไอคอนบาร์เบลชุดเดียวกับ favicon */}
+            <div
+              className="w-[38px] h-[38px] rounded-xl shrink-0 flex items-center justify-center"
+              style={{
+                background: "linear-gradient(150deg,#0e1a2e,#060b14)",
+                border: "1px solid color-mix(in srgb, var(--acc) 22%, transparent)",
+                boxShadow: "0 0 16px var(--acc-18), inset 0 1px 0 #bfe6ff26",
+              }}
             >
-              GYM TRACKER BY ARTYZ
-            </h1>
+              <svg viewBox="0 0 180 180" width="22" height="22">
+                <g stroke="var(--acc)" strokeWidth="12" strokeLinecap="round" fill="none" style={{ filter: "drop-shadow(0 0 3px var(--acc))" }}>
+                  <path d="M50 70v40M130 70v40M32 82v16M148 82v16M50 90h80" />
+                </g>
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="font-mono2 text-[8.5px] tracking-[.28em] uppercase" style={{ color: "#4b8bb0" }}>
+                Hypertrophy System
+              </div>
+              <h1 className="font-disp font-bold text-[17px] leading-none tracking-wide" style={{ color: "var(--ink)" }}>
+                GYM TRACKER <span style={{ color: "var(--acc)" }}>BY ARTYZ</span>
+              </h1>
+            </div>
           </div>
-          <div className="text-right shrink-0">
-            <div className="font-disp font-semibold text-[14px]" style={{ color: "var(--cyan)" }}>
+          <div
+            className="text-center shrink-0"
+            style={{
+              padding: "6px 11px",
+              borderRadius: 13,
+              background: "rgba(10,20,31,.5)",
+              border: "1px solid var(--edge)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <div className="font-disp font-bold text-[14px] leading-none" style={{ color: "var(--ink)" }}>
               {DAY_TH[JS_DAYS[now.getDay()]]}
             </div>
-            <div className="font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
+            <div className="font-mono2 text-[8.5px] mt-[3px]" style={{ color: "var(--dim)" }}>
               {now.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
             </div>
           </div>
@@ -145,31 +174,42 @@ export default function App() {
         <RestTimer ref={rest} />
 
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[520px] z-30 px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
-          <div className="glass flex px-1 py-1.5" style={{ borderRadius: 20 }}>
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => {
-                  setTab(t.id);
-                  window.scrollTo({ top: 0 });
-                }}
-                className="flex-1 flex flex-col items-center gap-1 py-1.5 rounded-2xl transition-colors"
-                style={tab === t.id ? { color: "var(--cyan)", background: "rgba(79,216,255,.10)" } : { color: "var(--dim)" }}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-[19px] h-[19px]"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+          <div className="glass flex gap-0.5 p-[7px]" style={{ borderRadius: 22 }}>
+            {TABS.map((t) => {
+              const on = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setTab(t.id);
+                    window.scrollTo({ top: 0 });
+                  }}
+                  className="flex-1 flex flex-col items-center gap-1 py-2 rounded-[15px] transition-all"
+                  style={
+                    on
+                      ? {
+                          color: "var(--acc)",
+                          background: "linear-gradient(180deg, var(--acc-24), color-mix(in srgb, var(--blue) 7%, transparent))",
+                          boxShadow: "inset 0 0 0 1px var(--acc-40), 0 0 16px -2px var(--acc-40)",
+                        }
+                      : { color: "#48607e" }
+                  }
                 >
-                  {t.icon}
-                </svg>
-                <span className="font-mono2 text-[8.5px]">{t.label}</span>
-              </button>
-            ))}
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    {t.icon}
+                  </svg>
+                  <span className="font-mono2 text-[8px] tracking-[.02em]">{t.label}</span>
+                </button>
+              );
+            })}
           </div>
         </nav>
 
@@ -181,7 +221,7 @@ export default function App() {
             <div
               className={`px-5 py-2.5 rounded-full font-disp font-semibold text-[13px] text-center rise ${toastState.glow ? "edge-glow" : ""}`}
               style={{
-                background: toastState.glow ? "linear-gradient(180deg,#4FD8FF,#3D9BDC)" : "rgba(10,20,34,.94)",
+                background: toastState.glow ? "linear-gradient(180deg, var(--acc), var(--acc-2))" : "rgba(10,20,34,.94)",
                 color: toastState.glow ? "#03131C" : "var(--cyan)",
                 border: toastState.glow ? "none" : "1px solid var(--edge-hi)",
                 backdropFilter: "blur(10px)",

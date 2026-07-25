@@ -7,7 +7,17 @@
 :root {
   --bg0: #04070d;
   --bg1: #070d18;
-  --cyan: #4fd8ff;
+  /* สีธีม (accent) — ตั้งค่าผ่าน settings.accent (undefined = cyan เดิมของแบรนด์) */
+  --acc: #4fd8ff;
+  /* คู่ gradient โทนน้ำเงิน — คงที่ไม่เปลี่ยนตาม accent (base identity ของแอป) */
+  --acc-2: #3d9bdc;
+  /* เฉดโปร่งใสของ accent ที่ใช้ซ้ำบ่อย (color-mix รองรับ iOS Safari 16.2+) */
+  --acc-08: color-mix(in srgb, var(--acc) 8%, transparent);
+  --acc-12: color-mix(in srgb, var(--acc) 12%, transparent);
+  --acc-18: color-mix(in srgb, var(--acc) 18%, transparent);
+  --acc-24: color-mix(in srgb, var(--acc) 24%, transparent);
+  --acc-40: color-mix(in srgb, var(--acc) 40%, transparent);
+  --cyan: var(--acc); /* alias เดิม → ชี้มาที่ accent ให้โค้ดเก่าเปลี่ยนสีตามได้ทันที */
   --cyan-dim: #1f6f8a;
   --blue: #3d7bff;
   --ink: #eaf4ff;
@@ -84,19 +94,19 @@ body {
 
 .edge-glow {
   box-shadow:
-    0 0 0 1px #4fd8ff47,
-    0 0 22px #4fd8ff26,
+    0 0 0 1px color-mix(in srgb, var(--acc) 28%, transparent),
+    0 0 22px color-mix(in srgb, var(--acc) 15%, transparent),
     inset 0 1px #bee6ff1a;
 }
 
 .text-glow {
-  text-shadow: 0 0 14px #4fd8ff8c;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--acc) 55%, transparent);
 }
 
 .btn-cy {
   letter-spacing: 0.04em;
   color: #03131c;
-  background: linear-gradient(#4fd8fff2, #3d96dcf2);
+  background: linear-gradient(var(--acc), var(--acc-2));
   border: none;
   border-radius: 12px;
   padding: 13px 16px;
@@ -106,7 +116,7 @@ body {
     transform 0.12s,
     box-shadow 0.2s;
   box-shadow:
-    0 0 18px #4fd8ff4d,
+    0 0 18px color-mix(in srgb, var(--acc) 30%, transparent),
     inset 0 1px #ffffff59;
 }
 
@@ -116,10 +126,10 @@ body {
 
 .btn-gh {
   letter-spacing: 0.03em;
-  color: var(--cyan);
+  color: var(--acc);
   backdrop-filter: blur(8px);
-  background: #4fd8ff0f;
-  border: 1px solid #78cdff47;
+  background: var(--acc-08);
+  border: 1px solid color-mix(in srgb, var(--acc) 28%, transparent);
   border-radius: 12px;
   padding: 12px 15px;
   font-family: "Chakra Petch", sans-serif;
@@ -154,8 +164,8 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  box-shadow: 0 0 0 3px #4fd8ff1f;
-  border-color: #4fd8ff8c !important;
+  box-shadow: 0 0 0 3px var(--acc-12);
+  border-color: color-mix(in srgb, var(--acc) 55%, transparent) !important;
   outline: none !important;
 }
 
@@ -203,10 +213,10 @@ textarea:focus {
 @keyframes pulse-cy {
   0%,
   to {
-    box-shadow: 0 0 0 0 #4fd8ff59;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--acc) 35%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 7px #4fd8ff00;
+    box-shadow: 0 0 0 7px transparent;
   }
 }
 
