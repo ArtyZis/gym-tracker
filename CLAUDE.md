@@ -34,20 +34,42 @@ $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $e
 
 ---
 
+## สองรุ่นจากโค้ดชุดเดียว (สำคัญ)
+
+`VITE_EDITION` กำหนดรุ่นตอน build — **ค่าเริ่มต้นคือ `personal` เสมอ** ดู [src/lib/edition.ts](src/lib/edition.ts)
+
+| รุ่น | คำสั่ง | ออกที่ | เว็บ | มีอะไรเพิ่ม |
+|---|---|---|---|---|
+| personal (ของ ARTYZ) | `npm run build` | `dist/` | artytraining | ไม่มีล็อก ไม่มีลิมิต |
+| coach (ขายเทรนเนอร์) | `npm run build:coach` | `dist-coach/` | artycoach | ทะเบียนลูกเทรน + รหัสปลดล็อก |
+
+- โค้ดรุ่น coach (`lib/profiles.ts`, `lib/license.ts`, `ProfileBar`, `LicenseCard`) ถูก
+  tree-shake **ออกจาก build รุ่น personal ทั้งหมด** — ยืนยันได้ด้วยการ grep หา `artyz-coach-2026`
+  ใน `dist/assets/*.js` ต้องไม่เจอ ถ้าเจอแปลว่า gate หลุดเข้าไปในรุ่นผู้ใช้ = บั๊ก
+- รุ่น coach เก็บข้อมูลคนละคีย์ (`gymtracker_coach_roster_v1`, `gymtracker_coach_data_<id>`)
+  **ไม่แตะ `gymtracker_v1`** เลย (อ่านคัดลอกครั้งแรกอย่างเดียว)
+- สร้างรหัสขาย: `npm run license 5`
+
 ## คำสั่ง
 
 ```powershell
 $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $env:PATH
 
-npm run dev      # dev server
-npm run build    # tsc --noEmit + vite build -> dist/ (PWA: sw.js + manifest)
-npm run bundle   # Parcel -> bundle.html ไฟล์เดียว
+npm run dev          # dev server (รุ่น personal)
+npm run build        # -> dist/       รุ่น personal
+npm run build:coach  # -> dist-coach/ รุ่น coach
+npm run bundle       # Parcel -> bundle.html ไฟล์เดียว
+npm run license 5    # สร้างรหัสปลดล็อก 5 อัน
 ```
 
-deploy (หลัง `npm run build`):
+deploy — **ต้องระบุ `--site` ให้ถูกรุ่น ไม่งั้น deploy ทับผิดเว็บ**:
 
 ```powershell
+# รุ่นส่วนตัว -> artytraining (โฟลเดอร์ link ไว้กับอันนี้อยู่แล้ว)
 .\node_modules\.bin\netlify.cmd deploy --prod --dir=dist --no-build
+
+# รุ่นขาย -> artycoach (ต้องใส่ --site เพราะ link ไม่ได้ชี้มาที่นี่)
+.\node_modules\.bin\netlify.cmd deploy --prod --dir=dist-coach --no-build --site 8d4dc317-a810-4075-8f7e-4d4311f4ee26
 ```
 
 เทสต์ logic (parser / rest / forecast) — ต้อง bundle ก่อน เพราะ Node ESM
@@ -61,7 +83,8 @@ deploy (หลัง `npm run build`):
 
 ## Deploy target
 
-- Netlify project: **`artytraining`** → https://artytraining.netlify.app
+- **`artytraining`** → https://artytraining.netlify.app (รุ่น personal — โฟลเดอร์ link ไว้กับอันนี้)
+- **`artycoach`** → https://artycoach.netlify.app (รุ่น coach, siteId `8d4dc317-a810-4075-8f7e-4d4311f4ee26`)
 - ชื่อเดิม `gym-tracker-artyz` **เลิกใช้แล้ว (404)** อย่าอ้างถึงอีก
 - โฟลเดอร์นี้ link ไว้แล้วผ่าน `.netlify/state.json` (gitignored — ห้าม commit)
 - ตรวจว่า deploy ตรงกับเครื่องไหม: เทียบ hash ของ `assets/index-*.js`
