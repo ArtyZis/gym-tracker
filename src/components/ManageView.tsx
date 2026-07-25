@@ -6,6 +6,8 @@ import { DAYS, DAY_TH, archiveOne, createEmpty, exercisesForDay, repTargetText, 
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
+import { Kicker } from "./ui";
+import { ACCENTS, resolveAccent } from "../lib/accent";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
 
@@ -46,10 +48,10 @@ export default function ManageView() {
 
       <TrainingSettingsCard />
 
+      <AppearanceCard />
+
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
-          ปรับแต่งโปรแกรม
-        </div>
+        <Kicker>ปรับแต่งโปรแกรม</Kicker>
         {!draft && (
           <button
             className="btn-cy w-full !text-[13px]"
@@ -233,9 +235,7 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-1.5" style={{ color: "var(--cyan-dim)" }}>
-          ท่าทั้งหมด
-        </div>
+        <Kicker>ท่าทั้งหมด</Kicker>
         {DAYS.map((d) => {
           const exs = exercisesForDay(data, d);
           if (!exs.length) return null;
@@ -290,9 +290,7 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
-          ย้ายท่าทั้งวัน
-        </div>
+        <Kicker>ย้ายท่าทั้งวัน</Kicker>
         <div className="grid grid-cols-2 gap-2 mb-2.5">
           <div>
             <FieldLabel>จากวัน</FieldLabel>
@@ -337,9 +335,7 @@ export default function ManageView() {
           ย้ายทั้งหมด
         </button>
         <div className="hairline mt-4 pt-3.5">
-          <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
-            ชื่อวันฝึก
-          </div>
+          <Kicker>ชื่อวันฝึก</Kicker>
           {DAYS.map((d) => (
             <div key={d} className="grid grid-cols-[54px_1fr] gap-2 items-center mb-1.5">
               <span className="font-mono2 text-[11px]" style={{ color: "var(--mut)" }}>
@@ -361,9 +357,7 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
-          คำนวณแผ่นน้ำหนัก · Plate Calc
-        </div>
+        <Kicker>คำนวณแผ่นน้ำหนัก · Plate Calc</Kicker>
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div>
             <FieldLabel>น้ำหนักเป้า (kg)</FieldLabel>
@@ -394,7 +388,7 @@ export default function ManageView() {
                 <span
                   key={i}
                   className="font-mono2 text-[13px] font-bold px-3 py-2 rounded-xl"
-                  style={{ background: "rgba(79,216,255,.10)", border: "1px solid rgba(120,205,255,.3)", color: "var(--cyan)" }}
+                  style={{ background: "var(--acc-12)", border: "1px solid color-mix(in srgb, var(--acc) 30%, transparent)", color: "var(--acc)" }}
                 >
                   {p}
                 </span>
@@ -419,9 +413,7 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2" style={{ color: "var(--cyan-dim)" }}>
-          ย้ายข้อมูลข้ามเครื่อง
-        </div>
+        <Kicker>ย้ายข้อมูลข้ามเครื่อง</Kicker>
         <p className="text-[12px] mb-2.5" style={{ color: "var(--mut)" }}>
           ข้อมูลบันทึกในเครื่องนี้อัตโนมัติอยู่แล้ว — ใช้ส่วนนี้เมื่อต้องการย้ายไปเครื่องอื่น
         </p>
@@ -476,9 +468,7 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2" style={{ color: "#FF8B8B" }}>
-          เริ่มใหม่หมด
-        </div>
+        <Kicker>เริ่มใหม่หมด</Kicker>
         <p className="text-[11.5px] mb-2.5" style={{ color: "var(--mut)" }}>
           ล้างท่า ประวัติ และข้อมูลทั้งหมดให้ว่างเปล่า (โปรแกรมที่บันทึกไว้ยังอยู่) — เริ่มสร้างโปรแกรมเองจากศูนย์
         </p>
@@ -504,9 +494,7 @@ function TrainingSettingsCard() {
   const smartOn = data.settings.smartRest !== false;
   return (
     <div className="glass p-4 mb-3">
-      <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-1" style={{ color: "var(--cyan-dim)" }}>
-        ตั้งค่าการฝึก
-      </div>
+      <Kicker>ตั้งค่าการฝึก</Kicker>
       <ToggleRow
         label="เสียงตอนกด"
         desc="เสียงสั้นๆ ตอนติ๊กเซต ครบท่า และทำ PR"
@@ -533,6 +521,66 @@ function TrainingSettingsCard() {
   );
 }
 
+// การ์ดหน้าตา/ธีม — เลือกสี accent + เปิดปิดโน้ตโค้ช (ทั้งคู่เป็น optional settings, undefined=ค่าเดิม)
+function AppearanceCard() {
+  const { data, update, toast } = useApp();
+  const current = resolveAccent(data.settings.accent).toLowerCase();
+  const coachOn = data.settings.showCoachNotes !== false;
+  return (
+    <div className="glass p-4 mb-3">
+      <Kicker>หน้าตา · ธีม</Kicker>
+      <div className="text-[13.5px] mb-2.5">สีธีม (accent)</div>
+      <div className="flex gap-2.5">
+        {ACCENTS.map((a) => {
+          const on = a.color.toLowerCase() === current;
+          return (
+            <button
+              key={a.color}
+              onClick={() => {
+                update((d) => {
+                  d.settings.accent = a.color;
+                });
+                toast(`เปลี่ยนธีมเป็นสี${a.label}`);
+              }}
+              className="flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition-all"
+              style={{
+                background: on ? `color-mix(in srgb, ${a.color} 14%, transparent)` : "rgba(120,180,255,.05)",
+                border: on ? `1px solid ${a.color}` : "1px solid var(--edge)",
+                boxShadow: on ? `0 0 14px -3px ${a.color}` : "none",
+              }}
+              aria-pressed={on}
+            >
+              <span
+                className="w-6 h-6 rounded-full"
+                style={{
+                  background: `linear-gradient(180deg, ${a.color}, color-mix(in srgb, ${a.color} 70%, #06121f))`,
+                  boxShadow: on ? `0 0 10px ${a.color}` : "none",
+                }}
+              />
+              <span className="font-mono2 text-[9px]" style={{ color: on ? a.color : "var(--mut)" }}>
+                {a.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-1.5">
+        <ToggleRow
+          label="โน้ตโค้ชในการ์ดท่า"
+          desc="คำแนะนำเป้าหมายต่อท่า (🎯) ในหน้าวันนี้"
+          on={coachOn}
+          onToggle={() => {
+            update((d) => {
+              d.settings.showCoachNotes = !coachOn;
+            });
+            toast(coachOn ? "ซ่อนโน้ตโค้ชแล้ว" : "แสดงโน้ตโค้ชแล้ว");
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 const ToggleRow = ({ label, desc, on, onToggle }: { label: string; desc: string; on: boolean; onToggle: () => void }) => (
   <div className="flex items-center gap-3 py-2.5 hairline first:border-0">
     <div className="flex-1 min-w-0">
@@ -545,9 +593,9 @@ const ToggleRow = ({ label, desc, on, onToggle }: { label: string; desc: string;
       onClick={onToggle}
       className="w-[46px] h-[27px] rounded-full shrink-0 relative transition-all"
       style={{
-        background: on ? "linear-gradient(180deg,#4FD8FF,#3D9BDC)" : "rgba(120,180,255,.12)",
+        background: on ? "linear-gradient(180deg, var(--acc), var(--acc-2))" : "rgba(120,180,255,.12)",
         border: on ? "none" : "1px solid var(--edge)",
-        boxShadow: on ? "0 0 12px rgba(79,216,255,.4)" : "none",
+        boxShadow: on ? "0 0 12px var(--acc-40)" : "none",
       }}
       aria-pressed={on}
     >
@@ -572,10 +620,10 @@ const Chip = ({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     style={
       on
         ? {
-            background: "linear-gradient(180deg,#4FD8FF,#3D9BDC)",
+            background: "linear-gradient(180deg, var(--acc), var(--acc-2))",
             color: "#03131C",
             fontWeight: 700,
-            boxShadow: "0 0 10px rgba(79,216,255,.35)",
+            boxShadow: "0 0 10px var(--acc-40)",
           }
         : { background: "rgba(120,180,255,.05)", border: "1px solid var(--edge)", color: "var(--mut)" }
     }
