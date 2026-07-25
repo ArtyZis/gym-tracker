@@ -21,9 +21,13 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
   const [pos, setPos] = useState<{ dx: number; dy: number }>(() => {
     try {
       const raw = localStorage.getItem(POS_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const p = JSON.parse(raw);
+        // ตรวจว่าเป็นตัวเลขจริงก่อนใช้ — ค่าพัง/ปลอมจะได้ไม่ทำ component crash ตอน mount
+        if (p && Number.isFinite(p.dx) && Number.isFinite(p.dy)) return { dx: p.dx, dy: p.dy };
+      }
     } catch {
-      /* ไม่มีก็ใช้ default */
+      /* ไม่มี/พัง ก็ใช้ default */
     }
     return { dx: 0, dy: 0 };
   });

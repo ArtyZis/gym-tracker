@@ -27,3 +27,20 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# ความปลอดภัยระดับ header — ใช้ได้เฉพาะบน Netlify (GitHub Pages ตั้ง header เองไม่ได้)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # frame-ancestors + X-Frame-Options: กันเว็บอื่นเอาแอปเราไปฝัง iframe หลอกคลิก (clickjacking)
+    X-Frame-Options = "DENY"
+    # กันเบราว์เซอร์เดาชนิดไฟล์เอง (MIME sniffing) ซึ่งเปิดช่องรันไฟล์ปลอมเป็นสคริปต์
+    X-Content-Type-Options = "nosniff"
+    # ไม่ส่ง URL เต็มของเราไปเว็บอื่นตอนผู้ใช้กดลิงก์ออก
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # ปิดสิทธิ์ที่แอปไม่ใช้ ไม่ให้สคริปต์แปลกปลอมเรียกได้
+    Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+    # CSP: หัวใจกัน XSS — script โหลดได้จากตัวเองเท่านั้น (ไม่มี inline/eval/CDN นอก)
+    # ถ้าวันหนึ่งมี XSS หลุดเข้ามา สคริปต์ของแฮกเกอร์จะรันไม่ได้และดึงข้อมูลออกนอกไม่ได้
+    # style ต้องเปิด unsafe-inline เพราะ React ใช้ inline style ทั้งแอป (script ยังล็อกแน่น)
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'; object-src 'none'"

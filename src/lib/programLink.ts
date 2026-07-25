@@ -66,6 +66,7 @@ export function encodeProgram(p: SharedProgram): string {
 
 export function decodeProgram(code: string): SharedProgram | null {
   try {
+    if (!code || code.length > 100_000) return null; // โปรแกรมจริงราว 1.5KB — กันลิงก์ยักษ์ที่หน่วงเครื่อง
     const lines = fromB64Url(code.trim()).split("\n");
     if (lines[0] !== VERSION || lines.length < 4) return null;
 

@@ -191,23 +191,44 @@ export function createEmpty(): Partial<Data> {
 
 const STORAGE_KEY = "gymtracker_v1";
 
-// เติมค่า default ให้ฟิลด์ที่เพิ่มทีหลังเสมอ — ห้ามทำให้ข้อมูลเดิมหาย
+// plain object จริง ไม่ใช่ array/null (typeof null === "object" ต้องกันด้วย)
+const isObj = (v: any): v is Record<string, any> => !!v && typeof v === "object" && !Array.isArray(v);
+
+// เติมค่า default + ตรวจ "ชนิด" ของทุกฟิลด์ — จุดเดียวที่ข้อมูลนอกระบบ (localStorage + โค้ดกู้คืน) ผ่านเข้ามา
+// ต้องแกร่งพอกัน payload ที่จงใจทำ shape พัง (เช่น exercises เป็น string) ไม่ให้แอป crash/ข้อมูลเสีย
+// ห้ามทำให้ข้อมูลเดิมที่ถูกต้องหาย
 export function normalizeData(d: any): Data | null {
-  if (!d || !d.exercises) return null;
-  if (!d.settings) d.settings = { autoRest: true };
-  if (d.settings.restDefault == null) d.settings.restDefault = 90;
-  if (d.settings.barWeight == null) d.settings.barWeight = 20;
-  if (!d.history) d.history = {};
-  if (!d.bodyweight) d.bodyweight = [];
-  if (!d.bodyScans) d.bodyScans = [];
-  if (!d.savedPrograms) d.savedPrograms = [];
-  if (!d.historyArchive) d.historyArchive = {};
+  // exercises ต้องเป็น array จริง — "PWNED" (string) หรือค่าอื่น = ปฏิเสธทั้งก้อน
+  if (!isObj(d) || !Array.isArray(d.exercises)) return null;
+  if (!isObj(d.settings)) d.settings = { autoRest: true, restDefault: 90, barWeight: 20 };
+  if (typeof d.settings.restDefault !== "number") d.settings.restDefault = 90;
+  if (typeof d.settings.barWeight !== "number") d.settings.barWeight = 20;
+  // containers ต้องตรงชนิด ไม่งั้น .filter/.map/Object.values จะพังตอน render
+  if (!isObj(d.history)) d.history = {};
+  else for (const k of Object.keys(d.history)) if (!Array.isArray(d.history[k])) delete d.history[k];
+  if (!Array.isArray(d.bodyweight)) d.bodyweight = [];
+  if (!Array.isArray(d.bodyScans)) d.bodyScans = [];
+  if (!Array.isArray(d.savedPrograms)) d.savedPrograms = [];
+  if (!isObj(d.historyArchive)) d.historyArchive = {};
+  if (!isObj(d.dayLabels)) d.dayLabels = { ...DEFAULT_DAY_LABELS };
   // วันเปลี่ยนแล้ว — เก็บบันทึกของท่าที่สลับไว้ แล้วกลับไปใช้ท่าตามโปรแกรมเดิม
   if (d.swaps && d.swaps.date !== todayStr()) {
     archiveSwapLogs(d as Data);
     d.swaps = undefined;
   }
   return d as Data;
+}
+
+// ถอดรหัส "โค้ดย้ายข้อมูล" ที่รับจากคนอื่น — ต้องผ่าน normalizeData เสมอ ไม่ assign ดิบ
+// คืน null ถ้าถอดไม่ได้/ชนิดผิด (โค้ดเรียกต้องเช็ค null แล้วแจ้งผู้ใช้)
+export function decodeTransfer(code: string): Data | null {
+  try {
+    const c = code.trim();
+    if (!c || c.length > 5_000_000) return null; // กัน payload ยักษ์ที่หน่วงเบราว์เซอร์
+    return normalizeData(JSON.parse(decodeURIComponent(escape(atob(c)))));
+  } catch {
+    return null;
+  }
 }
 
 export const store = {

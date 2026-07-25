@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey, Exercise, ExType } from "../lib/store";
-import { DAYS, DAY_TH, archiveOne, createEmpty, exercisesForDay, repTargetText, uid } from "../lib/store";
+import { DAYS, DAY_TH, archiveOne, createEmpty, decodeTransfer, exercisesForDay, repTargetText, uid } from "../lib/store";
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
@@ -460,14 +460,14 @@ export default function ManageView() {
         <button
           className="btn-cy w-full !text-[12.5px]"
           onClick={() => {
-            try {
-              const restored = JSON.parse(decodeURIComponent(escape(atob(transferCode.trim()))));
-              if (!restored.exercises) throw 0;
-              update((d) => Object.assign(d, restored));
-              toast("กู้คืนแล้ว");
-            } catch {
+            // decodeTransfer ตรวจชนิดข้อมูลผ่าน normalizeData แล้ว — คืน null = โค้ดพัง/ปลอม
+            const restored = decodeTransfer(transferCode);
+            if (!restored) {
               toast("โค้ดไม่ถูกต้อง");
+              return;
             }
+            update((d) => Object.assign(d, restored));
+            toast("กู้คืนแล้ว");
           }}
         >
           กู้คืนจากโค้ด
