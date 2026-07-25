@@ -8,6 +8,8 @@ import { resolveAccent } from "./lib/accent";
 import { isCoach } from "./lib/edition";
 import { ensureActiveProfile, loadProfileData, saveProfileData, setActiveProfileId } from "./lib/profiles";
 import ProfileBar from "./components/ProfileBar";
+import { readProgramFromUrl } from "./lib/programLink";
+import IncomingProgram from "./components/IncomingProgram";
 import TodayView from "./components/TodayView";
 import ProgramView from "./components/ProgramView";
 import AnalyzerView from "./components/AnalyzerView";
@@ -79,6 +81,8 @@ export default function App() {
   const toastTimer = useRef<number | undefined>(undefined);
   const rest = useRef<RestTimerHandle | null>(null);
   const storageOk = useMemo(() => store.works(), []);
+  // เปิดแอปมาจากลิงก์โปรแกรมของโค้ช — อ่านครั้งเดียวตอน mount
+  const [incoming, setIncoming] = useState<string | null>(() => readProgramFromUrl());
   // data ที่ถืออยู่เป็นของโปรไฟล์ไหน — กันเซฟข้อมูลคนเก่าทับคนใหม่ตอนสลับ
   const dataOwner = useRef(profileId);
 
@@ -239,6 +243,8 @@ export default function App() {
             })}
           </div>
         </nav>
+
+        {incoming && <IncomingProgram code={incoming} onClose={() => setIncoming(null)} />}
 
         {toastState && (
           <div

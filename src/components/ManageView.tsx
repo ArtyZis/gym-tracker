@@ -6,6 +6,7 @@ import { DAYS, DAY_TH, archiveOne, createEmpty, exercisesForDay, repTargetText, 
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
+import ShareProgramCard from "./ShareProgramCard";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isCoach } from "../lib/edition";
@@ -47,6 +48,8 @@ export default function ManageView() {
       {isCoach && <LicenseCard />}
 
       <ImportProgramCard />
+
+      <ShareProgramCard />
 
       <SavedProgramsCard />
 
