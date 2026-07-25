@@ -12,6 +12,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:coach": "tsc --noEmit && vite build --mode coach",
+    "license": "node scripts/make-license.mjs",
     "preview": "vite preview",
     "bundle": "bash scripts/bundle-artifact.sh"
   },

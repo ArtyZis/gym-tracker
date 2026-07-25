@@ -8,6 +8,8 @@ import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
+import { isCoach } from "../lib/edition";
+import LicenseCard from "./LicenseCard";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
 
@@ -42,6 +44,8 @@ export default function ManageView() {
 
   return (
     <div className="rise">
+      {isCoach && <LicenseCard />}
+
       <ImportProgramCard />
 
       <SavedProgramsCard />

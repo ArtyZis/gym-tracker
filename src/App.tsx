@@ -5,6 +5,9 @@ import type { Data } from "./lib/store";
 import { DAY_TH, JS_DAYS, createDefault, store } from "./lib/store";
 import { setSoundEnabled } from "./lib/sound";
 import { resolveAccent } from "./lib/accent";
+import { isCoach } from "./lib/edition";
+import { ensureActiveProfile, loadProfileData, saveProfileData, setActiveProfileId } from "./lib/profiles";
+import ProfileBar from "./components/ProfileBar";
 import TodayView from "./components/TodayView";
 import ProgramView from "./components/ProgramView";
 import AnalyzerView from "./components/AnalyzerView";
@@ -66,16 +69,36 @@ interface Toast {
 }
 
 export default function App() {
-  const [data, setData] = useState<Data>(() => store.load() ?? createDefault());
+  // รุ่น Coach: ข้อมูลแยกตามลูกเทรนแต่ละคน · รุ่นส่วนตัว: ก้อนเดียวใน gymtracker_v1 เหมือนเดิมทุกอย่าง
+  const [profileId, setProfileId] = useState<string>(() => (isCoach ? ensureActiveProfile() : ""));
+  const [data, setData] = useState<Data>(() =>
+    isCoach ? loadProfileData(ensureActiveProfile()) : (store.load() ?? createDefault()),
+  );
   const [tab, setTab] = useState<TabId>("today");
   const [toastState, setToastState] = useState<Toast | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const rest = useRef<RestTimerHandle | null>(null);
   const storageOk = useMemo(() => store.works(), []);
+  // data ที่ถืออยู่เป็นของโปรไฟล์ไหน — กันเซฟข้อมูลคนเก่าทับคนใหม่ตอนสลับ
+  const dataOwner = useRef(profileId);
 
   useEffect(() => {
-    store.save(data);
-  }, [data]);
+    if (!isCoach) {
+      store.save(data);
+      return;
+    }
+    if (dataOwner.current !== profileId) return;
+    saveProfileData(profileId, data);
+  }, [data, profileId]);
+
+  const switchProfile = useCallback((id: string) => {
+    dataOwner.current = id;
+    setProfileId(id);
+    setData(loadProfileData(id));
+    setActiveProfileId(id);
+    setTab("today");
+    window.scrollTo({ top: 0 });
+  }, []);
 
   // เปิด/ปิดเสียงตามการตั้งค่า (undefined = เปิด)
   useEffect(() => {
@@ -154,6 +177,8 @@ export default function App() {
           </div>
         </header>
 
+        {isCoach && <ProfileBar activeId={profileId} onSwitch={switchProfile} toast={toast} />}
+
         {!storageOk && (
           <div
             className="mx-4 mb-2 px-4 py-2.5 rounded-xl text-[12px] leading-relaxed"
@@ -163,7 +188,9 @@ export default function App() {
           </div>
         )}
 
-        <main className="flex-1 px-4 pb-[118px]">
+        {/* key=profileId: สลับลูกเทรนแล้วล้าง state ค้างในหน้าจอ (เช่น draft น้ำหนักของคนก่อน)
+            รุ่นส่วนตัว profileId เป็น "" คงที่ จึงไม่มีผลอะไร */}
+        <main key={profileId} className="flex-1 px-4 pb-[118px]">
           {tab === "today" && <TodayView />}
           {tab === "program" && <ProgramView />}
           {tab === "analyze" && <AnalyzerView />}
