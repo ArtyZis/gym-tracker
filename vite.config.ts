@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => {
   const name = "Gym Tracker";
 
   return {
+    // path แบบสัมพัทธ์ — เสิร์ฟได้ทั้งที่ราก (Netlify) และที่ path ย่อย (GitHub Pages: /ชื่อ-repo/)
+    // ถ้าใช้ "/" แบบเดิม เปิดบน GitHub Pages จะจอขาวเพราะหา assets ไม่เจอ
+    base: "./",
     build: { outDir: pro ? "dist-pro" : "dist" },
     plugins: [
       react(),
