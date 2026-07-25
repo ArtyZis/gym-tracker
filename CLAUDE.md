@@ -38,16 +38,20 @@ $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $e
 
 `VITE_EDITION` กำหนดรุ่นตอน build — **ค่าเริ่มต้นคือ `personal` เสมอ** ดู [src/lib/edition.ts](src/lib/edition.ts)
 
-| รุ่น | คำสั่ง | ออกที่ | เว็บ | มีอะไรเพิ่ม |
+| รุ่น | คำสั่ง | ออกที่ | เว็บ | ต่างกันตรงไหน |
 |---|---|---|---|---|
-| personal (ของ ARTYZ) | `npm run build` | `dist/` | artytraining | ไม่มีล็อก ไม่มีลิมิต |
-| coach (ขายเทรนเนอร์) | `npm run build:coach` | `dist-coach/` | artycoach | ทะเบียนลูกเทรน + รหัสปลดล็อก |
+| personal (ของ ARTYZ) | `npm run build` | `dist/` | artytraining | เปิดทุกฟีเจอร์ ไม่มีช่วงทดลอง ไม่มีรหัส |
+| pro (ที่ขาย) | `npm run build:pro` | `dist-pro/` | artycoach | ทดลองฟรี 30 วัน แล้วล็อกฟีเจอร์สมองโค้ช |
 
-- โค้ดรุ่น coach (`lib/profiles.ts`, `lib/license.ts`, `ProfileBar`, `LicenseCard`) ถูก
-  tree-shake **ออกจาก build รุ่น personal ทั้งหมด** — ยืนยันได้ด้วยการ grep หา `artyz-coach-2026`
-  ใน `dist/assets/*.js` ต้องไม่เจอ ถ้าเจอแปลว่า gate หลุดเข้าไปในรุ่นผู้ใช้ = บั๊ก
-- รุ่น coach เก็บข้อมูลคนละคีย์ (`gymtracker_coach_roster_v1`, `gymtracker_coach_data_<id>`)
-  **ไม่แตะ `gymtracker_v1`** เลย (อ่านคัดลอกครั้งแรกอย่างเดียว)
+**โมเดลขาย** (ดู [src/lib/premium.ts](src/lib/premium.ts)) — ทดลอง 30 วัน → ตกกลับเป็นรุ่นฟรี
+→ จ่ายครั้งเดียวปลดล็อกถาวร (ราคาแก้ที่ `PRICE_THB` ใน license.ts)
+
+- **ห้ามล็อก**: บันทึกฝึก ประวัติ สตรีค จับเวลาพัก การ์ดสรุปสัปดาห์ นำเข้า/ส่งโปรแกรม
+  (ล็อกข้อมูลผู้ใช้ = จับข้อมูลเขาเป็นตัวประกัน · การ์ดสรุปคือช่องทางที่คนแชร์ต่อ)
+- **ล็อกได้**: บอกน้ำหนักครั้งหน้า (`suggestTarget`), วิเคราะห์โปรแกรม, warm-up, พยากรณ์ PR
+- `settings.startedAt` เก็บรวมในก้อนเดียวกับประวัติโดยตั้งใจ — ล้างเพื่อรีเซ็ตช่วงทดลอง = ประวัติหายด้วย
+- โค้ดตรวจสิทธิ์ถูก tree-shake **ออกจาก build รุ่น personal ทั้งหมด** — ตรวจด้วยการ grep หา
+  `artyz-coach-2026` ใน `dist/assets/*.js` **ต้องไม่เจอ** ถ้าเจอแปลว่า gate หลุดเข้ารุ่นผู้ใช้ = บั๊ก
 - สร้างรหัสขาย: `npm run license 5`
 
 ## คำสั่ง
@@ -55,11 +59,11 @@ $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $e
 ```powershell
 $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $env:PATH
 
-npm run dev          # dev server (รุ่น personal)
-npm run build        # -> dist/       รุ่น personal
-npm run build:coach  # -> dist-coach/ รุ่น coach
-npm run bundle       # Parcel -> bundle.html ไฟล์เดียว
-npm run license 5    # สร้างรหัสปลดล็อก 5 อัน
+npm run dev        # dev server (รุ่น personal)
+npm run build      # -> dist/     รุ่น personal
+npm run build:pro  # -> dist-pro/ รุ่นที่ขาย
+npm run bundle     # Parcel -> bundle.html ไฟล์เดียว
+npm run license 5  # สร้างรหัสปลดล็อก 5 อัน
 ```
 
 deploy — **ต้องระบุ `--site` ให้ถูกรุ่น ไม่งั้น deploy ทับผิดเว็บ**:
@@ -68,8 +72,8 @@ deploy — **ต้องระบุ `--site` ให้ถูกรุ่น �
 # รุ่นส่วนตัว -> artytraining (โฟลเดอร์ link ไว้กับอันนี้อยู่แล้ว)
 .\node_modules\.bin\netlify.cmd deploy --prod --dir=dist --no-build
 
-# รุ่นขาย -> artycoach (ต้องใส่ --site เพราะ link ไม่ได้ชี้มาที่นี่)
-.\node_modules\.bin\netlify.cmd deploy --prod --dir=dist-coach --no-build --site 8d4dc317-a810-4075-8f7e-4d4311f4ee26
+# รุ่นที่ขาย -> artycoach (ต้องใส่ --site เพราะ link ไม่ได้ชี้มาที่นี่)
+.\node_modules\.bin\netlify.cmd deploy --prod --dir=dist-pro --no-build --site 8d4dc317-a810-4075-8f7e-4d4311f4ee26
 ```
 
 เทสต์ logic (parser / rest / forecast) — ต้อง bundle ก่อน เพราะ Node ESM

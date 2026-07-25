@@ -52,6 +52,9 @@ export interface Settings {
   smartRest?: boolean; // ใช้เวลาพักที่ระบบแนะนำต่อท่า — undefined = เปิด (default)
   accent?: string; // สีธีม (accent) — undefined = cyan #4fd8ff (ค่าเดิมของแบรนด์)
   showCoachNotes?: boolean; // โน้ตโค้ชในการ์ดท่า — undefined = แสดง (default)
+  // วันเริ่มใช้แอป (ISO) — ใช้นับช่วงทดลองรุ่น pro เท่านั้น
+  // จงใจเก็บรวมในก้อนข้อมูลเดียวกับประวัติ: ใครล้างเพื่อรีเซ็ตช่วงทดลอง ประวัติฝึกจะหายไปด้วย
+  startedAt?: string;
 }
 
 // โปรแกรมที่บันทึกไว้ (routine) — สลับ/ลบได้

@@ -5,9 +5,7 @@ import type { Data } from "./lib/store";
 import { DAY_TH, JS_DAYS, createDefault, store } from "./lib/store";
 import { setSoundEnabled } from "./lib/sound";
 import { resolveAccent } from "./lib/accent";
-import { isCoach } from "./lib/edition";
-import { ensureActiveProfile, loadProfileData, saveProfileData, setActiveProfileId } from "./lib/profiles";
-import ProfileBar from "./components/ProfileBar";
+import { ensureStartedAt } from "./lib/premium";
 import { readProgramFromUrl } from "./lib/programLink";
 import IncomingProgram from "./components/IncomingProgram";
 import TodayView from "./components/TodayView";
@@ -71,11 +69,7 @@ interface Toast {
 }
 
 export default function App() {
-  // รุ่น Coach: ข้อมูลแยกตามลูกเทรนแต่ละคน · รุ่นส่วนตัว: ก้อนเดียวใน gymtracker_v1 เหมือนเดิมทุกอย่าง
-  const [profileId, setProfileId] = useState<string>(() => (isCoach ? ensureActiveProfile() : ""));
-  const [data, setData] = useState<Data>(() =>
-    isCoach ? loadProfileData(ensureActiveProfile()) : (store.load() ?? createDefault()),
-  );
+  const [data, setData] = useState<Data>(() => store.load() ?? createDefault());
   const [tab, setTab] = useState<TabId>("today");
   const [toastState, setToastState] = useState<Toast | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -83,26 +77,14 @@ export default function App() {
   const storageOk = useMemo(() => store.works(), []);
   // เปิดแอปมาจากลิงก์โปรแกรมของโค้ช — อ่านครั้งเดียวตอน mount
   const [incoming, setIncoming] = useState<string | null>(() => readProgramFromUrl());
-  // data ที่ถืออยู่เป็นของโปรไฟล์ไหน — กันเซฟข้อมูลคนเก่าทับคนใหม่ตอนสลับ
-  const dataOwner = useRef(profileId);
-
   useEffect(() => {
-    if (!isCoach) {
-      store.save(data);
-      return;
-    }
-    if (dataOwner.current !== profileId) return;
-    saveProfileData(profileId, data);
-  }, [data, profileId]);
+    store.save(data);
+  }, [data]);
 
-  const switchProfile = useCallback((id: string) => {
-    dataOwner.current = id;
-    setProfileId(id);
-    setData(loadProfileData(id));
-    setActiveProfileId(id);
-    setTab("today");
-    window.scrollTo({ top: 0 });
-  }, []);
+  // ตั้งวันเริ่มใช้ครั้งแรก — ใช้นับช่วงทดลองรุ่น pro
+  useEffect(() => {
+    if (!data.settings.startedAt) setData((cur) => structuredClone({ ...cur, settings: { ...cur.settings, startedAt: new Date().toISOString() } }));
+  }, [data.settings.startedAt]);
 
   // เปิด/ปิดเสียงตามการตั้งค่า (undefined = เปิด)
   useEffect(() => {
@@ -128,10 +110,15 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToastState(null), glow ? 2600 : 1900);
   }, []);
 
+  const goTab = useCallback((t: TabId) => {
+    setTab(t);
+    window.scrollTo({ top: 0 });
+  }, []);
+
   const now = new Date();
 
   return (
-    <AppContext.Provider value={{ data, update, toast, rest }}>
+    <AppContext.Provider value={{ data, update, toast, rest, goTab }}>
       <div className="mx-auto max-w-[520px] flex flex-col relative" style={{ minHeight: "100dvh" }}>
         <header
           className="px-4 pb-3 flex items-center justify-between gap-3"
@@ -181,8 +168,6 @@ export default function App() {
           </div>
         </header>
 
-        {isCoach && <ProfileBar activeId={profileId} onSwitch={switchProfile} toast={toast} />}
-
         {!storageOk && (
           <div
             className="mx-4 mb-2 px-4 py-2.5 rounded-xl text-[12px] leading-relaxed"
@@ -192,9 +177,7 @@ export default function App() {
           </div>
         )}
 
-        {/* key=profileId: สลับลูกเทรนแล้วล้าง state ค้างในหน้าจอ (เช่น draft น้ำหนักของคนก่อน)
-            รุ่นส่วนตัว profileId เป็น "" คงที่ จึงไม่มีผลอะไร */}
-        <main key={profileId} className="flex-1 px-4 pb-[118px]">
+        <main className="flex-1 px-4 pb-[118px]">
           {tab === "today" && <TodayView />}
           {tab === "program" && <ProgramView />}
           {tab === "analyze" && <AnalyzerView />}

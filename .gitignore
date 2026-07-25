@@ -1,6 +1,6 @@
 node_modules/
 dist/
-dist-coach/
+dist-pro/
 dist-bundle/
 .parcel-cache/
 bundle.html

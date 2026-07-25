@@ -8,6 +8,7 @@ export interface AppCtx {
   update: (fn: (draft: Data) => void) => void;
   toast: (msg: string, glow?: boolean) => void;
   rest: MutableRefObject<RestTimerHandle | null>;
+  goTab: (tab: "today" | "program" | "analyze" | "progress" | "manage") => void;
 }
 
 export const AppContext = createContext<AppCtx | null>(null);

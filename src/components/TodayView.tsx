@@ -15,6 +15,7 @@ import ExercisePicker from "./ExercisePicker";
 import { restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progression";
 import { haptics } from "../lib/haptics";
 import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
+import { isPremium } from "../lib/premium";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
 function restForExercise(data: Data, ex: Exercise, fallback: number): number {
@@ -41,7 +42,8 @@ function todayVolume(data: Data, exIds: string[]): number {
 }
 
 export default function TodayView() {
-  const { data, update, toast, rest } = useApp();
+  const { data, update, toast, rest, goTab } = useApp();
+  const premium = isPremium(data);
   const [day, setDay] = useState(() => {
     const today = JS_DAYS[new Date().getDay()];
     return exercisesForDay(data, today).length ? today : (DAYS.find((d) => exercisesForDay(data, d).length) ?? today);
@@ -291,7 +293,7 @@ export default function TodayView() {
         const open = openId === ex.id;
         const target = suggestTarget(data, ex);
         const firstWeight = draftFor(ex, 0).weight;
-        const warmup = open && ex.type === "weight" ? warmupRamp(ex, firstWeight) : [];
+        const warmup = premium && open && ex.type === "weight" ? warmupRamp(ex, firstWeight) : [];
 
         return (
           <div
@@ -380,17 +382,32 @@ export default function TodayView() {
 
             {open && (
               <div className="px-4 pb-4">
-                {data.settings.showCoachNotes !== false && (
-                  <div
-                    className="glass-inset px-3 py-2.5 mb-3 flex items-start gap-2.5"
-                    style={{ borderColor: "color-mix(in srgb, var(--acc) 26%, transparent)", background: "var(--acc-08)" }}
-                  >
-                    <span className="text-[13px] mt-px">🎯</span>
-                    <span className="text-[12.5px] leading-relaxed" style={{ color: "#dbe9f7" }}>
-                      {target.msg}
-                    </span>
-                  </div>
-                )}
+                {premium
+                  ? data.settings.showCoachNotes !== false && (
+                      <div
+                        className="glass-inset px-3 py-2.5 mb-3 flex items-start gap-2.5"
+                        style={{ borderColor: "color-mix(in srgb, var(--acc) 26%, transparent)", background: "var(--acc-08)" }}
+                      >
+                        <span className="text-[13px] mt-px">🎯</span>
+                        <span className="text-[12.5px] leading-relaxed" style={{ color: "#dbe9f7" }}>
+                          {target.msg}
+                        </span>
+                      </div>
+                    )
+                  : /* หมดช่วงทดลอง — รวมเป้าหมายวันนี้ + warm-up ไว้แถวเดียว ไม่ให้การ์ดรกด้วยแถวล็อกหลายอัน */ (
+                      <button
+                        className="glass-inset w-full px-3 py-2.5 mb-3 flex items-center gap-2.5 text-left"
+                        onClick={() => goTab("manage")}
+                      >
+                        <span className="text-[13px]">🔒</span>
+                        <span className="text-[12px] flex-1 leading-snug" style={{ color: "var(--mut)" }}>
+                          เป้าหมายน้ำหนักวันนี้ + warm-up
+                        </span>
+                        <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--acc)" }}>
+                          ปลดล็อก
+                        </span>
+                      </button>
+                    )}
 
                 {/* เวลาพักที่แนะนำสำหรับท่านี้ — กดเพื่อเริ่มจับเวลาด้วยเวลานี้ทันที */}
                 <button

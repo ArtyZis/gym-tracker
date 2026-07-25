@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { useApp } from "../AppContext";
 import type { Recommendation } from "../lib/analyzer";
 import { MUSCLE_TH, analyzeProgram, applyRecommendation, buildRecommendations } from "../lib/analyzer";
-import { Kicker } from "./ui";
+import { Kicker, PremiumLock } from "./ui";
+import { isPremium } from "../lib/premium";
 
 export default function AnalyzerView() {
   const { data, update, toast } = useApp();
@@ -24,6 +25,7 @@ export default function AnalyzerView() {
           ? "var(--warn)"
           : "var(--bad)";
   const circ = 2 * Math.PI * 34;
+  const premium = isPremium(data);
 
   return (
     <div className="rise">
@@ -66,6 +68,33 @@ export default function AnalyzerView() {
         </div>
       </div>
 
+      {!premium && (
+        <PremiumLock
+          label={`เจอ ${analysis.issues.length} จุดที่ควรแก้ในโปรแกรมนี้ — ปลดล็อกเพื่อดูว่าคืออะไรและแก้ยังไง`}
+        >
+          <div className="glass p-4 mb-3">
+            <Kicker>เซตต่อกล้ามเนื้อ / สัปดาห์</Kicker>
+            {analysis.stats.slice(0, 6).map((s) => (
+              <div key={s.muscle} className="mb-2.5">
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="text-[12.5px]">{MUSCLE_TH[s.muscle]}</span>
+                  <span className="font-mono2 text-[10.5px]" style={{ color: "var(--acc)" }}>
+                    {s.sets} เซต
+                  </span>
+                </div>
+                <div className="h-[6px] rounded-full overflow-hidden" style={{ background: "rgba(120,180,255,.10)" }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${Math.min(100, (s.sets / 26) * 100)}%`, background: "var(--acc)" }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </PremiumLock>
+      )}
+
+      {premium && (
       <div className="glass p-4 mb-3">
         <Kicker>เซตต่อกล้ามเนื้อ / สัปดาห์</Kicker>
         {analysis.stats.map((s) => {
@@ -99,8 +128,9 @@ export default function AnalyzerView() {
           ท่า compound นับให้กล้ามรองครึ่งเซต · ท่าละ 3-5 เซตกำลังดี
         </p>
       </div>
+      )}
 
-      {analysis.issues.length > 0 && (
+      {premium && analysis.issues.length > 0 && (
         <div className="glass p-4 mb-3">
           <Kicker>จุดที่ตรวจพบ</Kicker>
           {analysis.issues.map((issue, i) => (
@@ -112,7 +142,7 @@ export default function AnalyzerView() {
         </div>
       )}
 
-      {recommendations.length > 0 && (
+      {premium && recommendations.length > 0 && (
         <div className="glass p-4">
           <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "#4b8bb0" }}>แตะทำตามได้</span>}>คำแนะนำปรับโปรแกรม</Kicker>
           <p className="text-[11px] -mt-1 mb-2" style={{ color: "var(--dim)" }}>
@@ -164,7 +194,7 @@ export default function AnalyzerView() {
         </div>
       )}
 
-      {recommendations.length === 0 && (
+      {premium && recommendations.length === 0 && (
         <div className="glass p-6 text-center rise" style={{ color: analysis.score >= 100 ? "var(--good)" : "var(--mut)" }}>
           <div className="text-[15px] font-disp font-bold mb-1">
             {analysis.score >= 100 ? "เต็ม 100 แล้ว 🎉" : "ไม่มีจุดที่ต้องปรับตอนนี้ 🎯"}

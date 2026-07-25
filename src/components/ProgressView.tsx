@@ -7,6 +7,7 @@ import { shareWeeklyCard } from "../lib/share";
 import StreakCard from "./StreakCard";
 import BodyCompCard from "./BodyCompCard";
 import { Kicker } from "./ui";
+import { isPremium } from "../lib/premium";
 
 // อัตราส่วนน้ำหนักที่ยกได้ต่อน้ำหนักตัว: [เริ่มต้น, กลาง, สูง]
 const STRENGTH_STANDARDS: Record<string, { ratios: [number, number, number] }> = {
@@ -33,7 +34,7 @@ function standardKey(name: string): string | null {
 }
 
 export default function ProgressView() {
-  const { data, update, toast } = useApp();
+  const { data, update, toast, goTab } = useApp();
   const [bwInput, setBwInput] = useState("");
   const [exId, setExId] = useState(data.exercises[0]?.id ?? "");
 
@@ -52,7 +53,8 @@ export default function ProgressView() {
 
   const metric: keyof SetLog = ex?.type === "weight" ? "weight" : ex?.type === "time" ? "duration" : "reps";
   const points = sessions.slice(-12).map((s) => Math.max(...s.sets.map((st) => st[metric] || 0)));
-  const forecast = useMemo(() => (ex ? forecastPR(data, ex) : null), [data, ex]);
+  const premium = isPremium(data);
+  const forecast = useMemo(() => (premium && ex ? forecastPR(data, ex) : null), [data, ex, premium]);
   const [sharing, setSharing] = useState(false);
 
   function saveBodyweight() {
@@ -196,7 +198,21 @@ export default function ProgressView() {
             </p>
           </div>
         )}
-        {!forecast && ex?.type === "weight" && sessions.length > 0 && (
+        {!premium && ex?.type === "weight" && sessions.length > 0 && (
+          <button
+            className="glass-inset w-full px-3 py-2.5 my-2 flex items-center gap-2.5 text-left"
+            onClick={() => goTab("manage")}
+          >
+            <span className="text-[13px]">🔒</span>
+            <span className="text-[12px] flex-1 leading-snug" style={{ color: "var(--mut)" }}>
+              พยากรณ์ PR — อีก 2-4 สัปดาห์จะยกได้เท่าไหร่
+            </span>
+            <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--acc)" }}>
+              ปลดล็อก
+            </span>
+          </button>
+        )}
+        {premium && !forecast && ex?.type === "weight" && sessions.length > 0 && (
           <p className="text-[11px] my-2" style={{ color: "var(--dim)" }}>
             บันทึกให้ครบ 4 เซสชันขึ้นไป จะเริ่มพยากรณ์ PR ให้
           </p>

@@ -1,14 +1,15 @@
-// รุ่นของแอป — กำหนดตอน build ผ่าน VITE_EDITION (ดู .env.coach)
+// รุ่นของแอป — กำหนดตอน build ผ่าน VITE_EDITION (ดู .env.pro)
 //
-// personal = เว็บของ ARTYZ เอง (artytraining) — ไม่มีบัญชี ไม่มีรหัสปลดล็อก ไม่มีลิมิตใดๆ
-//            โค้ดส่วนขาย/ล็อกไม่ถูกคอมไพล์เข้ามาเลย ไม่ใช่แค่ "ปิดไว้"
-// coach    = รุ่นขายให้เทรนเนอร์ — ทะเบียนลูกเทรนหลายคน + ปลดล็อกด้วยรหัส
+// personal = เว็บส่วนตัวของ ARTYZ (artytraining) — เปิดทุกฟีเจอร์ ไม่มีช่วงทดลอง ไม่มีรหัส
+//            โค้ดตรวจสิทธิ์ไม่ถูกคอมไพล์เข้ามาเลย ไม่ใช่แค่ "ปิดไว้"
+// pro      = เว็บที่ขาย (artycoach) — ทดลองฟรี 30 วัน แล้วล็อกฟีเจอร์สมองโค้ช
+//            บันทึกฝึก/ประวัติ/สตรีค/การ์ดสรุป ใช้ฟรีตลอดชีพเสมอ
 //
-// ค่าเริ่มต้นคือ personal เสมอ: build เดิมของผู้ใช้จึงได้ผลลัพธ์เหมือนก่อนมีไฟล์นี้ทุกประการ
-export type Edition = "personal" | "coach";
+// ค่าเริ่มต้นคือ personal เสมอ: build เดิมจึงได้ผลลัพธ์เหมือนก่อนมีไฟล์นี้ทุกประการ
+export type Edition = "personal" | "pro";
 
-export const EDITION: Edition = import.meta.env.VITE_EDITION === "coach" ? "coach" : "personal";
+export const EDITION: Edition = import.meta.env.VITE_EDITION === "pro" ? "pro" : "personal";
 
-export const isCoach = EDITION === "coach";
+export const isPro = EDITION === "pro";
 
-export const APP_NAME = isCoach ? "Gym Tracker Coach" : "Gym Tracker";
+export const APP_NAME = "Gym Tracker";
