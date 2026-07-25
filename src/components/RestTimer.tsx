@@ -281,7 +281,7 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
               strokeLinecap="round"
               strokeDasharray={circ}
               strokeDashoffset={circ * (1 - pct)}
-              style={{ transition: "stroke-dashoffset .3s linear", filter: "drop-shadow(0 0 5px rgba(79,216,255,.6))" }}
+              style={{ transition: "stroke-dashoffset .3s linear", filter: "drop-shadow(0 0 5px color-mix(in srgb, var(--acc) 60%, transparent))" }}
             />
           </svg>
           <span
