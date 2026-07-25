@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useApp } from "../AppContext";
 import type { Recommendation } from "../lib/analyzer";
 import { MUSCLE_TH, analyzeProgram, applyRecommendation, buildRecommendations } from "../lib/analyzer";
+import { Kicker } from "./ui";
 
 export default function AnalyzerView() {
   const { data, update, toast } = useApp();
@@ -26,7 +27,11 @@ export default function AnalyzerView() {
 
   return (
     <div className="rise">
-      <div className="glass p-5 mb-3 flex items-center gap-5">
+      <div className="glass p-5 mb-3 flex items-center gap-5 relative overflow-hidden">
+        <div
+          className="absolute pointer-events-none"
+          style={{ top: -30, right: -20, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, var(--acc-18), transparent 70%)" }}
+        />
         <div className="relative w-[86px] h-[86px] shrink-0">
           <svg width="86" height="86" viewBox="0 0 86 86" style={{ transform: "rotate(-90deg)" }}>
             <circle cx="43" cy="43" r={34} stroke="rgba(120,180,255,.13)" strokeWidth="7" fill="none" />
@@ -52,11 +57,9 @@ export default function AnalyzerView() {
             </span>
           </div>
         </div>
-        <div className="min-w-0">
-          <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-1" style={{ color: "var(--cyan-dim)" }}>
-            Program Score
-          </div>
-          <h2 className="font-disp font-bold text-[18px] leading-snug">{analysis.headline}</h2>
+        <div className="min-w-0 relative">
+          <Kicker>Program Score</Kicker>
+          <h2 className="font-disp font-bold text-[18px] leading-snug -mt-1">{analysis.headline}</h2>
           <p className="text-[12px] mt-1" style={{ color: "var(--mut)" }}>
             วิเคราะห์จาก volume ต่อกล้ามเนื้อ ความถี่ และความครอบคลุมทั้งสัปดาห์
           </p>
@@ -64,18 +67,14 @@ export default function AnalyzerView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-3" style={{ color: "var(--cyan-dim)" }}>
-          เซตต่อกล้ามเนื้อ / สัปดาห์
-        </div>
+        <Kicker>เซตต่อกล้ามเนื้อ / สัปดาห์</Kicker>
         {analysis.stats.map((s) => {
           const color =
             s.status === "good"
-              ? "var(--good)"
+              ? "var(--acc)"
               : s.status === "low"
                 ? "var(--warn)"
-                : s.status === "high"
-                  ? "var(--cyan)"
-                  : "var(--bad)";
+                : "var(--bad)";
           const width = Math.min(100, (s.sets / 26) * 100);
           return (
             <div key={s.muscle} className="mb-2.5">
@@ -103,9 +102,7 @@ export default function AnalyzerView() {
 
       {analysis.issues.length > 0 && (
         <div className="glass p-4 mb-3">
-          <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
-            จุดที่ตรวจพบ
-          </div>
+          <Kicker>จุดที่ตรวจพบ</Kicker>
           {analysis.issues.map((issue, i) => (
             <div key={i} className="flex gap-2.5 py-1.5 text-[13px]" style={{ color: "var(--ink)" }}>
               <span style={{ color: "var(--warn)" }}>▸</span>
@@ -117,10 +114,8 @@ export default function AnalyzerView() {
 
       {recommendations.length > 0 && (
         <div className="glass p-4">
-          <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-1" style={{ color: "var(--cyan-dim)" }}>
-            คำแนะนำปรับโปรแกรม — แตะทำตามได้เลย
-          </div>
-          <p className="text-[11px] mb-1.5" style={{ color: "var(--dim)" }}>
+          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "#4b8bb0" }}>แตะทำตามได้</span>}>คำแนะนำปรับโปรแกรม</Kicker>
+          <p className="text-[11px] -mt-1 mb-2" style={{ color: "var(--dim)" }}>
             ทำตามจนครบ คะแนนจะเต็ม 100
           </p>
           {recommendations.map((rec) => {
@@ -155,7 +150,10 @@ export default function AnalyzerView() {
                 </div>
                 <button
                   className="btn-cy !py-2.5 !px-4 !text-[12px] shrink-0"
-                  style={{ background: `linear-gradient(180deg, ${accent}, ${accent})`, filter: "saturate(1.1)" }}
+                  style={{
+                    background: `linear-gradient(180deg, ${accent}, color-mix(in srgb, ${accent} 78%, #06121f))`,
+                    boxShadow: `0 6px 14px -6px ${accent}`,
+                  }}
                   onClick={() => applyRec(rec)}
                 >
                   {verb}
