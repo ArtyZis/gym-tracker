@@ -2,14 +2,17 @@ import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { EffectiveExercise, SwapTarget } from "../lib/store";
 import { DAY_TH, addExtra, clearSwap, normName, removeExtra, setSwap } from "../lib/store";
-import { MUSCLE_TH, SUGGESTION_BANK, muscleMap } from "../lib/analyzer";
+import { MUSCLE_TH, muscleMap } from "../lib/analyzer";
+import { EQUIP_TH, incFor, isMachine, searchExercises, unitFor } from "../lib/exerciseDB";
 
 interface Option extends SwapTarget {
-  from: string; // มาจากไหน — วันในโปรแกรม หรือ "คลังท่า"
+  from: string; // มาจากไหน — วันในโปรแกรม หรืออุปกรณ์ที่ใช้ (ท่าจากคลัง)
   muscles: string;
+  tip?: string; // คำแนะนำวิธีเล่น (มีเฉพาะท่าจากคลัง)
 }
 
 // เลือกท่า: ใช้ทั้งสลับแทนท่าเดิม (mode swap) และเพิ่มท่าเข้าวันนี้ (mode extra)
+// ค้นได้จากคลังท่าหลักทั้งหมด (exerciseDB) ไม่ใช่แค่ท่าที่มีในโปรแกรม
 export default function ExercisePicker({
   mode,
   ex,
@@ -21,19 +24,22 @@ export default function ExercisePicker({
 }) {
   const { data, update, toast } = useApp();
   const [q, setQ] = useState("");
+  const [openTip, setOpenTip] = useState<string | null>(null);
 
   const options = useMemo(() => {
     const out: Option[] = [];
     const seen = new Set<string>(ex ? [normName(ex.name)] : []);
+    const query = q.trim().toLowerCase();
     const musclesOf = (name: string) =>
       muscleMap(name)
         .map((h) => MUSCLE_TH[h.m])
         .slice(0, 2)
         .join("/") || "—";
 
-    // ท่าทั้งหมดในโปรแกรม (ทุกวัน ทุกกลุ่มกล้ามเนื้อ)
+    // 1) ท่าที่มีในโปรแกรมอยู่แล้ว — ขึ้นก่อนเพราะผู้ใช้คุ้นและมีประวัติสะสมไว้
     for (const o of data.exercises) {
       if (seen.has(normName(o.name))) continue;
+      if (query && !o.name.toLowerCase().includes(query) && !DAY_TH[o.day].includes(query)) continue;
       seen.add(normName(o.name));
       out.push({
         name: o.name,
@@ -49,32 +55,29 @@ export default function ExercisePicker({
         muscles: musclesOf(o.name),
       });
     }
-    // ท่าจากคลังแนะนำ (ที่ยังไม่มีในโปรแกรม)
-    for (const list of Object.values(SUGGESTION_BANK)) {
-      for (const c of list) {
-        if (seen.has(normName(c.name))) continue;
-        seen.add(normName(c.name));
-        out.push({
-          name: c.name,
-          type: c.type,
-          sets: ex?.sets ?? c.sets,
-          rmin: c.rmin,
-          rmax: c.rmax,
-          unit: c.type === "time" ? "วิ" : c.type === "weight" ? "kg" : undefined,
-          inc: c.type === "weight" ? 2.5 : undefined,
-          machine: /machine|cable|pulldown|leg press|leg extension|leg curl|pec deck/i.test(c.name) || undefined,
-          from: "คลังท่า",
-          muscles: MUSCLE_TH[c.muscle],
-        });
-      }
+
+    // 2) คลังท่าหลักทั้งหมด — ค้นได้ทั้งชื่อไทยและอังกฤษ
+    for (const t of searchExercises(q, 80)) {
+      if (seen.has(normName(t.name))) continue;
+      seen.add(normName(t.name));
+      out.push({
+        name: t.name,
+        type: t.type,
+        sets: ex && mode === "swap" ? ex.sets : t.sets,
+        rmin: t.rmin,
+        rmax: t.rmax,
+        unit: unitFor(t.equip, t.type),
+        inc: t.type === "weight" ? incFor(t.equip) : undefined,
+        machine: isMachine(t.equip) || undefined,
+        amrap: t.amrap,
+        from: EQUIP_TH[t.equip],
+        muscles: MUSCLE_TH[t.muscle],
+        tip: t.tip,
+      });
     }
 
-    const query = q.trim().toLowerCase();
-    const filtered = query
-      ? out.filter((o) => o.name.toLowerCase().includes(query) || o.muscles.includes(query) || o.from.includes(query))
-      : out;
-    return filtered.slice(0, 40);
-  }, [data.exercises, ex, q]);
+    return out.slice(0, 60);
+  }, [data.exercises, ex, mode, q]);
 
   function pick(t: SwapTarget) {
     const target: SwapTarget = { ...t, sets: ex && mode === "swap" ? ex.sets : t.sets };
@@ -99,58 +102,76 @@ export default function ExercisePicker({
             แทน <b style={{ color: "var(--ink)" }}>{ex?.name}</b> เฉพาะวันนี้ — พรุ่งนี้กลับไปใช้ท่าเดิมเอง
           </>
         ) : (
-          <>เลือกท่าจากวันอื่นหรือคลังท่ามาเล่นเพิ่มวันนี้ — พรุ่งนี้หายไปเอง</>
+          <>เลือกจากคลังท่าหรือท่าในโปรแกรม — เพิ่มเฉพาะวันนี้ พรุ่งนี้หายไปเอง</>
         )}
       </p>
 
       <input
         className="w-full px-3 py-2 text-[13px] mb-2"
-        placeholder="ค้นหาท่า เช่น squat, ขา, พุธ"
+        placeholder="ค้นหาท่า — พิมพ์ไทยหรืออังกฤษ เช่น สควอท, อก, bench, ดัมเบล"
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
 
-      <div className="max-h-[240px] overflow-y-auto -mx-1 px-1">
+      <div className="max-h-[300px] overflow-y-auto -mx-1 px-1">
         {options.map((o) => (
-          <button
-            key={o.name}
-            onClick={() => pick(o)}
-            className="w-full flex items-center gap-2 py-2 px-2 rounded-xl text-left active:scale-[.99] transition-transform hairline first:border-0"
-          >
-            <span className="flex-1 min-w-0">
-              <span className="block text-[13px] truncate">
-                {o.name}
-                {o.machine ? " ⚙" : ""}
-              </span>
-              <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
-                {o.from} · {o.muscles} · {o.sets}×{o.rmin}-{o.rmax}
-              </span>
-            </span>
-            <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--cyan)" }}>
-              {mode === "swap" ? "ใช้แทน" : "+ เพิ่ม"}
-            </span>
-          </button>
+          <div key={o.name} className="hairline first:border-0">
+            <div className="flex items-center gap-1.5 py-2 px-1">
+              <button onClick={() => pick(o)} className="flex-1 min-w-0 text-left active:scale-[.99] transition-transform">
+                <span className="block text-[13px] truncate">
+                  {o.name}
+                  {o.machine ? " ⚙" : ""}
+                </span>
+                <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
+                  {o.from} · {o.muscles} · {o.sets}×{o.amrap ? "สุดแรง" : `${o.rmin}-${o.rmax}`}
+                </span>
+              </button>
+              {o.tip && (
+                <button
+                  className="w-6 h-6 rounded-lg shrink-0 text-[10px] font-mono2"
+                  style={{
+                    background: openTip === o.name ? "var(--acc-18)" : "transparent",
+                    border: "1px solid var(--edge)",
+                    color: openTip === o.name ? "var(--acc)" : "var(--dim)",
+                  }}
+                  aria-label="วิธีเล่น"
+                  onClick={() => setOpenTip(openTip === o.name ? null : o.name)}
+                >
+                  ?
+                </button>
+              )}
+              <button
+                className="font-mono2 text-[10px] shrink-0 px-1"
+                style={{ color: "var(--acc)" }}
+                onClick={() => pick(o)}
+              >
+                {mode === "swap" ? "ใช้แทน" : "+ เพิ่ม"}
+              </button>
+            </div>
+            {openTip === o.name && o.tip && (
+              <p
+                className="text-[11.5px] leading-relaxed px-2 pb-2.5 -mt-0.5"
+                style={{ color: "#cfe0f0" }}
+              >
+                💡 {o.tip}
+              </p>
+            )}
+          </div>
         ))}
         {options.length === 0 && (
           <p className="text-[11.5px] py-2" style={{ color: "var(--dim)" }}>
-            ไม่เจอท่าที่ค้นหา — พิมพ์ชื่อท่าเองด้านล่างได้
+            ไม่เจอท่านี้ในคลัง — กด "ใช้ชื่อนี้" ด้านล่างเพื่อเพิ่มเองได้
           </p>
         )}
       </div>
 
       <div className="flex gap-2 mt-2.5">
-        <input
-          className="flex-1 px-3 py-2 text-[13px]"
-          placeholder="หรือพิมพ์ชื่อท่าเอง"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
         <button
-          className="btn-cy !py-2 !px-3.5 !text-[12px] shrink-0"
+          className="btn-cy w-full !py-2 !text-[12px]"
           onClick={() => {
             const name = q.trim();
             if (name.length < 2) {
-              toast("พิมพ์ชื่อท่าก่อน");
+              toast("พิมพ์ชื่อท่าในช่องค้นหาก่อน");
               return;
             }
             pick({
@@ -166,7 +187,7 @@ export default function ExercisePicker({
             });
           }}
         >
-          ใช้ชื่อนี้
+          ใช้ชื่อ "{q.trim() || "…"}" เป็นท่าใหม่
         </button>
       </div>
 

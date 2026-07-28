@@ -6,7 +6,6 @@ import { DAYS, DAY_TH, archiveOne, createEmpty, decodeTransfer, exercisesForDay,
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
-import ShareProgramCard from "./ShareProgramCard";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isPro } from "../lib/edition";
@@ -48,8 +47,6 @@ export default function ManageView() {
       {isPro && <UpgradeCard />}
 
       <ImportProgramCard />
-
-      <ShareProgramCard />
 
       <SavedProgramsCard />
 

@@ -303,13 +303,37 @@ export interface MuscleStat {
   status: MuscleStatus;
 }
 
+// ภาระของแต่ละวันฝึก — ยัดเซตเยอะเกินในวันเดียวคุณภาพตก (เซตท้ายๆ แรงหมด กระตุ้นได้น้อย)
+export interface DayLoad {
+  day: DayKey;
+  sets: number;
+  exercises: number;
+  overloaded: boolean;
+}
+
+// กล้ามเนื้อที่โดนซ้ำในวันติดกัน — กล้ามเนื้อต้องการ ~48 ชม. ซ่อมตัว
+export interface RecoveryConflict {
+  muscle: MuscleKey;
+  a: DayKey;
+  b: DayKey;
+}
+
 export interface Analysis {
   stats: MuscleStat[];
   score: number;
   headline: string;
   issues: string[];
   consecutive: number; // จำนวนวันฝึกติดต่อกันมากสุด (วนสัปดาห์)
+  dayLoads: DayLoad[]; // ภาระรายวัน (เฉพาะวันที่มีท่า)
+  recovery: RecoveryConflict[]; // จุดที่ฟื้นตัวไม่ทัน
 }
+
+// เซตรวมต่อวันที่ยังคุมคุณภาพได้ — เกินกว่านี้เซตท้ายๆ แทบไม่ได้ผล ควรแยกไปอีกวันแทน
+export const MAX_SETS_PER_DAY = 22;
+// เซตต่อกล้ามเนื้อเดียวในวันเดียว — เกิน 10 ผลตอบแทนต่อเซตลดชัด
+const MAX_SETS_PER_MUSCLE_PER_DAY = 10;
+// ถือว่า "โดนจริงจัง" เมื่อได้ตั้งแต่เท่านี้ขึ้นไป (กันการเตือนจากท่า compound ที่โดนกล้ามรองนิดเดียว)
+const MEANINGFUL_SETS = 4;
 
 const MAJOR: MuscleKey[] = ["chest", "back", "shoulders", "quads", "glutes_hams"];
 
@@ -341,12 +365,17 @@ export function analyzeProgram(data: Data): Analysis {
   const daySets: Record<MuscleKey, Set<DayKey>> = Object.fromEntries(
     MUSCLE_KEYS.map((m) => [m, new Set<DayKey>()]),
   ) as Record<MuscleKey, Set<DayKey>>;
+  // เซตของกล้ามเนื้อแต่ละมัด แยกรายวัน — ใช้ตรวจภาระต่อวันและการฟื้นตัว
+  const volByDay: Record<DayKey, Record<MuscleKey, number>> = Object.fromEntries(
+    DAYS.map((d) => [d, Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0]))]),
+  ) as Record<DayKey, Record<MuscleKey, number>>;
 
   for (const day of DAYS)
     for (const ex of exercisesForDay(data, day))
       for (const { m, w } of muscleMap(ex.name)) {
         vol[m] += ex.sets * w;
         daySets[m].add(day);
+        volByDay[day][m] += ex.sets * w;
       }
 
   const stats: MuscleStat[] = MUSCLE_KEYS.map((m) => {
@@ -387,6 +416,48 @@ export function analyzeProgram(data: Data): Analysis {
     issues.push(`ฝึกติดต่อกัน ${consecutive} วันไม่พัก — ควรแทรกวันพัก`);
   }
 
+  // ── ภาระต่อวัน: ยัดเซตเยอะเกินในวันเดียว เซตท้ายๆ แรงหมดแล้ว กระตุ้นกล้ามได้น้อยลง ──
+  const dayLoads: DayLoad[] = trainingDays(data).map((day) => {
+    const exs = exercisesForDay(data, day);
+    const sets = exs.reduce((a, e) => a + e.sets, 0);
+    return { day, sets, exercises: exs.length, overloaded: sets > MAX_SETS_PER_DAY };
+  });
+
+  for (const dl of dayLoads.filter((d) => d.overloaded)) {
+    score -= 5;
+    issues.push(
+      `${DAY_TH[dl.day]}อัดไป ${dl.sets} เซตในวันเดียว (เกิน ${MAX_SETS_PER_DAY}) — แยกบางท่าไปวันอื่นหรือเพิ่มวันฝึก`,
+    );
+  }
+
+  // กล้ามเนื้อเดียวโดนหนักเกินในวันเดียว — เพิ่มเซตต่อไปได้ผลน้อยกว่าไปเพิ่มอีกวัน
+  for (const day of trainingDays(data))
+    for (const m of MUSCLE_KEYS) {
+      const s = Math.round(volByDay[day][m]);
+      if (s > MAX_SETS_PER_MUSCLE_PER_DAY) {
+        score -= 3;
+        issues.push(
+          `${MUSCLE_TH[m]}โดน ${s} เซตรวดใน${DAY_TH[day]} — เกิน ${MAX_SETS_PER_MUSCLE_PER_DAY} เซตต่อวันผลตอบแทนลด กระจายไปอีกวันดีกว่า`,
+        );
+      }
+    }
+
+  // ── ฟื้นตัว: กล้ามเนื้อมัดเดิมโดนหนักในวันติดกัน (ต้องการ ~48 ชม.ซ่อมตัว) ──
+  const recovery: RecoveryConflict[] = [];
+  for (let i = 0; i < 7; i++) {
+    const a = DAYS[i];
+    const b = DAYS[(i + 1) % 7]; // วนสัปดาห์: อาทิตย์ต่อจันทร์
+    for (const m of MUSCLE_KEYS)
+      if (volByDay[a][m] >= MEANINGFUL_SETS && volByDay[b][m] >= MEANINGFUL_SETS) recovery.push({ muscle: m, a, b });
+  }
+
+  for (const r of recovery) {
+    score -= 4;
+    issues.push(
+      `${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${DAY_TH[r.a]}และ${DAY_TH[r.b]}ติดกัน — กล้ามเนื้อต้องการ ~48 ชม. ซ่อมตัว ควรเว้นวัน`,
+    );
+  }
+
   score = Math.max(0, Math.min(100, Math.round(score)));
   const headline =
     score >= 100
@@ -399,7 +470,7 @@ export function analyzeProgram(data: Data): Analysis {
             ? "ใช้ได้ แต่มีช่องโหว่ควรอุด"
             : "ควรปรับหลายจุด";
 
-  return { stats, score, headline, issues, consecutive };
+  return { stats, score, headline, issues, consecutive, dayLoads, recovery };
 }
 
 // เลือกวันที่เหมาะกับกล้ามเนื้อนั้นที่สุด: มีท่ากลุ่มเดียวกันอยู่แล้ว และวันยังไม่แน่น

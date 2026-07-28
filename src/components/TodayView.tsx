@@ -8,6 +8,7 @@ import {
   JS_DAYS,
   effectiveExercisesForDay,
   exercisesForDay,
+  removeExtra,
   repTargetText,
   todayStr,
 } from "../lib/store";
@@ -16,6 +17,7 @@ import { restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progr
 import { haptics } from "../lib/haptics";
 import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
 import { isPremium } from "../lib/premium";
+import { findTemplate } from "../lib/exerciseDB";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
 function restForExercise(data: Data, ex: Exercise, fallback: number): number {
@@ -370,6 +372,21 @@ export default function TodayView() {
                 </button>
               )}
 
+              {/* ท่าที่เพิ่งเพิ่มเข้าวันนี้ — เอาออกได้ในคลิกเดียว ไม่ต้องเข้าเมนูเปลี่ยนท่า */}
+              {isToday && ex.extra && (
+                <button
+                  className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[12px]"
+                  style={{ background: "rgba(255,107,107,.10)", border: "1px solid rgba(255,107,107,.3)", color: "var(--bad)" }}
+                  aria-label="เอาท่านี้ออกจากวันนี้"
+                  onClick={() => {
+                    update((d) => removeExtra(d, ex.name));
+                    toast(`เอา ${ex.name} ออกแล้ว`);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+
               <button
                 className="shrink-0 text-[11px] px-1 transition-transform"
                 style={{ color: "var(--dim)", transform: open ? "rotate(180deg)" : "" }}
@@ -427,6 +444,17 @@ export default function TodayView() {
                     ▶ เริ่มพัก
                   </span>
                 </button>
+
+                {/* วิธีเล่นท่านี้ — ดึงจากคลังท่าตามชื่อ (ไม่เก็บซ้ำในข้อมูลผู้ใช้ อัปเดตคลังแล้วได้ของใหม่เลย)
+                    ไม่ล็อกเพราะเป็นความรู้พื้นฐานที่ควรได้ฟรี ไม่ใช่ "สมองโค้ช" ที่คำนวณจากประวัติ */}
+                {findTemplate(ex.name)?.tip && (
+                  <div className="glass-inset px-3 py-2.5 mb-3 flex items-start gap-2.5">
+                    <span className="text-[13px] mt-px">💡</span>
+                    <span className="text-[12px] leading-relaxed" style={{ color: "var(--mut)" }}>
+                      {findTemplate(ex.name)!.tip}
+                    </span>
+                  </div>
+                )}
 
                 {/* เปลี่ยนท่าเฉพาะวันนี้ — เปิดจากปุ่ม ⇄ ข้างชื่อท่า */}
                 {isToday && swapFor === ex.id && (

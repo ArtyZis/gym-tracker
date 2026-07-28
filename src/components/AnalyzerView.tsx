@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useApp } from "../AppContext";
 import type { Recommendation } from "../lib/analyzer";
-import { MUSCLE_TH, analyzeProgram, applyRecommendation, buildRecommendations } from "../lib/analyzer";
+import { MAX_SETS_PER_DAY, MUSCLE_TH, analyzeProgram, applyRecommendation, buildRecommendations } from "../lib/analyzer";
+import { DAY_TH } from "../lib/store";
 import { Kicker, PremiumLock } from "./ui";
 import { isPremium } from "../lib/premium";
 
@@ -128,6 +129,59 @@ export default function AnalyzerView() {
           ท่า compound นับให้กล้ามรองครึ่งเซต · ท่าละ 3-5 เซตกำลังดี
         </p>
       </div>
+      )}
+
+      {premium && analysis.dayLoads.length > 0 && (
+        <div className="glass p-4 mb-3">
+          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>เกิน {MAX_SETS_PER_DAY} = อัดเกิน</span>}>
+            ภาระแต่ละวันฝึก
+          </Kicker>
+          {analysis.dayLoads.map((dl) => {
+            const color = dl.overloaded ? "var(--bad)" : "var(--acc)";
+            return (
+              <div key={dl.day} className="mb-2.5">
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="text-[12.5px]">
+                    {DAY_TH[dl.day]}
+                    <span className="font-mono2 text-[10px]" style={{ color: "var(--dim)" }}>
+                      {" "}
+                      · {dl.exercises} ท่า
+                    </span>
+                  </span>
+                  <span className="font-mono2 text-[10.5px]" style={{ color }}>
+                    {dl.sets} เซต
+                  </span>
+                </div>
+                <div className="h-[6px] rounded-full overflow-hidden" style={{ background: "rgba(120,180,255,.10)" }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, (dl.sets / (MAX_SETS_PER_DAY * 1.4)) * 100)}%`,
+                      background: color,
+                      boxShadow: `0 0 8px ${color}`,
+                      transition: "width .6s ease",
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          {analysis.recovery.length > 0 && (
+            <div className="glass-inset px-3 py-2.5 mt-3" style={{ borderColor: "rgba(255,193,94,.3)" }}>
+              <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-1.5" style={{ color: "var(--warn)" }}>
+                ฟื้นตัวไม่ทัน
+              </div>
+              {analysis.recovery.map((r, i) => (
+                <div key={i} className="text-[12px] leading-relaxed" style={{ color: "#dbe9f7" }}>
+                  {MUSCLE_TH[r.muscle]} — {DAY_TH[r.a]} ต่อ {DAY_TH[r.b]}
+                </div>
+              ))}
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--mut)" }}>
+                กล้ามเนื้อต้องการ ~48 ชม. ซ่อมตัว โดนซ้ำเร็วเกินจะสะสมความล้าแทนที่จะโต
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {premium && analysis.issues.length > 0 && (
