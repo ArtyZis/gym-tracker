@@ -518,7 +518,34 @@ function findRestDayMove(data: Data): { from: DayKey; to: DayKey } | null {
   return best ? { from: best.from, to: best.to } : null;
 }
 
-export type RecKind = "add" | "increaseSets" | "reduceSets" | "addDay" | "moveExercise" | "removeExercise" | "restDay";
+export type RecKind =
+  | "add"
+  | "increaseSets"
+  | "reduceSets"
+  | "addDay"
+  | "moveExercise"
+  | "removeExercise"
+  | "restDay"
+  | "splitDay"; // วันที่อัดเกิน -> ย้ายท่าท้ายๆ ไปวันว่าง (เพิ่มวันฝึก)
+
+// วันว่างที่เพิ่มเข้าไปแล้วทำให้ต้องฝึกติดกันน้อยที่สุด
+function bestEmptyDay(data: Data): DayKey | null {
+  const train = new Set(trainingDays(data));
+  const empty = DAYS.filter((d) => !train.has(d));
+  if (!empty.length) return null;
+  let best = empty[0];
+  let bestConsecutive = 99;
+  for (const d of empty) {
+    const next = new Set(train);
+    next.add(d);
+    const c = maxConsecutiveDays(next);
+    if (c < bestConsecutive) {
+      bestConsecutive = c;
+      best = d;
+    }
+  }
+  return best;
+}
 
 // เซตต่อท่าที่สมเหตุสมผล — ท่าละ 3-5 เซต (เกินกว่านี้ควรเพิ่มท่าหรือแยกวันแทน)
 export const MIN_SETS_PER_EX = 3;
@@ -556,6 +583,22 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   const existing = new Set(data.exercises.map((e) => normName(e.name)));
   let n = 0;
   const mkId = () => "rec" + n++;
+
+  // 0) วันที่อัดเซตเกิน — แยกไปอีกวันดีกว่ายัดวันเดียว (เซตท้ายๆ แรงหมด กระตุ้นได้น้อย)
+  //    ให้ลำดับสูงเพราะกระทบคุณภาพทุกเซตในวันนั้น ไม่ใช่แค่กล้ามมัดเดียว
+  for (const dl of analysis.dayLoads.filter((d) => d.overloaded)) {
+    const to = bestEmptyDay(data);
+    if (!to) continue;
+    recs.push({
+      id: mkId(),
+      kind: "splitDay",
+      fromDay: dl.day,
+      toDay: to,
+      title: `แยก${DAY_TH[dl.day]}ไปเพิ่มวันฝึก${DAY_TH[to]}`,
+      detail: `${DAY_TH[dl.day]}อัด ${dl.sets} เซตในวันเดียว (เกิน ${MAX_SETS_PER_DAY}) — ย้ายท่าท้ายๆ ไป${DAY_TH[to]} แต่ละเซตจะได้แรงเต็มกว่า`,
+      gain: 8,
+    });
+  }
 
   // 1) กล้ามที่ไม่มี — เพิ่มท่าใหม่จากคลัง
   for (const s of analysis.stats.filter((s) => s.status === "missing")) {
@@ -767,6 +810,17 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
     if (ex) {
       ex.day = rec.day;
       ex.order = exercisesForDay(d, rec.day).length;
+    }
+  } else if (rec.kind === "splitDay" && rec.fromDay && rec.toDay) {
+    // ย้ายจากท่าท้ายวัน (มักเป็นท่าเสริม) ไปก่อน จนวันเดิมไม่เกินลิมิต — เหลือไว้อย่างน้อย 1 ท่า
+    const exs = exercisesForDay(d, rec.fromDay);
+    let sets = exs.reduce((a, e) => a + e.sets, 0);
+    for (let i = exs.length - 1; i >= 1 && sets > MAX_SETS_PER_DAY; i--) {
+      const ex = d.exercises.find((e) => e.id === exs[i].id);
+      if (!ex) continue;
+      ex.day = rec.toDay;
+      ex.order = exercisesForDay(d, rec.toDay).length;
+      sets -= ex.sets;
     }
   } else if (rec.kind === "restDay" && rec.fromDay && rec.toDay) {
     for (const ex of d.exercises) if (ex.day === rec.fromDay) ex.day = rec.toDay;

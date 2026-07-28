@@ -8,6 +8,7 @@ import { EQUIP_TH, incFor, isMachine, searchExercises, unitFor } from "../lib/ex
 interface Option extends SwapTarget {
   from: string; // มาจากไหน — วันในโปรแกรม หรืออุปกรณ์ที่ใช้ (ท่าจากคลัง)
   muscles: string;
+  th?: string; // ชื่อไทย — ให้รู้ว่าท่านั้นคือท่าอะไร (ชื่ออังกฤษอย่างเดียวคนไทยเดาไม่ออก)
   tip?: string; // คำแนะนำวิธีเล่น (มีเฉพาะท่าจากคลัง)
 }
 
@@ -72,6 +73,7 @@ export default function ExercisePicker({
         amrap: t.amrap,
         from: EQUIP_TH[t.equip],
         muscles: MUSCLE_TH[t.muscle],
+        th: t.th,
         tip: t.tip,
       });
     }
@@ -122,6 +124,11 @@ export default function ExercisePicker({
                   {o.name}
                   {o.machine ? " ⚙" : ""}
                 </span>
+                {o.th && (
+                  <span className="block text-[11.5px] truncate" style={{ color: "var(--mut)" }}>
+                    {o.th}
+                  </span>
+                )}
                 <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
                   {o.from} · {o.muscles} · {o.sets}×{o.amrap ? "สุดแรง" : `${o.rmin}-${o.rmax}`}
                 </span>

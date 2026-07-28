@@ -208,7 +208,7 @@ export default function AnalyzerView() {
                 ? "var(--warn)"
                 : rec.kind === "removeExercise"
                   ? "var(--bad)"
-                  : rec.kind === "restDay" || rec.kind === "moveExercise"
+                  : rec.kind === "restDay" || rec.kind === "moveExercise" || rec.kind === "splitDay"
                     ? "var(--blue)"
                     : rec.kind === "addDay"
                       ? "var(--cyan)"
@@ -218,9 +218,11 @@ export default function AnalyzerView() {
                 ? "ลด"
                 : rec.kind === "removeExercise"
                   ? "ตัด"
-                  : rec.kind === "restDay" || rec.kind === "moveExercise"
-                    ? "ย้าย"
-                    : "เพิ่ม";
+                  : rec.kind === "splitDay"
+                    ? "แยกวัน"
+                    : rec.kind === "restDay" || rec.kind === "moveExercise"
+                      ? "ย้าย"
+                      : "เพิ่ม";
             return (
               <div key={rec.id} className="flex items-center gap-3 py-3 hairline first:border-0">
                 <div className="flex-1 min-w-0">

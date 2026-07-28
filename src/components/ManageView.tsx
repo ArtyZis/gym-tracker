@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey, Exercise, ExType } from "../lib/store";
@@ -10,6 +10,8 @@ import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isPro } from "../lib/edition";
 import UpgradeCard from "./UpgradeCard";
+import { EQUIP_TH, EXERCISE_COUNT, findTemplate, incFor, isMachine, searchExercises, unitFor } from "../lib/exerciseDB";
+import { MUSCLE_TH } from "../lib/analyzer";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
 
@@ -69,6 +71,9 @@ export default function ManageView() {
         )}
         {draft && (
           <div className="glass-inset p-3.5 mt-1">
+            {/* ค้นจากคลังท่าแล้วกรอกฟอร์มให้ทั้งชุด — ไม่ต้องมานั่งเดาว่าท่านี้ควรกี่เซตกี่เรป */}
+            {!editingId && <ExerciseSearchField onPick={(patch) => setDraft({ ...draft, ...patch })} />}
+
             <FieldLabel>ชื่อท่า</FieldLabel>
             <input
               className={inputCls + " mb-2.5"}
@@ -76,6 +81,11 @@ export default function ManageView() {
               placeholder="เช่น Cable Fly"
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
+            {findTemplate(draft.name || "") && (
+              <p className="text-[11.5px] -mt-1.5 mb-2.5 leading-relaxed" style={{ color: "var(--mut)" }}>
+                💡 {findTemplate(draft.name || "")!.tip}
+              </p>
+            )}
             <FieldLabel>ฝึกวันไหน</FieldLabel>
             <div className="flex flex-wrap gap-1.5 mb-2.5">
               {DAYS.map((d) => (
@@ -610,6 +620,69 @@ const ToggleRow = ({ label, desc, on, onToggle }: { label: string; desc: string;
     </button>
   </div>
 );
+
+// ช่องค้นหาท่าจากคลัง — เลือกแล้วกรอกฟอร์มให้ทั้งชุด (ชื่อ ชนิด เซต เรป หน่วย ระยะขยับ)
+function ExerciseSearchField({ onPick }: { onPick: (patch: Partial<ExerciseDraft>) => void }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const results = useMemo(() => (q.trim() ? searchExercises(q, 8) : []), [q]);
+
+  return (
+    <div className="mb-3">
+      <FieldLabel>ค้นจากคลังท่า ({EXERCISE_COUNT} ท่า)</FieldLabel>
+      <input
+        className="w-full px-3.5 py-2.5 text-[14px]"
+        placeholder="พิมพ์ไทยหรืออังกฤษ เช่น หลัง, อก, ทีบาร์, squat"
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+        }}
+      />
+      {open && results.length > 0 && (
+        <div className="glass-inset mt-1.5 max-h-[220px] overflow-y-auto">
+          {results.map((t) => (
+            <button
+              key={t.name}
+              className="w-full text-left px-3 py-2 hairline first:border-0 active:scale-[.99] transition-transform"
+              onClick={() => {
+                onPick({
+                  name: t.name,
+                  type: t.type,
+                  sets: t.sets,
+                  rmin: t.rmin,
+                  rmax: t.rmax,
+                  amrap: t.amrap ?? false,
+                  unit: unitFor(t.equip, t.type),
+                  inc: t.type === "weight" ? incFor(t.equip) : undefined,
+                  machine: isMachine(t.equip),
+                });
+                setQ("");
+                setOpen(false);
+              }}
+            >
+              <span className="block text-[13px]">
+                {t.name}
+                {isMachine(t.equip) ? " ⚙" : ""}
+              </span>
+              <span className="block text-[11.5px]" style={{ color: "var(--mut)" }}>
+                {t.th}
+              </span>
+              <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
+                {MUSCLE_TH[t.muscle]} · {EQUIP_TH[t.equip]} · {t.sets}×{t.amrap ? "สุดแรง" : `${t.rmin}-${t.rmax}`}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && q.trim() && results.length === 0 && (
+        <p className="text-[11.5px] mt-1.5" style={{ color: "var(--dim)" }}>
+          ไม่เจอในคลัง — พิมพ์ชื่อเองในช่องด้านล่างได้
+        </p>
+      )}
+    </div>
+  );
+}
 
 const FieldLabel = ({ children }: { children: ReactNode }) => (
   <label className="block font-mono2 text-[9.5px] uppercase tracking-[.1em] mb-1" style={{ color: "var(--mut)" }}>
