@@ -1,5 +1,13 @@
-# build + deploy รุ่นที่ขาย (pro) ขึ้น GitHub Pages อัตโนมัติทุกครั้งที่ push ขึ้น main
+# build + deploy ขึ้น GitHub Pages อัตโนมัติทุกครั้งที่ push ขึ้น main
 # ไม่ต้องรันคำสั่ง deploy เองอีก และไม่มีระบบเครดิตมาบล็อกแบบ Netlify
+#
+# เสิร์ฟ 2 รุ่นจาก Pages เดียว:
+#   /            -> รุ่นที่ขาย (pro)      ทดลอง 30 วัน แล้วล็อกฟีเจอร์สมองโค้ช
+#   /me/         -> รุ่นส่วนตัว (personal) เปิดทุกฟีเจอร์ ไม่มีล็อก
+#
+# ⚠️ /me/ เป็น path ที่เดาไม่ยาก — ใครรู้ก็ใช้รุ่นปลดล็อกได้ฟรี
+#    ยอมรับได้เพราะโค้ดทั้ง repo เปิดสาธารณะอยู่แล้ว (ใครอยาก build เองก็ทำได้)
+#    ถ้าวันหนึ่งขายจริงจังจนกังวล ให้ย้ายรุ่นส่วนตัวไปโฮสต์ที่อื่นแทน
 #
 # ครั้งแรกต้องไปเปิดที่ repo -> Settings -> Pages -> Source = "GitHub Actions" ก่อน
 name: Deploy to GitHub Pages
@@ -32,16 +40,25 @@ jobs:
 
       - run: npm ci
 
-      # รุ่น pro เท่านั้นที่ขึ้นเว็บสาธารณะ — รุ่น personal (ปลดล็อกหมด) ห้ามขึ้นที่นี่
+      # รุ่นที่ขาย -> ราก
       - run: npm run build:pro
 
-      # GitHub Pages ไม่มี redirect rule แบบ netlify.toml — ให้ 404 เสิร์ฟหน้าเดียวกับ index
-      # กันจอ 404 ถ้าใครเปิด path แปลกๆ (แอปไม่มี router อยู่แล้ว แต่กันไว้)
-      - run: cp dist-pro/index.html dist-pro/404.html
+      # รุ่นส่วนตัว -> /me/  (base เป็น "./" อยู่แล้ว จึงวางที่ path ไหนก็ทำงาน)
+      - run: npm run build
+
+      - name: รวมสองรุ่นเป็นโฟลเดอร์เดียว
+        run: |
+          mkdir -p site
+          cp -r dist-pro/* site/
+          mkdir -p site/me
+          cp -r dist/* site/me/
+          # GitHub Pages ไม่มี redirect rule แบบ netlify.toml — ให้ 404 เสิร์ฟหน้าเดียวกับ index
+          cp site/index.html site/404.html
+          cp site/me/index.html site/me/404.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist-pro
+          path: site
 
   deploy:
     needs: build
