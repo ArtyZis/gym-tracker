@@ -3,7 +3,7 @@ import { useApp } from "../AppContext";
 import type { EffectiveExercise, SwapTarget } from "../lib/store";
 import { DAY_TH, addExtra, clearSwap, normName, removeExtra, setSwap } from "../lib/store";
 import { MUSCLE_TH, muscleMap } from "../lib/analyzer";
-import { EQUIP_TH, incFor, isMachine, searchExercises, unitFor } from "../lib/exerciseDB";
+import { EQUIP_TH, incFor, isMachineEx, searchExercises, unitFor } from "../lib/exerciseDB";
 
 interface Option extends SwapTarget {
   from: string; // มาจากไหน — วันในโปรแกรม หรืออุปกรณ์ที่ใช้ (ท่าจากคลัง)
@@ -67,12 +67,12 @@ export default function ExercisePicker({
         sets: ex && mode === "swap" ? ex.sets : t.sets,
         rmin: t.rmin,
         rmax: t.rmax,
-        unit: unitFor(t.equip, t.type),
-        inc: t.type === "weight" ? incFor(t.equip) : undefined,
-        machine: isMachine(t.equip) || undefined,
+        unit: unitFor(t),
+        inc: incFor(t),
+        machine: isMachineEx(t) || undefined,
         amrap: t.amrap,
-        from: EQUIP_TH[t.equip],
-        muscles: MUSCLE_TH[t.muscle],
+        from: t.equip.map((e) => EQUIP_TH[e]).slice(0, 2).join("+"),
+        muscles: t.pri.map((m) => MUSCLE_TH[m]).slice(0, 2).join("/"),
         th: t.th,
         tip: t.tip,
       });

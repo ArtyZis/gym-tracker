@@ -1,298 +1,161 @@
 // วิเคราะห์สมดุลกล้ามเนื้อแบบ rule-based (ไม่ใช้ AI)
+//
+// อนุกรมวิธานกล้ามเนื้อ/แพทเทิร์น/อุปกรณ์ ย้ายไปอยู่ที่ muscles.ts แล้ว
+// ไฟล์นี้ re-export ไว้เพื่อไม่ให้โค้ดเดิมที่ import จากที่นี่พัง
 
-import type { Data, DayKey, ExType } from "./store";
+import type { Data, DayKey } from "./store";
 import { DAYS, DAY_TH, archiveOne, exercisesForDay, normName, restoreHistory, uid } from "./store";
+import type { MuscleKey } from "./muscles";
+import { MAJOR_MUSCLES, MUSCLE_KEYS, MUSCLE_TH } from "./muscles";
+import type { ExTemplate } from "./exerciseDB";
+import { EXERCISE_DB, findTemplate, incFor, isMachineEx, musclesOf, unitFor } from "./exerciseDB";
 
-export type MuscleKey =
-  | "chest"
-  | "back"
-  | "shoulders"
-  | "biceps"
-  | "triceps"
-  | "quads"
-  | "glutes_hams"
-  | "calves"
-  | "core"
-  | "forearms";
-
-export const MUSCLE_TH: Record<MuscleKey, string> = {
-  chest: "อก",
-  back: "หลัง",
-  shoulders: "ไหล่",
-  biceps: "ไบเซป",
-  triceps: "ไตรเซป",
-  quads: "ต้นขาหน้า",
-  glutes_hams: "สะโพก/หลังขา",
-  calves: "น่อง",
-  core: "แกนกลาง",
-  forearms: "ปลายแขน",
-};
-
-const MUSCLE_KEYS = Object.keys(MUSCLE_TH) as MuscleKey[];
+export type { MuscleKey } from "./muscles";
+export { MUSCLE_TH, MUSCLE_KEYS } from "./muscles";
 
 export interface MuscleHit {
   m: MuscleKey;
   w: number;
 }
 
-// จับคู่ชื่อท่า (อังกฤษ) -> กล้ามเนื้อที่โดน; compound นับกล้ามรองครึ่งเซต
+// กล้ามเนื้อที่ท่านี้โดน — นับแบบ fractional (primary 1.0, secondary 0.5)
+//
+// ลำดับการตัดสิน:
+//   1) ถ้าชื่อตรงกับคลังท่า ใช้ข้อมูลจากคลัง (แม่นสุด — คนจัดเองทีละท่า)
+//   2) ถ้าไม่ตรง (ผู้ใช้พิมพ์ชื่อเอง) ค่อยเดาจากคำในชื่อ
+// เดิมใช้วิธี (2) กับทุกท่ารวมท่าในคลังด้วย ซึ่งเดาพลาดได้ เช่นแยกไหล่ 3 มัดไม่ออก
 export function muscleMap(name: string): MuscleHit[] {
+  const tpl = findTemplate(name);
+  if (tpl) return musclesOf(tpl);
+
   const t = name.toLowerCase();
   const hits: MuscleHit[] = [];
   const add = (m: MuscleKey, w: number) => {
     if (!hits.some((h) => h.m === m)) hits.push({ m, w });
   };
 
-  if (/bench|incline.*press|chest|fly|dip|push.?up/.test(t)) {
+  // ── ดัน ──
+  if (/bench|chest|fly|pec|dip|push.?up|ดันอก|วิดพื้น|เบนช์/.test(t)) {
     add("chest", 1);
     add("triceps", 0.5);
-    if (/incline|pike/.test(t)) add("shoulders", 0.5);
+    add("front_delts", 0.5);
   }
-  if (/pike.*push/.test(t)) add("shoulders", 1);
-  if (/overhead press|shoulder press|ohp|military/.test(t)) {
-    add("shoulders", 1);
+  if (/overhead press|shoulder press|ohp|military|pike|arnold|ดันไหล่|ดันบ่า/.test(t)) {
+    add("front_delts", 1);
     add("triceps", 0.5);
   }
-  if (/lateral raise|side raise/.test(t)) add("shoulders", 1);
-  if (/face pull|rear delt|reverse fly/.test(t)) {
-    add("shoulders", 1);
+  // ไหล่ข้างโดนเฉพาะท่ากางออกข้าง — แยกจากไหล่หน้าเพราะเป็นจุดที่มักขาดโดยไม่รู้ตัว
+  if (/lateral raise|side raise|กางข้าง|ยกข้าง/.test(t)) add("side_delts", 1);
+  if (/front raise|ยกหน้า/.test(t)) add("front_delts", 1);
+  if (/upright row|อัพไรท์/.test(t)) {
+    add("side_delts", 1);
     add("back", 0.5);
   }
-  if (/pull.?up|chin.?up|pulldown|row|pullover/.test(t)) {
+  // ── ไหล่หลัง ──
+  if (/face pull|rear delt|reverse fly|reverse pec|เฟซพูล|ไหล่หลัง|กางหลัง/.test(t)) {
+    add("rear_delts", 1);
+    add("back", 0.5);
+  }
+  // ── ดึง ──
+  if (/pull.?up|chin.?up|pulldown|row|pullover|โรว์|ดึงข้อ|พูลดาวน์|ดึงหลัง/.test(t)) {
     add("back", 1);
     add("biceps", 0.5);
-    if (/towel/.test(t)) add("forearms", 1);
+    if (/row|โรว์/.test(t)) add("rear_delts", 0.5);
+    if (/towel|ผ้า/.test(t)) add("forearms", 1);
   }
-  if (/curl/.test(t) && !/wrist|leg|pronation/.test(t)) add("biceps", 1);
-  if (/tricep|pushdown|extension|skull|diamond/.test(t) && !/leg|back/.test(t)) add("triceps", 1);
-  if (/squat|leg press|lunge|split squat|step.?up/.test(t)) {
+  if (/shrug|ยักไหล่|ชรัก/.test(t)) add("back", 1);
+  // ── แขน ──
+  if (/curl/.test(t) && !/wrist|leg|pronation|ข้อมือ|งอขา/.test(t)) {
+    add("biceps", 1);
+    if (/hammer|reverse|แฮมเมอร์|คว่ำมือ/.test(t)) add("forearms", 0.5);
+  }
+  if (/tricep|pushdown|skull|kickback|diamond|ไตรเซป|กดสาย/.test(t) && !/leg|back/.test(t)) add("triceps", 1);
+  if (/extension/.test(t) && /tricep|overhead|เหยียดไตรเซป/.test(t)) add("triceps", 1);
+  // ── ขา ──
+  if (/squat|leg press|hack|lunge|step.?up|สควอท|ย่อขา|ลันจ์|ดันขา/.test(t)) {
     add("quads", 1);
-    add("glutes_hams", 0.5);
+    add("glutes", 0.5);
   }
-  if (/hip thrust|glute|bridge|rdl|romanian|deadlift|hamstring|leg curl|good morning/.test(t)) add("glutes_hams", 1);
-  if (/deadlift/.test(t)) {
-    add("back", 0.5);
+  if (/leg extension|เหยียดขา|sissy|wall sit/.test(t)) add("quads", 1);
+  if (/rdl|romanian|stiff leg|good morning|leg curl|nordic|hamstring|หลังขา|งอขา|กู้ดมอร์นิ่ง/.test(t)) {
+    add("hamstrings", 1);
+    if (/rdl|romanian|good morning|อาร์ดีแอล/.test(t)) add("glutes", 0.5);
+  }
+  if (/hip thrust|glute|bridge|kickback|abduction|สะพานก้น|ดันสะโพก|เตะก้น|ก้น/.test(t)) add("glutes", 1);
+  if (/deadlift|เดดลิฟต์|ดึงพื้น/.test(t)) {
+    add("back", 1);
+    add("glutes", 1);
+    add("hamstrings", 1);
     add("forearms", 0.5);
   }
-  if (/calf/.test(t)) add("calves", 1);
-  if (/plank|crunch|sit.?up|knee raise|leg raise|hollow|l.?sit|ab |core|dead bug|russian/.test(t)) add("core", 1);
-  if (/wrist|pronation|farmer|grip|hold/.test(t)) add("forearms", 1);
+  if (/back extension|hyperextension|แบ็กเอ็กซ์เทน/.test(t)) {
+    add("glutes", 1);
+    add("hamstrings", 0.5);
+  }
+  if (/calf|น่อง|เขย่ง/.test(t)) add("calves", 1);
+  // ── แกนกลาง / ปลายแขน ──
+  if (/plank|crunch|sit.?up|knee raise|leg raise|hollow|l.?sit|ab |core|dead bug|russian|twist|แพลงก์|ครันช์|ยกเข่า|ยกขา|ท้อง/.test(t))
+    add("core", 1);
+  if (/wrist|pronation|farmer|grip|hang|ข้อมือ|ห้อยบาร์|หิ้ว/.test(t)) add("forearms", 1);
 
   return hits;
 }
 
+// ── คลังท่าที่ใช้เสนอเพิ่ม ──
+// ดึงจาก EXERCISE_DB โดยตรง (เดิมมี SUGGESTION_BANK แยกอีกชุด ซึ่งไม่มีข้อมูลอุปกรณ์
+// จึงกรองตามอุปกรณ์ที่ผู้ใช้มีในวันนั้นไม่ได้ — เป็นสาเหตุที่ระบบเสนอท่าที่ทำจริงไม่ได้)
+
 export interface SuggestionTemplate {
   name: string;
   muscle: MuscleKey;
-  type: ExType;
+  type: ExTemplate["type"];
   sets: number;
   rmin: number;
   rmax: number;
   reason: string;
-  needsGym?: boolean;
+  // ท่าต้นฉบับจากคลัง — ให้ตัวกรองอ่านอุปกรณ์/pattern/ความล้าได้
+  // ไม่มี = เป็นท่าที่ผู้ใช้มีในโปรแกรมอยู่แล้ว (เช่นเสนอให้ทำซ้ำอีกวัน)
+  // กรณีนี้ไม่ต้องตรวจอุปกรณ์ เพราะเขาทำท่านี้อยู่แล้วจึงมีของแน่นอน
+  tpl?: ExTemplate;
 }
 
-export const SUGGESTION_BANK: Record<MuscleKey, SuggestionTemplate[]> = {
-  chest: [
-    {
-      name: "Cable Fly",
-      muscle: "chest",
-      type: "weight",
-      sets: 3,
-      rmin: 12,
-      rmax: 15,
-      reason: "ยืดอกสุดช่วง เก็บส่วนที่ press ไปไม่ถึง",
-      needsGym: true,
-    },
-    {
-      name: "Deficit Push-up",
-      muscle: "chest",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 8,
-      rmax: 15,
-      reason: "เพิ่มช่วงยืดให้ push-up เดิม",
-    },
-  ],
-  back: [
-    {
-      name: "Chest Supported Row",
-      muscle: "back",
-      type: "weight",
-      sets: 3,
-      rmin: 10,
-      rmax: 12,
-      reason: "สร้างความหนาหลังกลางโดยไม่ล้าหลังล่าง",
-      needsGym: true,
-    },
-    {
-      name: "Australian Row",
-      muscle: "back",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 12,
-      rmax: 15,
-      reason: "horizontal pull ที่บ้าน คู่กับ pull-up",
-    },
-  ],
-  shoulders: [
-    {
-      name: "Lateral Raise",
-      muscle: "shoulders",
-      type: "weight",
-      sets: 3,
-      rmin: 12,
-      rmax: 15,
-      reason: "ไหล่ข้าง = ความกว้าง V-taper",
-      needsGym: true,
-    },
-    {
-      name: "Pike Push-up",
-      muscle: "shoulders",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 10,
-      rmax: 15,
-      reason: "ท่าไหล่ bodyweight ที่ดีที่สุด",
-    },
-  ],
-  biceps: [
-    {
-      name: "Incline DB Curl",
-      muscle: "biceps",
-      type: "weight",
-      sets: 3,
-      rmin: 10,
-      rmax: 12,
-      reason: "stretch-mediated hypertrophy ยืด long head สุด",
-      needsGym: true,
-    },
-    {
-      name: "Chin-up",
-      muscle: "biceps",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 5,
-      rmax: 12,
-      reason: "compound ที่โดนไบเซปหนักที่สุด",
-    },
-  ],
-  triceps: [
-    {
-      name: "Overhead Cable Extension",
-      muscle: "triceps",
-      type: "weight",
-      sets: 3,
-      rmin: 10,
-      rmax: 12,
-      reason: "ยืด long head เหนือหัว โตกว่าท่า pushdown",
-      needsGym: true,
-    },
-    {
-      name: "Diamond Push-up",
-      muscle: "triceps",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 8,
-      rmax: 15,
-      reason: "โฟกัสไตรเซปด้วยน้ำหนักตัว",
-    },
-  ],
-  quads: [
-    {
-      name: "Barbell Squat",
-      muscle: "quads",
-      type: "weight",
-      sets: 3,
-      rmin: 6,
-      rmax: 8,
-      reason: "compound ขาที่คุ้มที่สุดต่อเซต",
-      needsGym: true,
-    },
-    {
-      name: "Bulgarian Split Squat",
-      muscle: "quads",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 12,
-      rmax: 15,
-      reason: "ขาเดียวโหลดหนักพอโดยไม่ต้องมีบาร์",
-    },
-  ],
-  glutes_hams: [
-    {
-      name: "Barbell Hip Thrust",
-      muscle: "glutes_hams",
-      type: "weight",
-      sets: 3,
-      rmin: 10,
-      rmax: 12,
-      reason: "EMG สะโพกสูงสุด โหลดตอนเหยียดตรง",
-      needsGym: true,
-    },
-    {
-      name: "Glute Bridge",
-      muscle: "glutes_hams",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 15,
-      rmax: 20,
-      reason: "เวอร์ชันบ้านของ hip thrust",
-    },
-  ],
-  calves: [
-    {
-      name: "Calf Raise",
-      muscle: "calves",
-      type: "bodyweight",
-      sets: 4,
-      rmin: 15,
-      rmax: 25,
-      reason: "น่องต้องการปริมาณและทำได้ทุกที่",
-    },
-  ],
-  core: [
-    {
-      name: "Hanging Knee Raise",
-      muscle: "core",
-      type: "bodyweight",
-      sets: 3,
-      rmin: 12,
-      rmax: 15,
-      reason: "core ที่ใช้บาร์ดึงข้อที่มีอยู่",
-    },
-    {
-      name: "Plank",
-      muscle: "core",
-      type: "time",
-      sets: 3,
-      rmin: 30,
-      rmax: 45,
-      reason: "anti-extension พื้นฐานที่ควรมี",
-    },
-  ],
-  forearms: [
-    {
-      name: "Wrist Curl (DB)",
-      muscle: "forearms",
-      type: "weight",
-      sets: 3,
-      rmin: 15,
-      rmax: 20,
-      reason: "ปลายแขน/กริปที่โปรแกรมมักข้าม",
-      needsGym: true,
-    },
-    {
-      name: "Dead Hang",
-      muscle: "forearms",
-      type: "time",
-      sets: 3,
-      rmin: 20,
-      rmax: 40,
-      reason: "กริปด้วยบาร์ดึงข้อ ง่ายและได้ผล",
-    },
-  ],
-};
+// ท่าจากคลังที่โดนกล้ามเนื้อมัดนั้นเป็นหลัก เรียงท่าที่โดนกล้ามน้อยมัดก่อน
+// (โดนน้อยมัด = เจาะจงกว่า = เติมช่องว่างได้ตรงจุดโดยไม่ไปเพิ่มภาระมัดอื่น)
+export function candidatesFor(muscle: MuscleKey): SuggestionTemplate[] {
+  return EXERCISE_DB.filter((t) => t.pri.includes(muscle))
+    .sort((a, b) => a.pri.length + (a.sec?.length ?? 0) - (b.pri.length + (b.sec?.length ?? 0)))
+    .map((t) => ({
+      name: t.name,
+      muscle,
+      type: t.type,
+      sets: t.sets,
+      rmin: t.rmin,
+      rmax: t.rmax,
+      reason: t.tip,
+      tpl: t,
+    }));
+}
+
+// สร้าง Exercise จริงจากท่าในคลัง — ใช้ค่าที่เหมาะกับอุปกรณ์นั้นให้เลย
+export function exerciseFromTemplate(t: ExTemplate, day: DayKey, order: number, id: string) {
+  return {
+    id,
+    name: t.name,
+    day,
+    type: t.type,
+    sets: t.sets,
+    rmin: t.rmin,
+    rmax: t.rmax,
+    inc: incFor(t),
+    unit: unitFor(t),
+    amrap: t.amrap ?? false,
+    machine: isMachineEx(t) || undefined,
+    order,
+  };
+}
+
+const MAJOR = MAJOR_MUSCLES;
+
 
 export type MuscleStatus = "missing" | "low" | "good" | "high";
 
@@ -334,8 +197,6 @@ export const MAX_SETS_PER_DAY = 22;
 const MAX_SETS_PER_MUSCLE_PER_DAY = 10;
 // ถือว่า "โดนจริงจัง" เมื่อได้ตั้งแต่เท่านี้ขึ้นไป (กันการเตือนจากท่า compound ที่โดนกล้ามรองนิดเดียว)
 const MEANINGFUL_SETS = 4;
-
-const MAJOR: MuscleKey[] = ["chest", "back", "shoulders", "quads", "glutes_hams"];
 
 export function trainingDays(data: Data): DayKey[] {
   return DAYS.filter((d) => exercisesForDay(data, d).length > 0);
@@ -602,7 +463,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
 
   // 1) กล้ามที่ไม่มี — เพิ่มท่าใหม่จากคลัง
   for (const s of analysis.stats.filter((s) => s.status === "missing")) {
-    const cand = SUGGESTION_BANK[s.muscle].filter((c) => !existing.has(normName(c.name)));
+    const cand = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
     if (!cand.length) continue;
     const day = bestDayFor(data, s.muscle);
     recs.push({
@@ -623,7 +484,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
     const isoRoom = contributorsFor(data, s.muscle).find(
       (ex) => muscleMap(ex.name).length === 1 && ex.sets < MAX_SETS_PER_EX,
     );
-    const cand = SUGGESTION_BANK[s.muscle].filter((c) => !existing.has(normName(c.name)));
+    const cand = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
     if (isoRoom) {
       recs.push({
         id: mkId(),
@@ -724,7 +585,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   for (const s of analysis.stats.filter((s) => MAJOR.includes(s.muscle) && s.days === 1 && s.status !== "missing")) {
     const curDay = DAYS.find((d) => exercisesForDay(data, d).some((ex) => muscleMap(ex.name).some((h) => h.m === s.muscle)));
     const day = pickOtherDay(data, curDay);
-    const cand = SUGGESTION_BANK[s.muscle].filter((c) => !existing.has(normName(c.name)));
+    const cand = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
     if (cand.length) {
       recs.push({
         id: mkId(),

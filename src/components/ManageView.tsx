@@ -10,7 +10,7 @@ import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isPro } from "../lib/edition";
 import UpgradeCard from "./UpgradeCard";
-import { EQUIP_TH, EXERCISE_COUNT, findTemplate, incFor, isMachine, searchExercises, unitFor } from "../lib/exerciseDB";
+import { EQUIP_TH, EXERCISE_COUNT, findTemplate, incFor, isMachineEx, searchExercises, unitFor } from "../lib/exerciseDB";
 import { MUSCLE_TH } from "../lib/analyzer";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
@@ -653,9 +653,9 @@ function ExerciseSearchField({ onPick }: { onPick: (patch: Partial<ExerciseDraft
                   rmin: t.rmin,
                   rmax: t.rmax,
                   amrap: t.amrap ?? false,
-                  unit: unitFor(t.equip, t.type),
-                  inc: t.type === "weight" ? incFor(t.equip) : undefined,
-                  machine: isMachine(t.equip),
+                  unit: unitFor(t),
+                  inc: incFor(t),
+                  machine: isMachineEx(t),
                 });
                 setQ("");
                 setOpen(false);
@@ -663,13 +663,15 @@ function ExerciseSearchField({ onPick }: { onPick: (patch: Partial<ExerciseDraft
             >
               <span className="block text-[13px]">
                 {t.name}
-                {isMachine(t.equip) ? " ⚙" : ""}
+                {isMachineEx(t) ? " ⚙" : ""}
               </span>
               <span className="block text-[11.5px]" style={{ color: "var(--mut)" }}>
                 {t.th}
               </span>
               <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
-                {MUSCLE_TH[t.muscle]} · {EQUIP_TH[t.equip]} · {t.sets}×{t.amrap ? "สุดแรง" : `${t.rmin}-${t.rmax}`}
+                {t.pri.map((m) => MUSCLE_TH[m]).join("/")} ·{" "}
+                {t.equip.map((e) => EQUIP_TH[e]).slice(0, 2).join("+")} · {t.sets}×
+                {t.amrap ? "สุดแรง" : `${t.rmin}-${t.rmax}`}
               </span>
             </button>
           ))}
