@@ -169,6 +169,22 @@ export const EXPERIENCE_TH: Record<Experience, string> = {
   advanced: "ขั้นสูง",
 };
 
+// คำอธิบายให้ผู้ใช้เลือกได้ถูก — คนมักประเมินตัวเองสูงเกิน
+export const EXPERIENCE_DESC: Record<Experience, string> = {
+  beginner: "ฝึกจริงจังมาไม่ถึง 1 ปี",
+  intermediate: "ฝึกต่อเนื่อง 1-3 ปี น้ำหนักยังขึ้นเรื่อยๆ",
+  advanced: "ฝึกเกิน 3 ปี น้ำหนักขึ้นช้าแล้ว",
+};
+
+export type Goal = "hypertrophy" | "strength" | "fatloss" | "general";
+
+export const GOAL_TH: Record<Goal, string> = {
+  hypertrophy: "สร้างกล้าม",
+  strength: "เพิ่มความแข็งแรง",
+  fatloss: "ลดไขมัน",
+  general: "สุขภาพทั่วไป",
+};
+
 export interface VolumeTarget {
   min: number; // ขอบล่างของช่วงเป้าหมาย
   max: number; // ขอบบนของช่วงเป้าหมาย

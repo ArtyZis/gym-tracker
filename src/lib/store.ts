@@ -1,5 +1,7 @@
 // Data model + localStorage persistence (key: gymtracker_v1)
 
+import type { EquipTag, Experience, Goal, InjuryKey } from "./muscles";
+
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export type ExType = "weight" | "bodyweight" | "time";
 
@@ -85,6 +87,19 @@ export interface Swaps {
   extras?: SwapTarget[]; // ท่าที่เพิ่มเข้ามาเล่นวันนี้เพิ่มเติม (ไม่ได้แทนท่าไหน)
 }
 
+// ── โปรไฟล์และข้อจำกัดของผู้ใช้ (ทั้งหมด optional — ไม่กรอกก็ใช้แอปได้ปกติ) ──
+// ใช้ตอนวิเคราะห์เพื่อให้คำแนะนำ "ทำได้จริง" ไม่ใช่แค่ถูกทฤษฎี
+export interface Profile {
+  experience?: Experience; // กำหนดช่วงเป้าหมายเซตต่อสัปดาห์
+  goal?: Goal;
+  injuries?: InjuryKey[]; // ใช้กรองท่าที่ไม่ควรทำ
+}
+
+export interface Constraints {
+  sessionTimeCapMinutes?: number; // ห้ามเสนอเพิ่มท่าถ้าวันนั้นจะยาวเกินนี้
+  maxSetsPerSession?: number;
+}
+
 export interface Data {
   dayLabels: Record<DayKey, string>;
   exercises: Exercise[];
@@ -95,6 +110,12 @@ export interface Data {
   savedPrograms?: SavedProgram[]; // โปรแกรมที่ผู้ใช้บันทึกไว้
   historyArchive?: Record<string, SessionLog[]>; // ประวัติเก็บตามชื่อท่า — กู้กลับได้เมื่อท่าชื่อเดิมกลับมา
   swaps?: Swaps; // สลับท่าชั่วคราวเฉพาะวันนี้
+  profile?: Profile;
+  constraints?: Constraints;
+  // อุปกรณ์ที่ใช้ได้ "แยกรายวัน" — ไม่ใช่ระดับโปรไฟล์
+  // คนจำนวนมากเข้ายิมบางวันและเล่นที่บ้านบางวัน เก็บรวมเป็นค่าเดียวจะเสนอท่าที่ทำไม่ได้
+  // ไม่ได้ตั้ง = ถือว่ามีครบทุกอย่าง (ไม่บล็อกอะไรเลย ปลอดภัยกว่าเดาว่าไม่มี)
+  dayEquip?: Partial<Record<DayKey, EquipTag[]>>;
 }
 
 export const DAYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -211,6 +232,13 @@ export function normalizeData(d: any): Data | null {
   if (!Array.isArray(d.savedPrograms)) d.savedPrograms = [];
   if (!isObj(d.historyArchive)) d.historyArchive = {};
   if (!isObj(d.dayLabels)) d.dayLabels = { ...DEFAULT_DAY_LABELS };
+  // ฟิลด์ใหม่ที่เพิ่มทีหลัง — ชนิดผิดให้ทิ้งไป ระบบจะกลับไปใช้ค่า default เอง
+  if (d.profile !== undefined && !isObj(d.profile)) d.profile = undefined;
+  if (d.profile && !Array.isArray(d.profile.injuries)) d.profile.injuries = undefined;
+  if (d.constraints !== undefined && !isObj(d.constraints)) d.constraints = undefined;
+  if (d.dayEquip !== undefined && !isObj(d.dayEquip)) d.dayEquip = undefined;
+  else if (d.dayEquip)
+    for (const k of Object.keys(d.dayEquip)) if (!Array.isArray(d.dayEquip[k])) delete d.dayEquip[k];
   // วันเปลี่ยนแล้ว — เก็บบันทึกของท่าที่สลับไว้ แล้วกลับไปใช้ท่าตามโปรแกรมเดิม
   if (d.swaps && d.swaps.date !== todayStr()) {
     archiveSwapLogs(d as Data);

@@ -1,14 +1,29 @@
-// วิเคราะห์สมดุลกล้ามเนื้อแบบ rule-based (ไม่ใช้ AI)
+// Engine วิเคราะห์ตารางฝึก — rule-based ล้วน ไม่ใช้ AI
 //
-// อนุกรมวิธานกล้ามเนื้อ/แพทเทิร์น/อุปกรณ์ ย้ายไปอยู่ที่ muscles.ts แล้ว
-// ไฟล์นี้ re-export ไว้เพื่อไม่ให้โค้ดเดิมที่ import จากที่นี่พัง
+// หลักการหลัก: **ตรวจข้อจำกัดก่อน แล้วค่อยหาช่องว่าง ไม่ใช่ทางกลับกัน**
+// คำแนะนำทุกข้อต้องผ่านตัวกรอง 4 ด่าน (อุปกรณ์ · เพดานเซสชัน · เพดานกล้ามเนื้อ · ระยะห่างฟื้นตัว)
+// ไม่ผ่านด่านใด = ตัดทิ้ง ไม่แสดง แล้วไปบอกใน blockedInsights แทนว่าทำไมทำไม่ได้และแก้ที่ต้นเหตุยังไง
+//
+// เหตุผล: ระบบที่เสนอ "เพิ่ม Barbell Hip Thrust วันศุกร์" ให้คนที่วันศุกร์เล่นอยู่บ้าน
+// ไม่มีบาร์เบล = คำแนะนำที่ใช้ไม่ได้ และทำให้ผู้ใช้เลิกเชื่อระบบทั้งหมด
 
-import type { Data, DayKey } from "./store";
+import type { Data, DayKey, Exercise } from "./store";
 import { DAYS, DAY_TH, archiveOne, exercisesForDay, normName, restoreHistory, uid } from "./store";
-import type { MuscleKey } from "./muscles";
-import { MAJOR_MUSCLES, MUSCLE_KEYS, MUSCLE_TH } from "./muscles";
+import type { EquipTag, FatigueCost, MuscleKey, Pattern } from "./muscles";
+import {
+  HEAVY_HIT_SETS,
+  MAJOR_MUSCLES,
+  MAX_SETS_PER_MUSCLE_PER_SESSION,
+  MINUTES_PER_SET,
+  MIN_RECOVERY_HOURS,
+  MUSCLE_KEYS,
+  MUSCLE_TH,
+  PATTERN_TH,
+  SMALL_MUSCLES,
+} from "./muscles";
 import type { ExTemplate } from "./exerciseDB";
 import { EXERCISE_DB, findTemplate, incFor, isMachineEx, musclesOf, unitFor } from "./exerciseDB";
+import { canDoWithEquip, getDayEquip, getInjuries, getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "./profile";
 
 export type { MuscleKey } from "./muscles";
 export { MUSCLE_TH, MUSCLE_KEYS } from "./muscles";
@@ -18,12 +33,8 @@ export interface MuscleHit {
   w: number;
 }
 
-// กล้ามเนื้อที่ท่านี้โดน — นับแบบ fractional (primary 1.0, secondary 0.5)
-//
-// ลำดับการตัดสิน:
-//   1) ถ้าชื่อตรงกับคลังท่า ใช้ข้อมูลจากคลัง (แม่นสุด — คนจัดเองทีละท่า)
-//   2) ถ้าไม่ตรง (ผู้ใช้พิมพ์ชื่อเอง) ค่อยเดาจากคำในชื่อ
-// เดิมใช้วิธี (2) กับทุกท่ารวมท่าในคลังด้วย ซึ่งเดาพลาดได้ เช่นแยกไหล่ 3 มัดไม่ออก
+// ── กล้ามเนื้อที่ท่าโดน (fractional: primary 1.0, secondary 0.5) ──
+// ชื่อตรงกับคลัง = ใช้ข้อมูลคลัง (แม่นสุด) · ไม่ตรง = เดาจากคำในชื่อ (ท่าที่ผู้ใช้พิมพ์เอง)
 export function muscleMap(name: string): MuscleHit[] {
   const tpl = findTemplate(name);
   if (tpl) return musclesOf(tpl);
@@ -34,7 +45,6 @@ export function muscleMap(name: string): MuscleHit[] {
     if (!hits.some((h) => h.m === m)) hits.push({ m, w });
   };
 
-  // ── ดัน ──
   if (/bench|chest|fly|pec|dip|push.?up|ดันอก|วิดพื้น|เบนช์/.test(t)) {
     add("chest", 1);
     add("triceps", 0.5);
@@ -44,19 +54,16 @@ export function muscleMap(name: string): MuscleHit[] {
     add("front_delts", 1);
     add("triceps", 0.5);
   }
-  // ไหล่ข้างโดนเฉพาะท่ากางออกข้าง — แยกจากไหล่หน้าเพราะเป็นจุดที่มักขาดโดยไม่รู้ตัว
   if (/lateral raise|side raise|กางข้าง|ยกข้าง/.test(t)) add("side_delts", 1);
   if (/front raise|ยกหน้า/.test(t)) add("front_delts", 1);
   if (/upright row|อัพไรท์/.test(t)) {
     add("side_delts", 1);
     add("back", 0.5);
   }
-  // ── ไหล่หลัง ──
   if (/face pull|rear delt|reverse fly|reverse pec|เฟซพูล|ไหล่หลัง|กางหลัง/.test(t)) {
     add("rear_delts", 1);
     add("back", 0.5);
   }
-  // ── ดึง ──
   if (/pull.?up|chin.?up|pulldown|row|pullover|โรว์|ดึงข้อ|พูลดาวน์|ดึงหลัง/.test(t)) {
     add("back", 1);
     add("biceps", 0.5);
@@ -64,14 +71,12 @@ export function muscleMap(name: string): MuscleHit[] {
     if (/towel|ผ้า/.test(t)) add("forearms", 1);
   }
   if (/shrug|ยักไหล่|ชรัก/.test(t)) add("back", 1);
-  // ── แขน ──
   if (/curl/.test(t) && !/wrist|leg|pronation|ข้อมือ|งอขา/.test(t)) {
     add("biceps", 1);
     if (/hammer|reverse|แฮมเมอร์|คว่ำมือ/.test(t)) add("forearms", 0.5);
   }
   if (/tricep|pushdown|skull|kickback|diamond|ไตรเซป|กดสาย/.test(t) && !/leg|back/.test(t)) add("triceps", 1);
   if (/extension/.test(t) && /tricep|overhead|เหยียดไตรเซป/.test(t)) add("triceps", 1);
-  // ── ขา ──
   if (/squat|leg press|hack|lunge|step.?up|สควอท|ย่อขา|ลันจ์|ดันขา/.test(t)) {
     add("quads", 1);
     add("glutes", 0.5);
@@ -93,7 +98,6 @@ export function muscleMap(name: string): MuscleHit[] {
     add("hamstrings", 0.5);
   }
   if (/calf|น่อง|เขย่ง/.test(t)) add("calves", 1);
-  // ── แกนกลาง / ปลายแขน ──
   if (/plank|crunch|sit.?up|knee raise|leg raise|hollow|l.?sit|ab |core|dead bug|russian|twist|แพลงก์|ครันช์|ยกเข่า|ยกขา|ท้อง/.test(t))
     add("core", 1);
   if (/wrist|pronation|farmer|grip|hang|ข้อมือ|ห้อยบาร์|หิ้ว/.test(t)) add("forearms", 1);
@@ -101,9 +105,441 @@ export function muscleMap(name: string): MuscleHit[] {
   return hits;
 }
 
-// ── คลังท่าที่ใช้เสนอเพิ่ม ──
-// ดึงจาก EXERCISE_DB โดยตรง (เดิมมี SUGGESTION_BANK แยกอีกชุด ซึ่งไม่มีข้อมูลอุปกรณ์
-// จึงกรองตามอุปกรณ์ที่ผู้ใช้มีในวันนั้นไม่ได้ — เป็นสาเหตุที่ระบบเสนอท่าที่ทำจริงไม่ได้)
+// ── ข้อมูลของท่าที่ผู้ใช้มี (ดึงจากคลังถ้ามี ไม่มีก็เดา) ──
+export function fatigueOf(ex: Exercise): FatigueCost {
+  const tpl = findTemplate(ex.name);
+  if (tpl) return tpl.fatigue;
+  // เดาจากช่วงเรป: เรปต่ำ = ยกหนัก = ล้าเยอะ = ต้องพักนาน
+  if (ex.type !== "weight") return "low";
+  return ex.rmax <= 8 ? "high" : ex.rmax <= 12 ? "moderate" : "low";
+}
+
+export const patternOf = (ex: Exercise): Pattern | null => findTemplate(ex.name)?.pattern ?? null;
+
+// นาทีโดยประมาณของทั้งวัน (รวมเวลาพัก) — ตามสเปค 4.2
+export function estimateMinutes(exs: Exercise[]): number {
+  return Math.round(exs.reduce((a, ex) => a + ex.sets * MINUTES_PER_SET[fatigueOf(ex)], 0));
+}
+
+// ── ระยะห่างระหว่างวันแบบวงกลม (สเปค 4.3) ──
+// สัปดาห์วนกลับมา ไม่ใช่เส้นตรง: เสาร์ -> จันทร์ = 48 ชม. ไม่ใช่ 5 วัน
+const DAY_IDX: Record<DayKey, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+export function hoursBetween(a: DayKey, b: DayKey): number {
+  return (((DAY_IDX[b] - DAY_IDX[a]) % 7) + 7) % 7 * 24;
+}
+
+// ต้องดูทั้งสองทิศแล้วใช้ค่าน้อยกว่า — ระยะพักจริงคือช่องว่างที่สั้นที่สุด
+export function minGapHours(a: DayKey, b: DayKey): number {
+  if (a === b) return 0;
+  return Math.min(hoursBetween(a, b), hoursBetween(b, a));
+}
+
+export function trainingDays(data: Data): DayKey[] {
+  return DAYS.filter((d) => exercisesForDay(data, d).length > 0);
+}
+
+export function maxConsecutiveDays(train: Set<DayKey>): number {
+  const arr = DAYS.map((d) => train.has(d));
+  if (arr.every(Boolean)) return 7;
+  if (!arr.some(Boolean)) return 0;
+  let max = 0;
+  let cur = 0;
+  for (const t of [...arr, ...arr]) {
+    if (t) {
+      cur++;
+      if (cur > max) max = cur;
+    } else cur = 0;
+  }
+  return Math.min(7, max);
+}
+
+// ══════════ ผลวิเคราะห์ ══════════
+
+export type MuscleStatus = "missing" | "low" | "good" | "high";
+
+export interface MuscleStat {
+  muscle: MuscleKey;
+  sets: number;
+  days: number; // ความถี่ต่อสัปดาห์
+  target: [number, number];
+  status: MuscleStatus;
+  achievableDays: number; // ความถี่สูงสุดที่ตารางนี้อนุญาต
+  blockedBy?: string; // ถ้าความถี่จริง < ที่ควรได้ เพราะอะไร
+}
+
+export interface DayLoad {
+  day: DayKey;
+  sets: number;
+  exercises: number;
+  minutes: number;
+  overSets: boolean;
+  overTime: boolean;
+}
+
+export interface RecoveryConflict {
+  muscle: MuscleKey;
+  a: DayKey;
+  b: DayKey;
+  gapHours: number;
+}
+
+export interface PatternStat {
+  pattern: Pattern;
+  sets: number;
+}
+
+// ปัญหาที่ระบบเห็นแต่แก้ด้วยตารางปัจจุบันไม่ได้ — แยกจากคำแนะนำที่ทำได้เลย
+export interface BlockedInsight {
+  issue: string;
+  whyCannotFix: string;
+  realSolution: string;
+}
+
+export interface ScoreBreakdown {
+  volume: number; // 0-1
+  patterns: number;
+  recovery: number;
+  sessionCap: number;
+  order: number;
+}
+
+export interface Analysis {
+  stats: MuscleStat[];
+  score: number; // = execution (ชื่อเดิม ให้ UI เก่าใช้ได้)
+  execution: number;
+  ceiling: number; // เพดานสูงสุดที่ข้อจำกัดนี้อนุญาต
+  headline: string;
+  issues: string[];
+  consecutive: number;
+  dayLoads: DayLoad[];
+  recovery: RecoveryConflict[];
+  patterns: PatternStat[];
+  blockedInsights: BlockedInsight[];
+  breakdown: ScoreBreakdown;
+}
+
+// น้ำหนักคะแนนตามสเปค 6
+const W = { volume: 0.4, patterns: 0.2, recovery: 0.2, sessionCap: 0.1, order: 0.1 };
+
+export const MAX_SETS_PER_DAY = 22; // ใช้เป็นค่าอ้างอิงใน UI (ค่าจริงมาจาก constraints ของผู้ใช้)
+
+export function analyzeProgram(data: Data): Analysis {
+  const target = getVolumeTarget(data);
+  const maxSets = getMaxSetsPerSession(data);
+  const timeCap = getTimeCap(data);
+  const train = trainingDays(data);
+
+  // ── ปริมาณต่อกล้ามเนื้อ (fractional) แยกรายวันด้วย ──
+  const vol = Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0])) as Record<MuscleKey, number>;
+  const volByDay = Object.fromEntries(
+    DAYS.map((d) => [d, Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0]))]),
+  ) as Record<DayKey, Record<MuscleKey, number>>;
+  const daysHit = Object.fromEntries(MUSCLE_KEYS.map((m) => [m, new Set<DayKey>()])) as Record<MuscleKey, Set<DayKey>>;
+  const patternSets = new Map<Pattern, number>();
+
+  for (const day of DAYS)
+    for (const ex of exercisesForDay(data, day)) {
+      for (const { m, w } of muscleMap(ex.name)) {
+        vol[m] += ex.sets * w;
+        volByDay[day][m] += ex.sets * w;
+        daysHit[m].add(day);
+      }
+      const p = patternOf(ex);
+      if (p) patternSets.set(p, (patternSets.get(p) ?? 0) + ex.sets);
+    }
+
+  // ── ความถี่สูงสุดที่ตารางนี้ทำได้ ──
+  // ต้องเว้นอย่างน้อย 48 ชม. ระหว่างวันที่โดนกล้ามเดิมหนัก
+  // เข้ายิม จ+ส (ห่าง 48/120) -> ใส่ได้ 2 วัน แต่ถ้า จ+อ (ห่าง 24) -> ได้แค่ 1
+  const achievableFreq = maxIndependentDays(train);
+
+  const issues: string[] = [];
+  const blockedInsights: BlockedInsight[] = [];
+
+  const stats: MuscleStat[] = MUSCLE_KEYS.map((m) => {
+    const sets = Math.round(10 * vol[m]) / 10;
+    const days = daysHit[m].size;
+    const small = SMALL_MUSCLES.includes(m);
+    const status: MuscleStatus =
+      sets === 0 ? "missing" : sets < target.warnLow ? "low" : !small && sets > target.warnHigh ? "high" : "good";
+    // ควรได้ 2 ครั้ง/สัปดาห์ แต่ตารางอาจไม่เอื้อ
+    const wantDays = Math.min(2, achievableFreq);
+    const blocked = status !== "missing" && days < wantDays && achievableFreq < 2;
+    return {
+      muscle: m,
+      sets,
+      days,
+      target: [target.min, target.max] as [number, number],
+      status,
+      achievableDays: achievableFreq,
+      blockedBy: blocked ? "วันฝึกห่างกันไม่พอ" : undefined,
+    };
+  });
+
+  // ── ภาระต่อวัน ──
+  const dayLoads: DayLoad[] = train.map((day) => {
+    const exs = exercisesForDay(data, day);
+    const sets = exs.reduce((a, e) => a + e.sets, 0);
+    const minutes = estimateMinutes(exs);
+    return { day, sets, exercises: exs.length, minutes, overSets: sets > maxSets, overTime: minutes > timeCap };
+  });
+
+  // ── การฟื้นตัว: กล้ามเดิมโดนหนักในวันที่ห่างกัน < 48 ชม. ──
+  const recovery: RecoveryConflict[] = [];
+  for (let i = 0; i < train.length; i++)
+    for (let j = i + 1; j < train.length; j++) {
+      const a = train[i];
+      const b = train[j];
+      const gap = minGapHours(a, b);
+      if (gap >= MIN_RECOVERY_HOURS) continue;
+      for (const m of MUSCLE_KEYS)
+        if (volByDay[a][m] >= HEAVY_HIT_SETS && volByDay[b][m] >= HEAVY_HIT_SETS)
+          recovery.push({ muscle: m, a, b, gapHours: gap });
+    }
+
+  const patterns: PatternStat[] = [...patternSets.entries()].map(([pattern, sets]) => ({ pattern, sets }));
+  const pat = (p: Pattern) => patternSets.get(p) ?? 0;
+
+  // ══ คะแนน 5 หมวด — เก็บทั้ง "ทำได้จริง" และ "เพดานที่ข้อจำกัดอนุญาต" ══
+
+  // 1) ปริมาณ (40%)
+  let volHit = 0;
+  let volCeil = 0;
+  const scored = stats.filter((s) => !SMALL_MUSCLES.includes(s.muscle) || s.sets > 0);
+  for (const s of scored) {
+    const inRange = s.sets >= target.warnLow && (SMALL_MUSCLES.includes(s.muscle) || s.sets <= target.warnHigh);
+    volHit += inRange ? 1 : s.status === "missing" ? 0 : 0.5;
+    volCeil += 1; // ปริมาณเพิ่มได้เสมอถ้ามีที่ว่างในตาราง
+    if (s.status === "missing" && MAJOR_MUSCLES.includes(s.muscle)) issues.push(`ไม่มีท่าโดน${MUSCLE_TH[s.muscle]}เลย`);
+    else if (s.status === "low") issues.push(`${MUSCLE_TH[s.muscle]} ${s.sets} เซต/สัปดาห์ — ต่ำกว่าเป้า ${target.min}`);
+    else if (s.status === "high") issues.push(`${MUSCLE_TH[s.muscle]} ${s.sets} เซต/สัปดาห์ — เกินโซนคุ้มค่า`);
+  }
+  const volumeScore = scored.length ? volHit / scored.length : 1;
+
+  // 2) สมดุลแพทเทิร์น (20%) — สเปค 4.4
+  const hPush = pat("horizontal_push");
+  const hPull = pat("horizontal_pull");
+  const checks: { ok: boolean; msg: string }[] = [
+    { ok: hPull >= hPush * 0.8, msg: `ท่าดึงเข้าหาตัว ${hPull} เซต น้อยกว่าท่าดันออกหน้า ${hPush} เซต — เสี่ยงไหล่ห่อ` },
+    { ok: pat("vertical_pull") >= 1, msg: "ไม่มีท่าดึงลงล่างเลย (พูลอัพ/พูลดาวน์)" },
+    { ok: hPull >= 1, msg: "ไม่มีท่าดึงเข้าหาตัวเลย (โรว์)" },
+    { ok: pat("hip_hinge") >= 3, msg: "ท่าบานพับสะโพกน้อยเกิน (RDL/ฮิปทรัส) — หลังขาและก้นจะขาด" },
+  ];
+  for (const c of checks) if (!c.ok) issues.push(c.msg);
+  const patternScore = checks.filter((c) => c.ok).length / checks.length;
+
+  // 3) ความถี่/ฟื้นตัว (20%)
+  const consecutive = maxConsecutiveDays(new Set(train));
+  let recPenalty = recovery.length * 0.25 + Math.max(0, consecutive - 3) * 0.2;
+  for (const r of recovery)
+    issues.push(`${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${DAY_TH[r.a]}และ${DAY_TH[r.b]} ห่างแค่ ${r.gapHours} ชม. — ต้องการ ${MIN_RECOVERY_HOURS} ชม.`);
+  if (consecutive > 3) issues.push(`ฝึกติดต่อกัน ${consecutive} วันไม่พัก`);
+  const recoveryScore = Math.max(0, 1 - recPenalty);
+  // เพดาน: ถ้าตารางไม่เอื้อให้กระจาย 2 วัน ก็ไม่ควรหักคะแนนจนต่ำเกินจริง (สเปค 6)
+  const recoveryCeil = 1;
+
+  // 4) ไม่มีวันยาวเกินเพดาน (10%)
+  const overDays = dayLoads.filter((d) => d.overSets || d.overTime);
+  for (const d of overDays)
+    issues.push(
+      d.overTime
+        ? `${DAY_TH[d.day]}ใช้เวลาราว ${d.minutes} นาที เกินที่ตั้งไว้ ${timeCap} นาที`
+        : `${DAY_TH[d.day]}มี ${d.sets} เซต เกินเพดาน ${maxSets}`,
+    );
+  const sessionScore = dayLoads.length ? 1 - overDays.length / dayLoads.length : 1;
+
+  // 5) ลำดับท่า (10%) — ท่าล้าสูงควรมาก่อน, core/calves ปิดท้าย
+  const orderScore = scoreOrder(data, train);
+  if (orderScore < 1) issues.push("ลำดับท่าในบางวันยังไม่เหมาะ — ท่าหนักควรมาก่อนท่าเจาะจง");
+
+  const breakdown: ScoreBreakdown = {
+    volume: volumeScore,
+    patterns: patternScore,
+    recovery: recoveryScore,
+    sessionCap: sessionScore,
+    order: orderScore,
+  };
+
+  const execution = Math.round(
+    100 *
+      (W.volume * volumeScore +
+        W.patterns * patternScore +
+        W.recovery * recoveryScore +
+        W.sessionCap * sessionScore +
+        W.order * orderScore),
+  );
+
+  // เพดาน: หมวดที่ข้อจำกัดกดไว้จริงเท่านั้นที่ทำให้เพดานต่ำกว่า 100
+  const volCeilScore = volCeil ? Math.min(1, capacityFor(data, train, maxSets, target.min, scored.length)) : 1;
+  const ceiling = Math.round(
+    100 * (W.volume * volCeilScore + W.patterns * 1 + W.recovery * recoveryCeil + W.sessionCap * 1 + W.order * 1),
+  );
+
+  // ── ปัญหาที่แก้ด้วยตารางนี้ไม่ได้ ──
+  if (achievableFreq < 2 && train.length > 0) {
+    const lowFreq = stats.filter((s) => s.status !== "missing" && s.days < 2 && MAJOR_MUSCLES.includes(s.muscle));
+    if (lowFreq.length)
+      blockedInsights.push({
+        issue: `${lowFreq.map((s) => MUSCLE_TH[s.muscle]).slice(0, 3).join(", ")}โดนแค่ 1 ครั้ง/สัปดาห์`,
+        whyCannotFix: `ฝึก ${train.map((d) => DAY_TH[d]).join("+")} — วันที่มีห่างกันไม่ถึง ${MIN_RECOVERY_HOURS} ชม. จึงกระจายเป็น 2 วันไม่ได้`,
+        realSolution: "เพิ่มวันฝึกกลางสัปดาห์ หรือรับปริมาณรวมในวันเดียวไปก่อน (ยังได้ผลถ้าไม่เกินเพดานต่อวัน)",
+      });
+  }
+
+  const headline =
+    execution >= ceiling - 2
+      ? ceiling >= 95
+        ? "ตารางสมดุลดีมาก"
+        : "ดีที่สุดเท่าที่ตารางนี้ทำได้แล้ว"
+      : execution >= 70
+        ? "โดยรวมดี มีจุดเสริมได้"
+        : execution >= 50
+          ? "ใช้ได้ แต่มีช่องโหว่ควรอุด"
+          : "ควรปรับหลายจุด";
+
+  return {
+    stats,
+    score: execution,
+    execution,
+    ceiling,
+    headline,
+    issues,
+    consecutive,
+    dayLoads,
+    recovery,
+    patterns,
+    blockedInsights,
+    breakdown,
+  };
+}
+
+// จำนวนวันฝึกมากสุดที่เว้นห่างกันได้ >= 48 ชม. (= ความถี่สูงสุดต่อกล้ามเนื้อหนึ่งมัด)
+function maxIndependentDays(train: DayKey[]): number {
+  if (train.length <= 1) return train.length;
+  let best = 1;
+  // ลองทุกชุดย่อย (วันฝึกมีไม่เกิน 7 คำนวณตรงๆ ได้)
+  const n = train.length;
+  for (let mask = 1; mask < 1 << n; mask++) {
+    const pick: DayKey[] = [];
+    for (let i = 0; i < n; i++) if (mask & (1 << i)) pick.push(train[i]);
+    let ok = true;
+    for (let i = 0; i < pick.length && ok; i++)
+      for (let j = i + 1; j < pick.length; j++)
+        if (minGapHours(pick[i], pick[j]) < MIN_RECOVERY_HOURS) {
+          ok = false;
+          break;
+        }
+    if (ok && pick.length > best) best = pick.length;
+  }
+  return best;
+}
+
+// ตารางนี้มีที่ว่างพอให้ทุกกล้ามเนื้อถึงเป้าขั้นต่ำไหม (0-1)
+function capacityFor(data: Data, train: DayKey[], maxSets: number, minTarget: number, muscleCount: number): number {
+  if (!train.length) return 0;
+  const timeCap = getTimeCap(data);
+  // ความจุจริงของแต่ละวัน = น้อยกว่าระหว่างเพดานเซตกับเพดานเวลา
+  const capacity = train.reduce((a, d) => {
+    const byTime = Math.floor(timeCap / MINUTES_PER_SET.moderate);
+    return a + Math.min(maxSets, byTime);
+  }, 0);
+  const needed = minTarget * muscleCount * 0.6; // นับ fractional แล้วท่า compound ครอบหลายมัด
+  return needed ? Math.min(1, capacity / needed) : 1;
+}
+
+// ให้คะแนนลำดับท่า — ท่าล้าสูงควรมาก่อน core/calves ปิดท้าย (สเปค 7)
+function scoreOrder(data: Data, train: DayKey[]): number {
+  const rank: Record<FatigueCost, number> = { high: 0, moderate: 1, low: 2 };
+  let pairs = 0;
+  let good = 0;
+  for (const day of train) {
+    const exs = exercisesForDay(data, day);
+    for (let i = 0; i + 1 < exs.length; i++) {
+      pairs++;
+      const a = exs[i];
+      const b = exs[i + 1];
+      const aEnd = muscleMap(a.name).some((h) => h.m === "core" || h.m === "calves");
+      const bEnd = muscleMap(b.name).some((h) => h.m === "core" || h.m === "calves");
+      // core/calves ควรอยู่ท้าย: ถ้าท่าแรกเป็น core แต่ท่าหลังไม่ใช่ = ผิดลำดับ
+      if (aEnd && !bEnd) continue;
+      if (rank[fatigueOf(a)] <= rank[fatigueOf(b)]) good++;
+    }
+  }
+  return pairs ? good / pairs : 1;
+}
+
+// ══════════ ตัวกรองบังคับ 4 ด่าน (สเปค 5) ══════════
+
+export interface FilterVerdict {
+  ok: boolean;
+  reason?: string;
+  fix?: string;
+}
+
+// ท่านี้เพิ่มเข้าวันนั้นได้จริงไหม — ไม่ผ่านด่านใดด่านหนึ่ง = ห้ามเสนอ
+export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKey, addSets: number): FilterVerdict {
+  const exs = exercisesForDay(data, day);
+
+  // ด่าน 0: อาการบาดเจ็บ
+  if (tpl?.avoid) {
+    const hit = tpl.avoid.filter((a) => getInjuries(data).includes(a));
+    if (hit.length)
+      return { ok: false, reason: `ท่านี้ไม่เหมาะกับอาการที่แจ้งไว้`, fix: "ปรึกษาแพทย์/นักกายภาพก่อนกลับมาฝึกท่านี้" };
+  }
+
+  // ด่าน 1: อุปกรณ์ — ต้องมีครบทุกชิ้นในวันนั้น
+  if (tpl && !canDoWithEquip(tpl.equip, getDayEquip(data, day))) {
+    return {
+      ok: false,
+      reason: `${DAY_TH[day]}ไม่มีอุปกรณ์ที่ท่านี้ต้องใช้`,
+      fix: "เลือกท่าที่ใช้อุปกรณ์ที่มี หรือแก้อุปกรณ์ของวันนั้นในแท็บจัดการ",
+    };
+  }
+
+  // ด่าน 2: เพดานเซสชัน (ทั้งจำนวนเซตและเวลา)
+  const curSets = exs.reduce((a, e) => a + e.sets, 0);
+  if (curSets + addSets > getMaxSetsPerSession(data))
+    return { ok: false, reason: `${DAY_TH[day]}จะเกินเพดาน ${getMaxSetsPerSession(data)} เซต`, fix: "ย้ายบางท่าไปวันอื่นก่อน" };
+
+  const addMin = tpl ? addSets * MINUTES_PER_SET[tpl.fatigue] : addSets * MINUTES_PER_SET.moderate;
+  if (estimateMinutes(exs) + addMin > getTimeCap(data))
+    return { ok: false, reason: `${DAY_TH[day]}จะใช้เวลาเกิน ${getTimeCap(data)} นาที`, fix: "เพิ่มเวลาต่อครั้ง หรือย้ายบางท่าไปวันอื่น" };
+
+  // ด่าน 3: เพดานกล้ามเนื้อในวันนั้น
+  const primary = tpl?.pri[0];
+  if (primary) {
+    let cur = 0;
+    for (const ex of exs) for (const h of muscleMap(ex.name)) if (h.m === primary) cur += ex.sets * h.w;
+    if (cur + addSets > MAX_SETS_PER_MUSCLE_PER_SESSION)
+      return {
+        ok: false,
+        reason: `${MUSCLE_TH[primary]}ใน${DAY_TH[day]}จะเกิน ${MAX_SETS_PER_MUSCLE_PER_SESSION} เซต`,
+        fix: "กระจายไปวันอื่นแทนการอัดเพิ่มวันเดียว",
+      };
+  }
+
+  // ด่าน 4: ระยะห่างการฟื้นตัว (ตรวจสองทิศ)
+  if (primary) {
+    for (const other of trainingDays(data)) {
+      if (other === day) continue;
+      let load = 0;
+      for (const ex of exercisesForDay(data, other)) for (const h of muscleMap(ex.name)) if (h.m === primary) load += ex.sets * h.w;
+      if (load < HEAVY_HIT_SETS) continue;
+      const gap = minGapHours(other, day);
+      if (gap < MIN_RECOVERY_HOURS)
+        return {
+          ok: false,
+          reason: `${MUSCLE_TH[primary]}โดนหนักอยู่แล้วใน${DAY_TH[other]} ห่างกันแค่ ${gap} ชม.`,
+          fix: `เว้นอย่างน้อย ${MIN_RECOVERY_HOURS} ชม. — ใส่วันอื่นหรือเพิ่มวันฝึก`,
+        };
+    }
+  }
+
+  return { ok: true };
+}
+
+// ══════════ ท่าที่เสนอได้ ══════════
 
 export interface SuggestionTemplate {
   name: string;
@@ -113,14 +549,9 @@ export interface SuggestionTemplate {
   rmin: number;
   rmax: number;
   reason: string;
-  // ท่าต้นฉบับจากคลัง — ให้ตัวกรองอ่านอุปกรณ์/pattern/ความล้าได้
-  // ไม่มี = เป็นท่าที่ผู้ใช้มีในโปรแกรมอยู่แล้ว (เช่นเสนอให้ทำซ้ำอีกวัน)
-  // กรณีนี้ไม่ต้องตรวจอุปกรณ์ เพราะเขาทำท่านี้อยู่แล้วจึงมีของแน่นอน
   tpl?: ExTemplate;
 }
 
-// ท่าจากคลังที่โดนกล้ามเนื้อมัดนั้นเป็นหลัก เรียงท่าที่โดนกล้ามน้อยมัดก่อน
-// (โดนน้อยมัด = เจาะจงกว่า = เติมช่องว่างได้ตรงจุดโดยไม่ไปเพิ่มภาระมัดอื่น)
 export function candidatesFor(muscle: MuscleKey): SuggestionTemplate[] {
   return EXERCISE_DB.filter((t) => t.pri.includes(muscle))
     .sort((a, b) => a.pri.length + (a.sec?.length ?? 0) - (b.pri.length + (b.sec?.length ?? 0)))
@@ -136,8 +567,7 @@ export function candidatesFor(muscle: MuscleKey): SuggestionTemplate[] {
     }));
 }
 
-// สร้าง Exercise จริงจากท่าในคลัง — ใช้ค่าที่เหมาะกับอุปกรณ์นั้นให้เลย
-export function exerciseFromTemplate(t: ExTemplate, day: DayKey, order: number, id: string) {
+export function exerciseFromTemplate(t: ExTemplate, day: DayKey, order: number, id: string): Exercise {
   return {
     id,
     name: t.name,
@@ -154,300 +584,72 @@ export function exerciseFromTemplate(t: ExTemplate, day: DayKey, order: number, 
   };
 }
 
-const MAJOR = MAJOR_MUSCLES;
+// ══════════ คำแนะนำ ══════════
 
+export type RecKind = "add" | "increaseSets" | "reduceSets" | "moveExercise" | "removeExercise" | "restDay" | "splitDay";
 
-export type MuscleStatus = "missing" | "low" | "good" | "high";
-
-export interface MuscleStat {
-  muscle: MuscleKey;
-  sets: number;
-  days: number;
-  status: MuscleStatus;
-}
-
-// ภาระของแต่ละวันฝึก — ยัดเซตเยอะเกินในวันเดียวคุณภาพตก (เซตท้ายๆ แรงหมด กระตุ้นได้น้อย)
-export interface DayLoad {
-  day: DayKey;
-  sets: number;
-  exercises: number;
-  overloaded: boolean;
-}
-
-// กล้ามเนื้อที่โดนซ้ำในวันติดกัน — กล้ามเนื้อต้องการ ~48 ชม. ซ่อมตัว
-export interface RecoveryConflict {
-  muscle: MuscleKey;
-  a: DayKey;
-  b: DayKey;
-}
-
-export interface Analysis {
-  stats: MuscleStat[];
-  score: number;
-  headline: string;
-  issues: string[];
-  consecutive: number; // จำนวนวันฝึกติดต่อกันมากสุด (วนสัปดาห์)
-  dayLoads: DayLoad[]; // ภาระรายวัน (เฉพาะวันที่มีท่า)
-  recovery: RecoveryConflict[]; // จุดที่ฟื้นตัวไม่ทัน
-}
-
-// เซตรวมต่อวันที่ยังคุมคุณภาพได้ — เกินกว่านี้เซตท้ายๆ แทบไม่ได้ผล ควรแยกไปอีกวันแทน
-export const MAX_SETS_PER_DAY = 22;
-// เซตต่อกล้ามเนื้อเดียวในวันเดียว — เกิน 10 ผลตอบแทนต่อเซตลดชัด
-const MAX_SETS_PER_MUSCLE_PER_DAY = 10;
-// ถือว่า "โดนจริงจัง" เมื่อได้ตั้งแต่เท่านี้ขึ้นไป (กันการเตือนจากท่า compound ที่โดนกล้ามรองนิดเดียว)
-const MEANINGFUL_SETS = 4;
-
-export function trainingDays(data: Data): DayKey[] {
-  return DAYS.filter((d) => exercisesForDay(data, d).length > 0);
-}
-
-// จำนวนวันฝึกติดต่อกันมากสุด นับแบบวนสัปดาห์ (อาทิตย์ต่อจันทร์)
-export function maxConsecutiveDays(train: Set<DayKey>): number {
-  const arr = DAYS.map((d) => train.has(d));
-  if (arr.every(Boolean)) return 7;
-  if (!arr.some(Boolean)) return 0;
-  let max = 0;
-  let cur = 0;
-  for (const t of [...arr, ...arr]) {
-    if (t) {
-      cur++;
-      if (cur > max) max = cur;
-    } else cur = 0;
-  }
-  return Math.min(7, max);
-}
-
-export function analyzeProgram(data: Data): Analysis {
-  const vol: Record<MuscleKey, number> = Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0])) as Record<
-    MuscleKey,
-    number
-  >;
-  const daySets: Record<MuscleKey, Set<DayKey>> = Object.fromEntries(
-    MUSCLE_KEYS.map((m) => [m, new Set<DayKey>()]),
-  ) as Record<MuscleKey, Set<DayKey>>;
-  // เซตของกล้ามเนื้อแต่ละมัด แยกรายวัน — ใช้ตรวจภาระต่อวันและการฟื้นตัว
-  const volByDay: Record<DayKey, Record<MuscleKey, number>> = Object.fromEntries(
-    DAYS.map((d) => [d, Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0]))]),
-  ) as Record<DayKey, Record<MuscleKey, number>>;
-
-  for (const day of DAYS)
-    for (const ex of exercisesForDay(data, day))
-      for (const { m, w } of muscleMap(ex.name)) {
-        vol[m] += ex.sets * w;
-        daySets[m].add(day);
-        volByDay[day][m] += ex.sets * w;
-      }
-
-  const stats: MuscleStat[] = MUSCLE_KEYS.map((m) => {
-    const sets = Math.round(10 * vol[m]) / 10;
-    return {
-      muscle: m,
-      sets,
-      days: daySets[m].size,
-      // 8-26 เซต/สัปดาห์ = โซนที่งานวิจัยรองรับกว้างๆ (เกิน 26 ผลตอบแทนเริ่มลด แต่ไม่ใช่ผิด)
-      status: sets === 0 ? "missing" : sets < 8 ? "low" : sets <= 26 ? "good" : "high",
-    };
-  });
-
-  let score = 100;
-  const issues: string[] = [];
-  for (const s of stats) {
-    const major = MAJOR.includes(s.muscle);
-    if (s.status === "missing") {
-      score -= major ? 14 : 6;
-      issues.push(`ไม่มีท่าโดน${MUSCLE_TH[s.muscle]}เลย`);
-    } else if (s.status === "low") {
-      score -= major ? 7 : 3;
-      issues.push(`${MUSCLE_TH[s.muscle]}ยังน้อย (${s.sets} เซต/สัปดาห์)`);
-    } else if (s.status === "high") {
-      score -= 3;
-      issues.push(`${MUSCLE_TH[s.muscle]} ${s.sets} เซต/สัปดาห์ — เกินโซนคุ้มค่า ผลตอบแทนเริ่มลด (ถ้าฟื้นตัวไหวก็ทำได้)`);
-    }
-    if (major && s.days === 1 && s.status !== "missing") {
-      score -= 3;
-      issues.push(`${MUSCLE_TH[s.muscle]}โดนแค่ 1 วัน/สัปดาห์ — 2 วันดีกว่า`);
-    }
-  }
-
-  // ฝึกติดต่อกันเกิน 3 วันไม่พัก — ฟื้นตัวไม่ทัน
-  const consecutive = maxConsecutiveDays(new Set(trainingDays(data)));
-  if (consecutive > 3) {
-    score -= (consecutive - 3) * 5;
-    issues.push(`ฝึกติดต่อกัน ${consecutive} วันไม่พัก — ควรแทรกวันพัก`);
-  }
-
-  // ── ภาระต่อวัน: ยัดเซตเยอะเกินในวันเดียว เซตท้ายๆ แรงหมดแล้ว กระตุ้นกล้ามได้น้อยลง ──
-  const dayLoads: DayLoad[] = trainingDays(data).map((day) => {
-    const exs = exercisesForDay(data, day);
-    const sets = exs.reduce((a, e) => a + e.sets, 0);
-    return { day, sets, exercises: exs.length, overloaded: sets > MAX_SETS_PER_DAY };
-  });
-
-  for (const dl of dayLoads.filter((d) => d.overloaded)) {
-    score -= 5;
-    issues.push(
-      `${DAY_TH[dl.day]}อัดไป ${dl.sets} เซตในวันเดียว (เกิน ${MAX_SETS_PER_DAY}) — แยกบางท่าไปวันอื่นหรือเพิ่มวันฝึก`,
-    );
-  }
-
-  // กล้ามเนื้อเดียวโดนหนักเกินในวันเดียว — เพิ่มเซตต่อไปได้ผลน้อยกว่าไปเพิ่มอีกวัน
-  for (const day of trainingDays(data))
-    for (const m of MUSCLE_KEYS) {
-      const s = Math.round(volByDay[day][m]);
-      if (s > MAX_SETS_PER_MUSCLE_PER_DAY) {
-        score -= 3;
-        issues.push(
-          `${MUSCLE_TH[m]}โดน ${s} เซตรวดใน${DAY_TH[day]} — เกิน ${MAX_SETS_PER_MUSCLE_PER_DAY} เซตต่อวันผลตอบแทนลด กระจายไปอีกวันดีกว่า`,
-        );
-      }
-    }
-
-  // ── ฟื้นตัว: กล้ามเนื้อมัดเดิมโดนหนักในวันติดกัน (ต้องการ ~48 ชม.ซ่อมตัว) ──
-  const recovery: RecoveryConflict[] = [];
-  for (let i = 0; i < 7; i++) {
-    const a = DAYS[i];
-    const b = DAYS[(i + 1) % 7]; // วนสัปดาห์: อาทิตย์ต่อจันทร์
-    for (const m of MUSCLE_KEYS)
-      if (volByDay[a][m] >= MEANINGFUL_SETS && volByDay[b][m] >= MEANINGFUL_SETS) recovery.push({ muscle: m, a, b });
-  }
-
-  for (const r of recovery) {
-    score -= 4;
-    issues.push(
-      `${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${DAY_TH[r.a]}และ${DAY_TH[r.b]}ติดกัน — กล้ามเนื้อต้องการ ~48 ชม. ซ่อมตัว ควรเว้นวัน`,
-    );
-  }
-
-  score = Math.max(0, Math.min(100, Math.round(score)));
-  const headline =
-    score >= 100
-      ? "โปรแกรมสมดุลเต็ม 100 🎉"
-      : score >= 85
-        ? "โปรแกรมสมดุลดีมาก"
-        : score >= 70
-          ? "โดยรวมดี มีจุดเสริมได้"
-          : score >= 50
-            ? "ใช้ได้ แต่มีช่องโหว่ควรอุด"
-            : "ควรปรับหลายจุด";
-
-  return { stats, score, headline, issues, consecutive, dayLoads, recovery };
-}
-
-// เลือกวันที่เหมาะกับกล้ามเนื้อนั้นที่สุด: มีท่ากลุ่มเดียวกันอยู่แล้ว และวันยังไม่แน่น
-function bestDayFor(data: Data, muscle: MuscleKey): DayKey {
-  const activeDays = DAYS.filter((d) => exercisesForDay(data, d).length > 0);
-  if (!activeDays.length) return "mon";
-  let best: DayKey = activeDays[0];
-  let bestScore = -1;
-  for (const d of activeDays) {
-    const exs = exercisesForDay(data, d);
-    let same = 0;
-    for (const ex of exs) if (muscleMap(ex.name).some((h) => h.m === muscle)) same++;
-    const s = 100 * same - exs.reduce((a, e) => a + e.sets, 0);
-    if (s > bestScore) {
-      bestScore = s;
-      best = d;
-    }
-  }
-  return best;
-}
-
-// เลือกวันฝึกอื่น (ไม่ใช่วันที่กล้ามนั้นโดนอยู่) เพื่อกระจายเป็น 2 วัน
-function pickOtherDay(data: Data, exclude?: DayKey): DayKey {
-  const active = trainingDays(data).filter((d) => d !== exclude);
-  if (active.length) return active.sort((a, b) => exercisesForDay(data, a).length - exercisesForDay(data, b).length)[0];
-  return DAYS.find((d) => d !== exclude && exercisesForDay(data, d).length === 0) || "wed";
-}
-
-// หา move ย้ายท่าทั้งวันจากวันฝึก → วันพัก ที่ลดจำนวนวันติดต่อกันได้มากสุด
-function findRestDayMove(data: Data): { from: DayKey; to: DayKey } | null {
-  const train = new Set(trainingDays(data));
-  const base = maxConsecutiveDays(train);
-  let best: { from: DayKey; to: DayKey; result: number } | null = null;
-  for (const from of DAYS) {
-    if (!train.has(from)) continue;
-    for (const to of DAYS) {
-      if (train.has(to) || to === from) continue;
-      const next = new Set(train);
-      next.delete(from);
-      next.add(to);
-      const r = maxConsecutiveDays(next);
-      if (r < base && (!best || r < best.result)) best = { from, to, result: r };
-    }
-  }
-  return best ? { from: best.from, to: best.to } : null;
-}
-
-export type RecKind =
-  | "add"
-  | "increaseSets"
-  | "reduceSets"
-  | "addDay"
-  | "moveExercise"
-  | "removeExercise"
-  | "restDay"
-  | "splitDay"; // วันที่อัดเกิน -> ย้ายท่าท้ายๆ ไปวันว่าง (เพิ่มวันฝึก)
-
-// วันว่างที่เพิ่มเข้าไปแล้วทำให้ต้องฝึกติดกันน้อยที่สุด
-function bestEmptyDay(data: Data): DayKey | null {
-  const train = new Set(trainingDays(data));
-  const empty = DAYS.filter((d) => !train.has(d));
-  if (!empty.length) return null;
-  let best = empty[0];
-  let bestConsecutive = 99;
-  for (const d of empty) {
-    const next = new Set(train);
-    next.add(d);
-    const c = maxConsecutiveDays(next);
-    if (c < bestConsecutive) {
-      bestConsecutive = c;
-      best = d;
-    }
-  }
-  return best;
-}
-
-// เซตต่อท่าที่สมเหตุสมผล — ท่าละ 3-5 เซต (เกินกว่านี้ควรเพิ่มท่าหรือแยกวันแทน)
 export const MIN_SETS_PER_EX = 3;
 export const MAX_SETS_PER_EX = 5;
-
-// ท่าที่โดนกล้ามเป้าหมาย เรียง isolation ก่อน (โดนกล้ามน้อย = กระทบกล้ามอื่นน้อย)
-function contributorsFor(data: Data, muscle: MuscleKey) {
-  return data.exercises
-    .filter((ex) => muscleMap(ex.name).some((h) => h.m === muscle))
-    .sort((a, b) => {
-      const iso = muscleMap(a.name).length - muscleMap(b.name).length;
-      if (iso) return iso;
-      const wa = muscleMap(a.name).find((h) => h.m === muscle)?.w ?? 0;
-      const wb = muscleMap(b.name).find((h) => h.m === muscle)?.w ?? 0;
-      return wb - wa;
-    });
-}
+const MAX_RECOMMENDATIONS = 3; // สเปค: ห้ามเสนอเกิน 3 ข้อต่อครั้ง
 
 export interface Recommendation {
   id: string;
   kind: RecKind;
   title: string;
   detail: string;
-  gain: number; // คะแนนที่คาดว่าจะได้เพิ่ม (เรียงมากไปน้อย)
-  template?: SuggestionTemplate; // add / addDay
-  day?: DayKey; // วันปลายทางของ add / addDay
-  exerciseId?: string; // reduceSets
-  fromDay?: DayKey; // restDay
-  toDay?: DayKey; // restDay
+  reason: string; // ตัวเลขปัจจุบันเทียบเป้าหมาย
+  gain: number;
+  priority: "high" | "medium" | "low";
+  template?: SuggestionTemplate;
+  day?: DayKey;
+  exerciseId?: string;
+  fromDay?: DayKey;
+  toDay?: DayKey;
 }
 
-// สร้างคำแนะนำครบทุกมิติ — ทำตามจนหมดแล้วคะแนนจะเต็ม 100
+function bestEmptyDay(data: Data): DayKey | null {
+  const train = new Set(trainingDays(data));
+  const empty = DAYS.filter((d) => !train.has(d));
+  if (!empty.length) return null;
+  let best = empty[0];
+  let bestC = 99;
+  for (const d of empty) {
+    const next = new Set(train);
+    next.add(d);
+    const c = maxConsecutiveDays(next);
+    if (c < bestC) {
+      bestC = c;
+      best = d;
+    }
+  }
+  return best;
+}
+
+// วันที่เหมาะจะใส่ท่าของกล้ามเนื้อนี้ที่สุด (ผ่านตัวกรองแล้วเท่านั้น)
+function findValidDay(data: Data, tpl: ExTemplate, sets: number): { day: DayKey; verdict: FilterVerdict } | null {
+  const days = trainingDays(data);
+  const blocked: FilterVerdict[] = [];
+  // เรียงวันที่ภาระน้อยก่อน — ใส่ในวันที่ยังว่างดีกว่าไปเบียดวันที่แน่นแล้ว
+  const sorted = [...days].sort(
+    (a, b) => exercisesForDay(data, a).reduce((x, e) => x + e.sets, 0) - exercisesForDay(data, b).reduce((x, e) => x + e.sets, 0),
+  );
+  for (const day of sorted) {
+    const v = checkFilters(data, tpl, day, sets);
+    if (v.ok) return { day, verdict: v };
+    blocked.push(v);
+  }
+  return null;
+}
+
 export function buildRecommendations(data: Data, analysis: Analysis): Recommendation[] {
   const recs: Recommendation[] = [];
   const existing = new Set(data.exercises.map((e) => normName(e.name)));
+  const target = getVolumeTarget(data);
   let n = 0;
   const mkId = () => "rec" + n++;
 
-  // 0) วันที่อัดเซตเกิน — แยกไปอีกวันดีกว่ายัดวันเดียว (เซตท้ายๆ แรงหมด กระตุ้นได้น้อย)
-  //    ให้ลำดับสูงเพราะกระทบคุณภาพทุกเซตในวันนั้น ไม่ใช่แค่กล้ามมัดเดียว
-  for (const dl of analysis.dayLoads.filter((d) => d.overloaded)) {
+  // 1) วันที่อัดเกิน — แยกไปวันว่าง (แก้ได้ทันทีและกระทบคุณภาพทุกเซตในวันนั้น)
+  for (const dl of analysis.dayLoads.filter((d) => d.overSets || d.overTime)) {
     const to = bestEmptyDay(data);
     if (!to) continue;
     recs.push({
@@ -456,201 +658,91 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
       fromDay: dl.day,
       toDay: to,
       title: `แยก${DAY_TH[dl.day]}ไปเพิ่มวันฝึก${DAY_TH[to]}`,
-      detail: `${DAY_TH[dl.day]}อัด ${dl.sets} เซตในวันเดียว (เกิน ${MAX_SETS_PER_DAY}) — ย้ายท่าท้ายๆ ไป${DAY_TH[to]} แต่ละเซตจะได้แรงเต็มกว่า`,
-      gain: 8,
+      detail: `ย้ายท่าท้ายๆ ไป${DAY_TH[to]} แต่ละเซตจะได้แรงเต็มกว่า`,
+      reason: dl.overTime ? `${DAY_TH[dl.day]}ใช้เวลาราว ${dl.minutes} นาที (เพดาน ${getTimeCap(data)})` : `${DAY_TH[dl.day]}มี ${dl.sets} เซต (เพดาน ${getMaxSetsPerSession(data)})`,
+      gain: 10,
+      priority: "high",
     });
   }
 
-  // 1) กล้ามที่ไม่มี — เพิ่มท่าใหม่จากคลัง
-  for (const s of analysis.stats.filter((s) => s.status === "missing")) {
-    const cand = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
-    if (!cand.length) continue;
-    const day = bestDayFor(data, s.muscle);
-    recs.push({
-      id: mkId(),
-      kind: "add",
-      template: cand[0],
-      day,
-      title: `เพิ่ม ${cand[0].name}`,
-      detail: `${MUSCLE_TH[s.muscle]}ยังไม่มีท่าเลย — เพิ่มเข้า${DAY_TH[day]}`,
-      gain: MAJOR.includes(s.muscle) ? 14 : 6,
+  // 2) กล้ามเนื้อที่ขาด/น้อย — เสนอท่าใหม่ที่ "ผ่านตัวกรองแล้วเท่านั้น"
+  const gaps = analysis.stats
+    .filter((s) => s.status === "missing" || s.status === "low")
+    .sort((a, b) => {
+      const majA = MAJOR_MUSCLES.includes(a.muscle) ? 1 : 0;
+      const majB = MAJOR_MUSCLES.includes(b.muscle) ? 1 : 0;
+      return majB - majA || a.sets - b.sets;
     });
-  }
 
-  // 2) กล้ามที่ยังน้อย — เพิ่มท่าใหม่ก่อน (กระจายภาระ), เพิ่มเซตได้ถึงท่าละ 5 เซตเท่านั้น
-  for (const s of analysis.stats.filter((s) => s.status === "low")) {
-    const major = MAJOR.includes(s.muscle);
-    const gain = major ? 7 : 3;
-    const isoRoom = contributorsFor(data, s.muscle).find(
-      (ex) => muscleMap(ex.name).length === 1 && ex.sets < MAX_SETS_PER_EX,
-    );
-    const cand = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
-    if (isoRoom) {
-      recs.push({
-        id: mkId(),
-        kind: "increaseSets",
-        exerciseId: isoRoom.id,
-        title: `เพิ่มเซต ${isoRoom.name}`,
-        detail: `${MUSCLE_TH[s.muscle]}ยังน้อย (${s.sets} เซต) — เพิ่ม ${isoRoom.name} เป็น ${isoRoom.sets + 1} เซต`,
-        gain,
-      });
-    } else if (cand.length) {
-      const day = bestDayFor(data, s.muscle);
+  for (const s of gaps) {
+    if (recs.length >= MAX_RECOMMENDATIONS) break;
+    const cands = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
+    let placed = false;
+    const blockedReasons: FilterVerdict[] = [];
+
+    for (const c of cands) {
+      if (!c.tpl) continue;
+      const spot = findValidDay(data, c.tpl, MIN_SETS_PER_EX);
+      if (!spot) {
+        const v = checkFilters(data, c.tpl, trainingDays(data)[0] ?? "mon", MIN_SETS_PER_EX);
+        blockedReasons.push(v);
+        continue;
+      }
       recs.push({
         id: mkId(),
         kind: "add",
-        template: cand[0],
-        day,
-        title: `เพิ่ม ${cand[0].name}`,
-        detail: `${MUSCLE_TH[s.muscle]}ยังน้อย — เพิ่มท่าใหม่เข้า${DAY_TH[day]} (ดีกว่าอัดเซตท่าเดิม)`,
-        gain,
+        template: c,
+        day: spot.day,
+        title: `เพิ่ม ${c.name}`,
+        detail: `ใส่เข้า${DAY_TH[spot.day]} ${MIN_SETS_PER_EX} เซต — ${c.reason}`,
+        reason: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min}`,
+        gain: MAJOR_MUSCLES.includes(s.muscle) ? 12 : 5,
+        priority: s.status === "missing" && MAJOR_MUSCLES.includes(s.muscle) ? "high" : "medium",
       });
-    } else {
-      // คลังหมดแล้ว — เพิ่มเซตท่าที่ยังไม่ถึงเพดาน 5 เซต
-      const room = contributorsFor(data, s.muscle).find((ex) => ex.sets < MAX_SETS_PER_EX);
-      if (room) {
-        recs.push({
-          id: mkId(),
-          kind: "increaseSets",
-          exerciseId: room.id,
-          title: `เพิ่มเซต ${room.name}`,
-          detail: `${MUSCLE_TH[s.muscle]}ยังน้อย (${s.sets} เซต) — เพิ่ม ${room.name} เป็น ${room.sets + 1} เซต`,
-          gain,
+      placed = true;
+      break;
+    }
+
+    // ไม่มีท่าไหนผ่านตัวกรองเลย — ห้ามผ่อนกฎเพื่อให้มีอะไรแสดง ให้บอกต้นเหตุแทน
+    if (!placed && blockedReasons.length) {
+      const top = blockedReasons[0];
+      const already = analysis.blockedInsights.some((b) => b.issue.includes(MUSCLE_TH[s.muscle]));
+      if (!already)
+        analysis.blockedInsights.push({
+          issue: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ (เป้า ${target.min}-${target.max})`,
+          whyCannotFix: top.reason ?? "ตารางปัจจุบันไม่มีที่ว่างที่เหมาะ",
+          realSolution: top.fix ?? "เพิ่มวันฝึก หรือปรับข้อจำกัดในโปรไฟล์",
         });
-      } else {
-        // ทุกท่าเต็มเพดานแล้ว — กระจายไปทำอีกวันแทนการอัดเซตวันเดียว
-        const capped = contributorsFor(data, s.muscle)[0];
-        if (capped) {
-          const otherDay = pickOtherDay(data, capped.day);
-          recs.push({
-            id: mkId(),
-            kind: "add",
-            template: {
-              name: capped.name,
-              muscle: s.muscle,
-              type: capped.type,
-              sets: MIN_SETS_PER_EX,
-              rmin: capped.rmin,
-              rmax: capped.rmax,
-              reason: "",
-            },
-            day: otherDay,
-            title: `ทำ ${capped.name} เพิ่มอีกวัน`,
-            detail: `${MUSCLE_TH[s.muscle]}ยังน้อย และท่าเต็ม ${MAX_SETS_PER_EX} เซตแล้ว — แยกไปทำวัน${DAY_TH[otherDay]} อีก ${MIN_SETS_PER_EX} เซต`,
-            gain,
-          });
-        }
-      }
     }
   }
 
-  // 3) กล้ามที่เยอะเกิน — ลดเซตได้ถึงท่าละ 3 เซต, ถ้าทุกท่าเหลือ 3 แล้วให้ลบท่าหรือย้ายไปวันอื่น
+  // 3) กล้ามเนื้อที่เกินโซนคุ้มค่า — ลดเซตท่าที่ซ้ำซ้อน
   for (const s of analysis.stats.filter((s) => s.status === "high")) {
-    const safeToReduce = (ex: (typeof data.exercises)[number]) =>
-      muscleMap(ex.name).every((h) => {
-        if (h.m === s.muscle) return true;
-        const st = analysis.stats.find((x) => x.muscle === h.m);
-        if (!st) return true;
-        return st.status === "high" || st.status === "missing" || st.sets - h.w >= 8;
-      });
-    const reducible = contributorsFor(data, s.muscle).filter((ex) => ex.sets > MIN_SETS_PER_EX);
-    const contributor = reducible.find(safeToReduce) ?? reducible[0];
-    if (contributor) {
-      recs.push({
-        id: mkId(),
-        kind: "reduceSets",
-        exerciseId: contributor.id,
-        title: `ลดเซต ${contributor.name}`,
-        detail: `${MUSCLE_TH[s.muscle]} ${s.sets} เซต/สัปดาห์ — ลด ${contributor.name} เหลือ ${contributor.sets - 1} เซต`,
-        gain: 3,
-      });
-    } else {
-      // ทุกท่าเหลือ 3 เซตแล้ว — ตัดท่าที่ซ้ำซ้อนออก 1 ท่า (เลือก isolation ที่โดนกล้ามนี้อย่างเดียว)
-      const cands = contributorsFor(data, s.muscle);
-      const target = cands.find((ex) => muscleMap(ex.name).length === 1) ?? cands[cands.length - 1];
-      if (target && cands.length > 1) {
-        recs.push({
-          id: mkId(),
-          kind: "removeExercise",
-          exerciseId: target.id,
-          title: `ตัด ${target.name} ออก`,
-          detail: `${MUSCLE_TH[s.muscle]} ${s.sets} เซต/สัปดาห์ และทุกท่าเหลือ ${MIN_SETS_PER_EX} เซตแล้ว — ตัดท่าที่ซ้ำซ้อนออก 1 ท่า (ประวัติเก็บไว้)`,
-          gain: 3,
-        });
-      }
-    }
+    if (recs.length >= MAX_RECOMMENDATIONS) break;
+    const contributors = data.exercises
+      .filter((ex) => muscleMap(ex.name).some((h) => h.m === s.muscle))
+      .sort((a, b) => b.sets - a.sets);
+    const cut = contributors.find((ex) => ex.sets > MIN_SETS_PER_EX);
+    if (!cut) continue;
+    recs.push({
+      id: mkId(),
+      kind: "reduceSets",
+      exerciseId: cut.id,
+      title: `ลดเซต ${cut.name}`,
+      detail: `ลดเหลือ ${cut.sets - 1} เซต — เอาเวลาไปเติมกล้ามเนื้อที่ยังขาดคุ้มกว่า`,
+      reason: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ เกินขอบบน ${target.warnHigh}`,
+      gain: 4,
+      priority: "low",
+    });
   }
 
-  // 4) เพิ่มวัน — กล้ามหลักที่โดนแค่วันเดียว (เพิ่มท่าใหม่ในอีกวัน หรือย้ายท่าที่มีไปกระจาย)
-  for (const s of analysis.stats.filter((s) => MAJOR.includes(s.muscle) && s.days === 1 && s.status !== "missing")) {
-    const curDay = DAYS.find((d) => exercisesForDay(data, d).some((ex) => muscleMap(ex.name).some((h) => h.m === s.muscle)));
-    const day = pickOtherDay(data, curDay);
-    const cand = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
-    if (cand.length) {
-      recs.push({
-        id: mkId(),
-        kind: "addDay",
-        template: cand[0],
-        day,
-        title: `กระจาย${MUSCLE_TH[s.muscle]}เป็น 2 วัน`,
-        detail: `${MUSCLE_TH[s.muscle]}โดนแค่วันเดียว — เพิ่ม ${cand[0].name} วัน${DAY_TH[day]}`,
-        gain: 3,
-      });
-    } else if (curDay) {
-      // คลังท่าหมด — ย้ายท่าของกล้ามนี้ 1 ตัวไปอีกวัน (ต้องมี ≥2 ท่าในวันเดียว)
-      const sameDay = exercisesForDay(data, curDay).filter((ex) => muscleMap(ex.name).some((h) => h.m === s.muscle));
-      if (sameDay.length >= 2) {
-        const target = sameDay[sameDay.length - 1];
-        recs.push({
-          id: mkId(),
-          kind: "moveExercise",
-          exerciseId: target.id,
-          day,
-          title: `ย้าย ${target.name} ไป${DAY_TH[day]}`,
-          detail: `${MUSCLE_TH[s.muscle]}โดนแค่วันเดียว — ย้าย ${target.name} ไป${DAY_TH[day]} ให้กระจาย 2 วัน`,
-          gain: 3,
-        });
-      }
-    }
-  }
-
-  // 4) แทรกวันพัก — ฝึกติดต่อกันเกิน 3 วัน
-  if (analysis.consecutive > 3) {
-    const move = findRestDayMove(data);
-    if (move) {
-      recs.push({
-        id: mkId(),
-        kind: "restDay",
-        fromDay: move.from,
-        toDay: move.to,
-        title: "แทรกวันพัก",
-        detail: `ฝึกติดกัน ${analysis.consecutive} วัน — ย้ายท่าวัน${DAY_TH[move.from]}ไป${DAY_TH[move.to]} ให้มีวันพักคั่น`,
-        gain: (analysis.consecutive - 3) * 5,
-      });
-    }
-  }
-
-  return recs.sort((a, b) => b.gain - a.gain);
+  return recs.sort((a, b) => b.gain - a.gain).slice(0, MAX_RECOMMENDATIONS);
 }
 
-// ทำตามคำแนะนำ 1 ข้อ (แก้ draft ตรงๆ — ใช้ทั้งใน UI และเทสต์)
 export function applyRecommendation(d: Data, rec: Recommendation) {
-  if ((rec.kind === "add" || rec.kind === "addDay") && rec.template && rec.day) {
-    const t = rec.template;
-    const newEx = {
-      id: uid() + d.exercises.length,
-      name: t.name,
-      day: rec.day,
-      type: t.type,
-      sets: t.sets,
-      rmin: t.rmin,
-      rmax: t.rmax,
-      inc: t.type === "weight" ? 2.5 : undefined,
-      unit: t.type === "time" ? "วิ" : t.type === "weight" ? "kg" : undefined,
-      amrap: false,
-      machine: /machine|cable|pulldown|pec deck|leg press|leg extension|leg curl/i.test(t.name) || undefined,
-      order: exercisesForDay(d, rec.day).length,
-    };
+  if (rec.kind === "add" && rec.template?.tpl && rec.day) {
+    const newEx = exerciseFromTemplate(rec.template.tpl, rec.day, exercisesForDay(d, rec.day).length, uid() + d.exercises.length);
+    newEx.sets = MIN_SETS_PER_EX;
     d.exercises.push(newEx);
     restoreHistory(d, newEx);
   } else if (rec.kind === "increaseSets" && rec.exerciseId) {
@@ -662,7 +754,7 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
   } else if (rec.kind === "removeExercise" && rec.exerciseId) {
     const ex = d.exercises.find((e) => e.id === rec.exerciseId);
     if (ex) {
-      archiveOne(d, ex); // เก็บประวัติไว้ก่อนตัดออก
+      archiveOne(d, ex);
       d.exercises = d.exercises.filter((e) => e.id !== ex.id);
       delete d.history[ex.id];
     }
@@ -673,10 +765,10 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
       ex.order = exercisesForDay(d, rec.day).length;
     }
   } else if (rec.kind === "splitDay" && rec.fromDay && rec.toDay) {
-    // ย้ายจากท่าท้ายวัน (มักเป็นท่าเสริม) ไปก่อน จนวันเดิมไม่เกินลิมิต — เหลือไว้อย่างน้อย 1 ท่า
     const exs = exercisesForDay(d, rec.fromDay);
+    const cap = getMaxSetsPerSession(d);
     let sets = exs.reduce((a, e) => a + e.sets, 0);
-    for (let i = exs.length - 1; i >= 1 && sets > MAX_SETS_PER_DAY; i--) {
+    for (let i = exs.length - 1; i >= 1 && sets > cap; i--) {
       const ex = d.exercises.find((e) => e.id === exs[i].id);
       if (!ex) continue;
       ex.day = rec.toDay;
@@ -691,3 +783,5 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
     }
   }
 }
+
+export { PATTERN_TH };
