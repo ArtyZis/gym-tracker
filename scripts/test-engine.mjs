@@ -82,11 +82,13 @@ console.log("\n═══ เคสที่ 3: วันเสาร์ Squat �
 console.log("\n═══ เคสที่ 4: ทุกกลุ่มอยู่ในเป้าแล้ว -> ต้องตอบว่าตารางดีแล้ว ═══");
 {
   // ตารางที่ครอบคลุมครบทุกกลุ่ม 13 มัด รวมน่อง/ท้อง/ปลายแขน ที่มักถูกลืม
+  // ลำดับท่าในแต่ละวันต้องถูกหลักด้วย (หนัก->เจาะจง->core ปิดท้าย) ไม่งั้น engine จะเสนอ "จัดลำดับใหม่"
+  // ซึ่งถูกต้องแล้ว — ตารางที่ "ดีแล้ว" ต้องดีจริงทุกมิติ ไม่ใช่แค่ปริมาณครบ
   const d = plan(
     {
       mon: ["Barbell Bench Press", "Seated Cable Row", "Overhead Press", "Lateral Raise", "Face Pull", "Barbell Curl", "Standing Calf Raise"],
       wed: ["Barbell Squat", "Romanian Deadlift", "Lying Leg Curl", "Seated Calf Raise", "Plank", "Wrist Curl (DB)"],
-      sat: ["Incline DB Press", "Lat Pulldown", "Cable Lateral Raise", "Tricep Pushdown", "Barbell Hip Thrust", "Hanging Knee Raise", "Leg Press"],
+      sat: ["Incline DB Press", "Lat Pulldown", "Leg Press", "Barbell Hip Thrust", "Cable Lateral Raise", "Tricep Pushdown", "Hanging Knee Raise"],
     },
     { sets: 4, profile: { experience: "beginner" }, constraints: { maxSetsPerSession: 30, sessionTimeCapMinutes: 120 } },
   );

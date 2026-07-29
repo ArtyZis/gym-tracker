@@ -245,8 +245,15 @@ export function searchExercises(query: string, limit = 60): ExTemplate[] {
     .map((s) => s.t);
 }
 
-export const findTemplate = (name: string): ExTemplate | undefined =>
-  EXERCISE_DB.find((t) => t.name.toLowerCase() === name.trim().toLowerCase());
+export function findTemplate(name: string): ExTemplate | undefined {
+  const n = name.trim().toLowerCase();
+  const exact = EXERCISE_DB.find((t) => t.name.toLowerCase() === n);
+  if (exact) return exact;
+  // ผู้ใช้มักต่อท้ายชื่อด้วยหมายเหตุในวงเล็บ (เช่น "Chin-up (มือหงาย แคบ)") — ไม่งั้นจะจับคู่คลังไม่ได้เลย
+  // แล้ว tier/fatigue/pattern หลุดไปใช้ค่าเดาแทนทั้งที่จริงๆ มีข้อมูลจริงอยู่ในคลัง
+  const stripped = n.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  return stripped && stripped !== n ? EXERCISE_DB.find((t) => t.name.toLowerCase() === stripped) : undefined;
+}
 
 export const EXERCISE_COUNT = EXERCISE_DB.length;
 

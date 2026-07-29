@@ -616,6 +616,7 @@ export type RecKind =
   | "reduceSets"
   | "moveExercise"
   | "removeExercise"
+  | "reorder" // จัดลำดับท่าในวันเดิมใหม่ ไม่เพิ่ม/ลดท่า
   | "restDay"
   | "splitDay";
 
@@ -661,6 +662,9 @@ function bestEmptyDay(data: Data): DayKey | null {
 }
 
 // กล้ามเนื้อแต่ละมัดควรไปอยู่วันประเภทไหนถ้าต้องเปิดวันใหม่ — ใช้ตอนตารางเดิมไม่มีวันที่ใส่เพิ่มได้เลย
+// core/calves ตั้งใจไม่ใส่ไว้: สองมัดนี้เป็นท่าปิดท้ายที่ใส่ได้แทบทุกประเภทวัน (push/pull/legs/full)
+// ถ้า map ไว้ว่าเป็น "legs" แล้วมีท่า core/calves โผล่ในวัน Pull วันนั้นจะถูกนับว่า "เข้าพวกวันขา" ไปด้วย
+// ทำให้ท่าขา (เช่น Bulgarian Split Squat) แอบเข้าไปอยู่วัน Pull ได้ ทั้งที่ไม่เกี่ยวกันเลย
 const MUSCLE_TO_TYPE: Partial<Record<MuscleKey, DayType>> = {
   chest: "push",
   front_delts: "push",
@@ -673,8 +677,6 @@ const MUSCLE_TO_TYPE: Partial<Record<MuscleKey, DayType>> = {
   quads: "legs",
   hamstrings: "legs",
   glutes: "legs",
-  calves: "legs",
-  core: "legs",
 };
 
 // วันว่างที่เปิดเป็น dayType นี้แล้วให้คะแนนดีที่สุด — ลองสร้างจริงทุกวันว่าง ไม่เดาว่าวันไหนดี
@@ -839,14 +841,24 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
     recs.push(candidateRec);
   }
 
-  // 1.6) ฝึกติดกันเกิน 3 วันไม่พัก — ลองสลับวันฝึกวันหนึ่งไปวันว่างที่ทำให้ระยะห่างดีขึ้น
-  // (เกิดได้เวลาเปิดวันใหม่ทีละวันแล้วบังเอิญไปตกวันที่ติดกับวันฝึกเดิม เช่น พุธ+พฤหัส+ศุกร์+เสาร์)
-  if (analysis.consecutive > 3 && recs.length < MAX_RECOMMENDATIONS) {
+  // 1.6) ฝึกติดกันเกิน 3 วันไม่พัก หรือกล้ามเนื้อกลุ่มเดิมโดนหนักสองวันห่างกันไม่ถึง 48 ชม.
+  // — ลองสลับวันฝึกวันหนึ่งไปวันว่างที่ทำให้ระยะห่างดีขึ้น
+  // (เกิดได้ทั้งตอนเปิดวันใหม่ทีละวันแล้วบังเอิญไปตกวันที่ติดกับวันฝึกเดิม เช่น พุธ+พฤหัส+ศุกร์+เสาร์
+  //  หรือผู้ใช้จัดวันเองมาแบบนั้นตั้งแต่แรก เช่น หลังโดนหนักทั้งศุกร์และเสาร์)
+  if ((analysis.consecutive > 3 || analysis.recovery.length > 0) && recs.length < MAX_RECOMMENDATIONS) {
     const train = trainingDays(data);
     const empty = DAYS.filter((d) => !train.includes(d));
     let bestReschedule: { rec: Recommendation; predicted: number; ceiling: number } | null = null;
     for (const from of train) {
+      // ท่าที่ย้ายไปต้องเล่นได้จริงด้วยอุปกรณ์ของวันปลายทาง — ไม่งั้นได้ "ย้ายท่าเครื่องเคเบิลไปวันบ้าน" ที่เล่นจริงไม่ได้
+      const movingExs = exercisesForDay(data, from);
       for (const to of empty) {
+        const equip = getDayEquip(data, to);
+        const feasible = movingExs.every((ex) => {
+          const tpl = findTemplate(ex.name);
+          return !tpl || canDoWithEquip(tpl.equip, equip);
+        });
+        if (!feasible) continue;
         const candidateRec: Recommendation = {
           id: mkId(),
           kind: "restDay",
@@ -866,6 +878,35 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
     }
     if (bestReschedule) {
       const chosen: { rec: Recommendation; predicted: number; ceiling: number } = bestReschedule;
+      chosen.rec.gain = chosen.predicted - analysis.execution;
+      recs.push(chosen.rec);
+    }
+  }
+
+  // 1.65) ลำดับท่าในวันหนึ่งยังไม่เหมาะ (ท่าหนักควรมาก่อนท่าเจาะจง/core/น่องปิดท้าย)
+  // เกิดได้เวลาย้ายทั้งวันมารวมกัน (restDay) หรือเพิ่มท่าหลายรอบแล้วลำดับเพี้ยนสะสม
+  if (analysis.breakdown.order < 1 && recs.length < MAX_RECOMMENDATIONS) {
+    let bestReorder: { rec: Recommendation; predicted: number; ceiling: number } | null = null;
+    for (const day of trainingDays(data)) {
+      const candidateRec: Recommendation = {
+        id: mkId(),
+        kind: "reorder",
+        day,
+        title: `จัดลำดับท่าใหม่ให้${DAY_TH[day]}`,
+        detail: "เรียงท่าหนักไปเบา ท่าเจาะจง/core/น่องไว้ท้ายวัน ไม่เพิ่มหรือลดท่าใดๆ",
+        reason: `ลำดับท่าใน${DAY_TH[day]}ยังไม่เหมาะ`,
+        gain: 0,
+        priority: "medium",
+      };
+      const { execution: predicted, ceiling } = predictedAnalysis(data, candidateRec);
+      // ต้องดีขึ้นจริง (>) ไม่ใช่แค่เสมอตัว — ต่างจาก add/increaseSets ที่เสมอตัวยังเป็นก้าวจำเป็นไปสู่เกณฑ์ถัดไป
+      // การจัดลำดับใหม่ไม่มี "ก้าวกลาง" แบบนั้น ถ้าเสมอตัวคือ reorderDay จัดมาแบบนี้แหละ จัดซ้ำไปก็ได้ผลเท่าเดิม
+      // เสนอซ้ำไม่รู้จบ ต้องตัดสิทธิ์ตรงนี้
+      if (predicted <= analysis.execution) continue;
+      if (!bestReorder || predicted > bestReorder.predicted) bestReorder = { rec: candidateRec, predicted, ceiling };
+    }
+    if (bestReorder) {
+      const chosen: { rec: Recommendation; predicted: number; ceiling: number } = bestReorder;
       chosen.rec.gain = chosen.predicted - analysis.execution;
       recs.push(chosen.rec);
     }
@@ -1128,6 +1169,8 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
       d.dayLabels[rec.toDay] = d.dayLabels[rec.fromDay];
       d.dayLabels[rec.fromDay] = "";
     }
+  } else if (rec.kind === "reorder" && rec.day) {
+    reorderDay(d, rec.day);
   }
 }
 
