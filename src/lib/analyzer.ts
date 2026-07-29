@@ -22,7 +22,17 @@ import {
   SMALL_MUSCLES,
 } from "./muscles";
 import type { ExTemplate } from "./exerciseDB";
-import { EXERCISE_DB, findTemplate, incFor, isMachineEx, musclesOf, unitFor } from "./exerciseDB";
+import { EXERCISE_DB, TIER_RANK, findTemplate, incFor, isMachineEx, musclesOf, tierOf, unitFor } from "./exerciseDB";
+import type { DayType } from "./blueprint";
+import {
+  DAY_TYPE_SHORT,
+  MAX_TRAINING_DAYS,
+  OFFERED_SPLITS,
+  buildDayExercises,
+  buildFullProgram,
+  splitDays,
+  splitSummary,
+} from "./blueprint";
 import { canDoWithEquip, getDayEquip, getInjuries, getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "./profile";
 
 export type { MuscleKey } from "./muscles";
@@ -451,6 +461,10 @@ function capacityFor(data: Data, train: DayKey[], maxSets: number, minTarget: nu
 // ให้คะแนนลำดับท่า — ท่าล้าสูงควรมาก่อน core/calves ปิดท้าย (สเปค 7)
 function scoreOrder(data: Data, train: DayKey[]): number {
   const rank: Record<FatigueCost, number> = { high: 0, moderate: 1, low: 2 };
+  // "ท่าปิดท้าย" ต้องดูกล้ามเนื้อ **หลัก** เท่านั้น
+  // ถ้านับกล้ามรองด้วย Barbell Squat (มี core เป็นกล้ามรอง) จะถูกนับเป็นท่าปิดท้าย
+  // แล้วโดนหักคะแนนทั้งที่วางไว้ต้นวันถูกต้องแล้ว
+  const isFinisher = (ex: Exercise) => muscleMap(ex.name).some((h) => h.w >= 1 && (h.m === "core" || h.m === "calves"));
   let pairs = 0;
   let good = 0;
   for (const day of train) {
@@ -459,10 +473,12 @@ function scoreOrder(data: Data, train: DayKey[]): number {
       pairs++;
       const a = exs[i];
       const b = exs[i + 1];
-      const aEnd = muscleMap(a.name).some((h) => h.m === "core" || h.m === "calves");
-      const bEnd = muscleMap(b.name).some((h) => h.m === "core" || h.m === "calves");
-      // core/calves ควรอยู่ท้าย: ถ้าท่าแรกเป็น core แต่ท่าหลังไม่ใช่ = ผิดลำดับ
-      if (aEnd && !bEnd) continue;
+      // ท่าปิดท้ายต้องอยู่หลังท่าปกติ — ถ้าท่าแรกเป็นท่าปิดท้ายแต่ท่าหลังไม่ใช่ = ผิดลำดับ
+      if (isFinisher(a) && !isFinisher(b)) continue;
+      if (isFinisher(b) && !isFinisher(a)) {
+        good++; // ท่าปกติแล้วตามด้วยท่าปิดท้าย = ถูกต้อง
+        continue;
+      }
       if (rank[fatigueOf(a)] <= rank[fatigueOf(b)]) good++;
     }
   }
@@ -552,9 +568,14 @@ export interface SuggestionTemplate {
   tpl?: ExTemplate;
 }
 
+// เรียง tier S ก่อนเสมอ — ท่าคุ้มค่าที่สุดควรถูกเสนอก่อนท่าเสริม
 export function candidatesFor(muscle: MuscleKey): SuggestionTemplate[] {
   return EXERCISE_DB.filter((t) => t.pri.includes(muscle))
-    .sort((a, b) => a.pri.length + (a.sec?.length ?? 0) - (b.pri.length + (b.sec?.length ?? 0)))
+    .sort(
+      (a, b) =>
+        TIER_RANK[tierOf(a.name)] - TIER_RANK[tierOf(b.name)] ||
+        a.pri.length + (a.sec?.length ?? 0) - (b.pri.length + (b.sec?.length ?? 0)),
+    )
     .map((t) => ({
       name: t.name,
       muscle,
@@ -586,7 +607,16 @@ export function exerciseFromTemplate(t: ExTemplate, day: DayKey, order: number, 
 
 // ══════════ คำแนะนำ ══════════
 
-export type RecKind = "add" | "increaseSets" | "reduceSets" | "moveExercise" | "removeExercise" | "restDay" | "splitDay";
+export type RecKind =
+  | "add"
+  | "buildProgram" // สร้างทั้งโปรแกรมจากโครงมาตรฐาน (ใช้ตอนเริ่มจากศูนย์)
+  | "addDay" // เพิ่มวันฝึกทั้งวันตามโครงมาตรฐาน
+  | "increaseSets"
+  | "reduceSets"
+  | "moveExercise"
+  | "removeExercise"
+  | "restDay"
+  | "splitDay";
 
 export const MIN_SETS_PER_EX = 3;
 export const MAX_SETS_PER_EX = 5;
@@ -602,6 +632,8 @@ export interface Recommendation {
   priority: "high" | "medium" | "low";
   template?: SuggestionTemplate;
   day?: DayKey;
+  dayType?: DayType; // addDay
+  splitDays?: number; // buildProgram
   exerciseId?: string;
   fromDay?: DayKey;
   toDay?: DayKey;
@@ -609,6 +641,8 @@ export interface Recommendation {
 
 function bestEmptyDay(data: Data): DayKey | null {
   const train = new Set(trainingDays(data));
+  // ห้ามดันให้ฝึกเกินเพดาน — ตารางที่ไม่มีวันพักพอ ฟื้นตัวไม่ทันและทำจริงไม่ไหว
+  if (train.size >= MAX_TRAINING_DAYS) return null;
   const empty = DAYS.filter((d) => !train.has(d));
   if (!empty.length) return null;
   let best = empty[0];
@@ -628,15 +662,26 @@ function bestEmptyDay(data: Data): DayKey | null {
 // วันที่เหมาะจะใส่ท่าของกล้ามเนื้อนี้ที่สุด (ผ่านตัวกรองแล้วเท่านั้น)
 function findValidDay(data: Data, tpl: ExTemplate, sets: number): { day: DayKey; verdict: FilterVerdict } | null {
   const days = trainingDays(data);
-  const blocked: FilterVerdict[] = [];
-  // เรียงวันที่ภาระน้อยก่อน — ใส่ในวันที่ยังว่างดีกว่าไปเบียดวันที่แน่นแล้ว
-  const sorted = [...days].sort(
-    (a, b) => exercisesForDay(data, a).reduce((x, e) => x + e.sets, 0) - exercisesForDay(data, b).reduce((x, e) => x + e.sets, 0),
-  );
+  const primary = tpl.pri[0];
+
+  // วันนั้นฝึกกล้ามเนื้อกลุ่มนี้อยู่แล้วไหม — ใช้ตัดสินว่าท่านี้ "เข้าพวก" กับวันนั้นไหม
+  const trainsMuscle = (day: DayKey) =>
+    exercisesForDay(data, day).some((ex) => muscleMap(ex.name).some((h) => h.m === primary && h.w >= 1));
+
+  const load = (day: DayKey) => exercisesForDay(data, day).reduce((x, e) => x + e.sets, 0);
+
+  // สำคัญ: ต้องเลือกวันที่ "เข้าพวก" ก่อนวันที่ว่างสุด
+  // ไม่งั้นจะได้ Leg Press ไปโผล่วัน Pull หรือ Hammer Curl ไปวันขา ซึ่งเล่นจริงแล้วมั่ว
+  const sorted = [...days].sort((a, b) => {
+    const fit = (trainsMuscle(a) ? 0 : 1) - (trainsMuscle(b) ? 0 : 1);
+    return fit || load(a) - load(b);
+  });
+
   for (const day of sorted) {
+    // วันที่ไม่เข้าพวกเลย ให้ข้ามไปก่อน — ยอมไม่เสนอ ดีกว่าเสนอของที่เล่นจริงแล้วงง
+    if (!trainsMuscle(day)) continue;
     const v = checkFilters(data, tpl, day, sets);
     if (v.ok) return { day, verdict: v };
-    blocked.push(v);
   }
   return null;
 }
@@ -647,6 +692,37 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   const target = getVolumeTarget(data);
   let n = 0;
   const mkId = () => "rec" + n++;
+
+  // 0) ตารางว่างเปล่า — เสนอสร้างทั้งโปรแกรมทีเดียว ให้เลือกว่าฝึกได้กี่วัน
+  //
+  //    ทำไมไม่เสนอทีละท่า/ทีละวัน: การเพิ่มทีละวันแล้วเลือกโครงใหม่ทุกครั้ง
+  //    ทำให้ได้วันที่ไม่เข้าชุดกัน (Full Body จันทร์ + Lower อังคาร = ขาโดนติดกัน 24 ชม.)
+  //    โครงทั้งชุดออกแบบให้วันพักและระยะห่างลงตัวตั้งแต่แรก กดครั้งเดียวเล่นได้เลย
+  if (data.exercises.length === 0) {
+    for (const dayCount of OFFERED_SPLITS) {
+      const built = buildFullProgram(data, dayCount);
+      if (!built.exercises.length) continue;
+      const sets = built.exercises.reduce((a, e) => a + e.sets, 0);
+      const days = splitDays(dayCount);
+      const restDays = DAYS.filter((d) => !days.includes(d));
+
+      // ลองสร้างจริงในสำเนาแล้ววัดคะแนน — เสนอโดยรู้ผลลัพธ์ ไม่ใช่เดา
+      const probe: Data = { ...data, exercises: built.exercises, dayLabels: { ...data.dayLabels, ...built.labels } };
+      const predicted = analyzeProgram(probe).execution;
+
+      recs.push({
+        id: mkId(),
+        kind: "buildProgram",
+        splitDays: dayCount,
+        title: `สร้างโปรแกรม ${dayCount} วัน/สัปดาห์`,
+        detail: `${splitSummary(dayCount)} — ${built.exercises.length} ท่า ${sets} เซต · พัก${restDays.map((d) => DAY_TH[d]).join(" ")}`,
+        reason: `ฝึก${days.map((d) => DAY_TH[d]).join(" ")} · กล้ามเนื้อกลุ่มเดิมห่างกันอย่างน้อย 48 ชม. — คาดว่าจะได้ ${predicted} คะแนน`,
+        gain: predicted,
+        priority: "high",
+      });
+    }
+    return recs.sort((a, b) => b.gain - a.gain).slice(0, 3);
+  }
 
   // 1) วันที่อัดเกิน — แยกไปวันว่าง (แก้ได้ทันทีและกระทบคุณภาพทุกเซตในวันนั้น)
   for (const dl of analysis.dayLoads.filter((d) => d.overSets || d.overTime)) {
@@ -739,12 +815,45 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   return recs.sort((a, b) => b.gain - a.gain).slice(0, MAX_RECOMMENDATIONS);
 }
 
+// จัดลำดับท่าในวันหนึ่งให้ถูกหลัก: compound หนัก -> ปานกลาง -> เจาะจง -> core/น่องปิดท้าย
+export function reorderDay(d: Data, day: DayKey) {
+  const rank: Record<FatigueCost, number> = { high: 0, moderate: 1, low: 2 };
+  const isFinisher = (ex: Exercise) => muscleMap(ex.name).some((h) => h.m === "core" || h.m === "calves");
+  const exs = exercisesForDay(d, day);
+  exs
+    .sort((a, b) => {
+      const fin = (isFinisher(a) ? 1 : 0) - (isFinisher(b) ? 1 : 0);
+      return fin || rank[fatigueOf(a)] - rank[fatigueOf(b)];
+    })
+    .forEach((ex, i) => {
+      const target = d.exercises.find((e) => e.id === ex.id);
+      if (target) target.order = i;
+    });
+}
+
 export function applyRecommendation(d: Data, rec: Recommendation) {
-  if (rec.kind === "add" && rec.template?.tpl && rec.day) {
-    const newEx = exerciseFromTemplate(rec.template.tpl, rec.day, exercisesForDay(d, rec.day).length, uid() + d.exercises.length);
+  if (rec.kind === "buildProgram" && rec.splitDays) {
+    const built = buildFullProgram(d, rec.splitDays);
+    for (const ex of built.exercises) {
+      d.exercises.push(ex);
+      restoreHistory(d, ex); // เคยเล่นท่านี้มาก่อน ประวัติกลับมาด้วย
+    }
+    for (const [day, label] of Object.entries(built.labels)) d.dayLabels[day as DayKey] = label;
+  } else if (rec.kind === "addDay" && rec.day && rec.dayType) {
+    const exs = buildDayExercises(d, rec.day, rec.dayType);
+    for (const ex of exs) {
+      d.exercises.push(ex);
+      restoreHistory(d, ex); // ถ้าเคยเล่นท่านี้มาก่อน ประวัติกลับมาด้วย
+    }
+    if (!d.dayLabels[rec.day]) d.dayLabels[rec.day] = DAY_TYPE_SHORT[rec.dayType];
+  } else if (rec.kind === "add" && rec.template?.tpl && rec.day) {
+    const newEx = exerciseFromTemplate(rec.template.tpl, rec.day, 0, uid() + d.exercises.length);
     newEx.sets = MIN_SETS_PER_EX;
     d.exercises.push(newEx);
     restoreHistory(d, newEx);
+    // จัดลำดับใหม่ทั้งวันตามความล้า (หนักก่อน เจาะจงทีหลัง core/น่องปิดท้าย)
+    // ถ้าต่อท้ายเสมอ ท่า compound ที่เพิ่มทีหลังจะไปอยู่หลังท่าเจาะจง ซึ่งเล่นจริงแล้วผิด
+    reorderDay(d, rec.day);
   } else if (rec.kind === "increaseSets" && rec.exerciseId) {
     const ex = d.exercises.find((e) => e.id === rec.exerciseId);
     if (ex && ex.sets < MAX_SETS_PER_EX) ex.sets += 1;

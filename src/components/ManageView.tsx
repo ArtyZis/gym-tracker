@@ -6,7 +6,7 @@ import { DAYS, DAY_TH, archiveOne, createEmpty, decodeTransfer, exercisesForDay,
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
-import ProfileCard, { DayEquipmentCard } from "./ProfileCard";
+import { DayEquipmentCard } from "./ProfileCard";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isPro } from "../lib/edition";
@@ -52,8 +52,6 @@ export default function ManageView() {
       <ImportProgramCard />
 
       <SavedProgramsCard />
-
-      <ProfileCard />
 
       <DayEquipmentCard />
 

@@ -267,7 +267,17 @@ export default function AnalyzerView() {
             const accent =
               rec.priority === "high" ? "var(--acc)" : rec.priority === "medium" ? "var(--blue)" : "var(--warn)";
             const verb =
-              rec.kind === "reduceSets" ? "ลด" : rec.kind === "splitDay" ? "แยกวัน" : rec.kind === "moveExercise" ? "ย้าย" : "เพิ่ม";
+              rec.kind === "reduceSets"
+                ? "ลด"
+                : rec.kind === "splitDay"
+                  ? "แยกวัน"
+                  : rec.kind === "moveExercise"
+                    ? "ย้าย"
+                    : rec.kind === "addDay"
+                      ? "สร้างวัน"
+                      : rec.kind === "buildProgram"
+                        ? "สร้างเลย"
+                        : "เพิ่ม";
             return (
               <div key={rec.id} className="flex items-center gap-3 py-3 hairline first:border-0">
                 <div className="flex-1 min-w-0">

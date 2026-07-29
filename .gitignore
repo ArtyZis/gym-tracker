@@ -11,3 +11,4 @@ bundle.html
 # Local Netlify folder
 .netlify
 t.mjs
+t2.mjs

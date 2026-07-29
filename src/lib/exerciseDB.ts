@@ -249,3 +249,43 @@ export const findTemplate = (name: string): ExTemplate | undefined =>
   EXERCISE_DB.find((t) => t.name.toLowerCase() === name.trim().toLowerCase());
 
 export const EXERCISE_COUNT = EXERCISE_DB.length;
+
+// ── จัดอันดับท่า (tier) ──
+// S = ท่าที่คุ้มค่าที่สุดต่อเวลาและความล้า: กระตุ้นกล้ามได้เยอะ เพิ่มน้ำหนักได้ต่อเนื่อง
+//     ฟอร์มเรียนรู้ได้ และมีในยิมแทบทุกที่ — ควรเป็นแกนของโปรแกรม
+// A = ท่าดี ใช้เสริมหรือใช้แทนเมื่อไม่มีอุปกรณ์ของ S
+// B = ท่าเฉพาะทาง/เสริมเล็ก ใส่ได้ถ้าเวลาเหลือ
+export type Tier = "S" | "A" | "B";
+
+const TIER_S = new Set([
+  // ดัน
+  "Barbell Bench Press", "Incline Barbell Press", "Incline DB Press", "Dumbbell Bench Press",
+  "Overhead Press", "Overhead Press (DB)", "Dip", "Push-up",
+  // ดึง
+  "Deadlift", "Barbell Row", "Dumbbell Row", "Seated Cable Row", "Lat Pulldown",
+  "Wide Grip Pull-up", "Chin-up", "Chest Supported Row",
+  // ขา
+  "Barbell Squat", "Front Squat", "Leg Press", "Romanian Deadlift", "Bulgarian Split Squat",
+  "Barbell Hip Thrust", "Lying Leg Curl", "Seated Leg Curl",
+  // เจาะจงที่จำเป็นจริง (กล้ามมัดที่ compound ให้ไม่พอ)
+  "Lateral Raise", "Cable Lateral Raise", "Face Pull", "Standing Calf Raise", "Seated Calf Raise",
+  "Barbell Curl", "Dumbbell Curl", "Tricep Pushdown", "Overhead Tricep Extension",
+  "Hanging Knee Raise", "Cable Crunch", "Plank",
+]);
+
+const TIER_A = new Set([
+  "Decline Barbell Press", "Cable Fly", "Dumbbell Fly", "Pec Deck", "Chest Press Machine",
+  "Pendlay Row", "T-Bar Row", "Machine Row", "Close Grip Pulldown", "Neutral Grip Pull-up",
+  "Australian Row", "Straight Arm Pulldown", "Barbell Shrug",
+  "Arnold Press", "Shoulder Press Machine", "Machine Lateral Raise", "Rear Delt Fly", "Reverse Pec Deck",
+  "EZ Bar Curl", "Incline DB Curl", "Hammer Curl", "Preacher Curl", "Cable Curl",
+  "Close Grip Bench Press", "Rope Pushdown", "Skull Crusher", "Cable Overhead Extension",
+  "Hack Squat", "Smith Machine Squat", "Goblet Squat", "Walking Lunge", "Reverse Lunge",
+  "Leg Extension", "Stiff Leg Deadlift", "Dumbbell RDL", "Good Morning", "Glute Bridge",
+  "Cable Pull Through", "Nordic Curl", "Calf Raise", "Leg Press Calf Raise",
+  "Hanging Leg Raise", "Lying Leg Raise", "Ab Wheel Rollout", "Crunch",
+  "Wrist Curl (DB)", "Reverse Curl", "Farmer's Walk",
+]);
+
+export const tierOf = (name: string): Tier => (TIER_S.has(name) ? "S" : TIER_A.has(name) ? "A" : "B");
+export const TIER_RANK: Record<Tier, number> = { S: 0, A: 1, B: 2 };
