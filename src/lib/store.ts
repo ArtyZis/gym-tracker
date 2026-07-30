@@ -165,6 +165,10 @@ export interface Data {
   nutritionLog?: NutritionDay[];
   // ภาระแรกของวัน ("HH:MM" เช่นเข้าเรียน 08:00) — ใช้คำนวณเวลาที่ควรเข้านอนคืนก่อนหน้า
   dayFirstCommitment?: Partial<Record<DayKey, string>>;
+  // ตารางแบบรอบ (loop) — หมุนเวียนเป็นรอบแทนที่จะผูกกับวันในสัปดาห์
+  // len = ความยาวรอบ (2-7 วัน) · anchor = วันที่ (YYYY-MM-DD) ที่เป็น "วันที่ 1" ของรอบ
+  // ไม่มี = โหมดสัปดาห์ปกติ (ค่าเดิมของระบบ) ดูรายละเอียดที่ lib/loop.ts
+  loop?: { len: number; anchor: string };
 }
 
 export const DAYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -303,6 +307,17 @@ export function normalizeData(d: any): Data | null {
   if (d.dayFirstCommitment !== undefined && !isObj(d.dayFirstCommitment)) d.dayFirstCommitment = undefined;
   else if (d.dayFirstCommitment)
     for (const k of Object.keys(d.dayFirstCommitment)) if (typeof d.dayFirstCommitment[k] !== "string") delete d.dayFirstCommitment[k];
+  // ตารางแบบรอบ — ค่าพัง/ช่วงผิดถือว่าไม่ได้เปิดใช้ กลับไปโหมดสัปดาห์ปกติ (ปลอดภัยกว่าเดา)
+  if (d.loop !== undefined) {
+    const ok =
+      isObj(d.loop) &&
+      typeof d.loop.len === "number" &&
+      d.loop.len >= 2 &&
+      d.loop.len <= 7 &&
+      typeof d.loop.anchor === "string" &&
+      Number.isFinite(Date.parse(d.loop.anchor));
+    if (!ok) d.loop = undefined;
+  }
   if (d.profile && !isObj(d.profile.nutrition)) d.profile.nutrition = undefined;
   if (d.profile?.nutrition && (typeof d.profile.nutrition.kcal !== "number" || typeof d.profile.nutrition.protein !== "number"))
     d.profile.nutrition = undefined;

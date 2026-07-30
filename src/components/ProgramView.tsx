@@ -1,10 +1,11 @@
 import { useApp } from "../AppContext";
-import { DAYS, DAY_TH, DAY_TH_SHORT, exercisesForDay, repTargetText } from "../lib/store";
+import { DAY_TH_SHORT, exercisesForDay, repTargetText } from "../lib/store";
+import { activeDays as slotsOf, slotName, slotShort } from "../lib/loop";
 
 export default function ProgramView() {
   const { data } = useApp();
-  const activeDays = DAYS.filter((d) => exercisesForDay(data, d).length > 0);
-  const restDays = DAYS.filter((d) => !exercisesForDay(data, d).length);
+  const activeDays = slotsOf(data).filter((d) => exercisesForDay(data, d).length > 0);
+  const restDays = slotsOf(data).filter((d) => !exercisesForDay(data, d).length);
 
   if (!activeDays.length)
     return (
@@ -26,10 +27,10 @@ export default function ProgramView() {
                   className="font-mono2 text-[11px] font-bold shrink-0 rounded-lg px-2.5 py-[5px]"
                   style={{ color: "#031420", background: "linear-gradient(180deg, var(--acc), var(--acc-2))", boxShadow: "0 0 12px -3px var(--acc)" }}
                 >
-                  {DAY_TH_SHORT[d]}
+                  {slotShort(data, d)}
                 </span>
                 <div className="min-w-0">
-                  <div className="font-disp font-bold text-[15px] leading-none">{DAY_TH[d]}</div>
+                  <div className="font-disp font-bold text-[15px] leading-none">{slotName(data, d)}</div>
                   {data.dayLabels[d] && (
                     <div className="text-[11px] mt-[2px]" style={{ color: "#7fb0d0" }}>
                       {data.dayLabels[d]}
@@ -67,7 +68,7 @@ export default function ProgramView() {
         <div className="glass-inset flex items-center justify-center gap-2" style={{ padding: "12px 14px" }}>
           <span className="text-[13px]">🌙</span>
           <span className="text-[12px]" style={{ color: "var(--mut)" }}>
-            วันพัก · <b style={{ color: "#dbe9f7" }}>{restDays.map((d) => DAY_TH[d]).join(" · ")}</b>
+            วันพัก · <b style={{ color: "#dbe9f7" }}>{restDays.map((d) => slotName(data, d)).join(" · ")}</b>
           </span>
         </div>
       )}

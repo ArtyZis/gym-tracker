@@ -8,7 +8,7 @@ import {
   applyRecommendation,
   buildRecommendations,
 } from "../lib/analyzer";
-import { DAY_TH } from "../lib/store";
+import { slotName } from "../lib/loop";
 import { getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "../lib/profile";
 import { EXPERIENCE_TH } from "../lib/muscles";
 import { getExperience } from "../lib/profile";
@@ -226,7 +226,7 @@ export default function AnalyzerView() {
               <div key={dl.day} className="mb-2.5">
                 <div className="flex items-baseline justify-between mb-1">
                   <span className="text-[12.5px]">
-                    {DAY_TH[dl.day]}
+                    {slotName(data, dl.day)}
                     <span className="font-mono2 text-[10px]" style={{ color: "var(--dim)" }}> · {dl.exercises} ท่า</span>
                   </span>
                   <span className="font-mono2 text-[10.5px]" style={{ color }}>
@@ -249,7 +249,7 @@ export default function AnalyzerView() {
               </div>
               {analysis.recovery.map((r, i) => (
                 <div key={i} className="text-[12px] leading-relaxed" style={{ color: "#dbe9f7" }}>
-                  {MUSCLE_TH[r.muscle]} — {DAY_TH[r.a]} ต่อ {DAY_TH[r.b]} ห่างแค่ {r.gapHours} ชม.
+                  {MUSCLE_TH[r.muscle]} — {slotName(data, r.a)} ต่อ {slotName(data, r.b)} ห่างแค่ {r.gapHours} ชม.
                 </div>
               ))}
             </div>

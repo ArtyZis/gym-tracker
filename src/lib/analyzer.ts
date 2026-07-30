@@ -8,7 +8,7 @@
 // ไม่มีบาร์เบล = คำแนะนำที่ใช้ไม่ได้ และทำให้ผู้ใช้เลิกเชื่อระบบทั้งหมด
 
 import type { Data, DayKey, Exercise } from "./store";
-import { DAYS, DAY_TH, archiveOne, exercisesForDay, normName, restoreHistory, uid } from "./store";
+import { DAYS, archiveOne, exercisesForDay, normName, restoreHistory, uid } from "./store";
 import type { EquipTag, FatigueCost, MuscleKey, Pattern } from "./muscles";
 import {
   HEAVY_HIT_SETS,
@@ -33,6 +33,7 @@ import {
   splitSummary,
 } from "./blueprint";
 import { canDoWithEquip, getDayEquip, getDayTimeCap, getInjuries, getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "./profile";
+import { activeDays, cycleLen, slotName } from "./loop";
 import { sleepSummary } from "./recovery";
 
 export type { MuscleKey } from "./muscles";
@@ -135,23 +136,26 @@ export function estimateMinutes(exs: Exercise[]): number {
 // สัปดาห์วนกลับมา ไม่ใช่เส้นตรง: เสาร์ -> จันทร์ = 48 ชม. ไม่ใช่ 5 วัน
 const DAY_IDX: Record<DayKey, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
 
-export function hoursBetween(a: DayKey, b: DayKey): number {
-  return (((DAY_IDX[b] - DAY_IDX[a]) % 7) + 7) % 7 * 24;
+// len = ความยาวรอบ: สัปดาห์ปกติ = 7 · ตารางแบบรอบ = ความยาวรอบนั้น
+// สำคัญกับตารางแบบรอบมาก: รอบ 3 วัน (ดัน-ดึง-ขา) วันดันเวียนกลับมาทุก 72 ชม.
+// ถ้ายังหารด้วย 7 จะคิดผิดเป็น 144 ชม. แล้วบอกว่าฟื้นตัวทันทั้งที่จริงอาจไม่ทัน
+export function hoursBetween(a: DayKey, b: DayKey, len = 7): number {
+  return ((((DAY_IDX[b] - DAY_IDX[a]) % len) + len) % len) * 24;
 }
 
 // ต้องดูทั้งสองทิศแล้วใช้ค่าน้อยกว่า — ระยะพักจริงคือช่องว่างที่สั้นที่สุด
-export function minGapHours(a: DayKey, b: DayKey): number {
+export function minGapHours(a: DayKey, b: DayKey, len = 7): number {
   if (a === b) return 0;
-  return Math.min(hoursBetween(a, b), hoursBetween(b, a));
+  return Math.min(hoursBetween(a, b, len), hoursBetween(b, a, len));
 }
 
 export function trainingDays(data: Data): DayKey[] {
-  return DAYS.filter((d) => exercisesForDay(data, d).length > 0);
+  return activeDays(data).filter((d) => exercisesForDay(data, d).length > 0);
 }
 
-export function maxConsecutiveDays(train: Set<DayKey>): number {
-  const arr = DAYS.map((d) => train.has(d));
-  if (arr.every(Boolean)) return 7;
+export function maxConsecutiveDays(train: Set<DayKey>, len = 7): number {
+  const arr = DAYS.slice(0, len).map((d) => train.has(d));
+  if (arr.every(Boolean)) return len;
   if (!arr.some(Boolean)) return 0;
   let max = 0;
   let cur = 0;
@@ -161,7 +165,7 @@ export function maxConsecutiveDays(train: Set<DayKey>): number {
       if (cur > max) max = cur;
     } else cur = 0;
   }
-  return Math.min(7, max);
+  return Math.min(len, max);
 }
 
 // ══════════ ผลวิเคราะห์ ══════════
@@ -239,6 +243,7 @@ export function analyzeProgram(data: Data): Analysis {
   const maxSets = getMaxSetsPerSession(data);
   const timeCap = getTimeCap(data);
   const train = trainingDays(data);
+  const len = cycleLen(data);
 
   // ── ปริมาณต่อกล้ามเนื้อ (fractional) แยกรายวันด้วย ──
   const vol = Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0])) as Record<MuscleKey, number>;
@@ -248,7 +253,7 @@ export function analyzeProgram(data: Data): Analysis {
   const daysHit = Object.fromEntries(MUSCLE_KEYS.map((m) => [m, new Set<DayKey>()])) as Record<MuscleKey, Set<DayKey>>;
   const patternSets = new Map<Pattern, number>();
 
-  for (const day of DAYS)
+  for (const day of activeDays(data))
     for (const ex of exercisesForDay(data, day)) {
       for (const { m, w } of muscleMap(ex.name)) {
         vol[m] += ex.sets * w;
@@ -262,7 +267,7 @@ export function analyzeProgram(data: Data): Analysis {
   // ── ความถี่สูงสุดที่ตารางนี้ทำได้ ──
   // ต้องเว้นอย่างน้อย 48 ชม. ระหว่างวันที่โดนกล้ามเดิมหนัก
   // เข้ายิม จ+ส (ห่าง 48/120) -> ใส่ได้ 2 วัน แต่ถ้า จ+อ (ห่าง 24) -> ได้แค่ 1
-  const achievableFreq = maxIndependentDays(train);
+  const achievableFreq = maxIndependentDays(train, len);
 
   const issues: string[] = [];
   const blockedInsights: BlockedInsight[] = [];
@@ -302,7 +307,7 @@ export function analyzeProgram(data: Data): Analysis {
     for (let j = i + 1; j < train.length; j++) {
       const a = train[i];
       const b = train[j];
-      const gap = minGapHours(a, b);
+      const gap = minGapHours(a, b, len);
       if (gap >= MIN_RECOVERY_HOURS) continue;
       for (const m of MUSCLE_KEYS)
         if (volByDay[a][m] >= HEAVY_HIT_SETS && volByDay[b][m] >= HEAVY_HIT_SETS)
@@ -341,7 +346,7 @@ export function analyzeProgram(data: Data): Analysis {
   const patternScore = checks.filter((c) => c.ok).length / checks.length;
 
   // 3) ความถี่/ฟื้นตัว (20%)
-  const consecutive = maxConsecutiveDays(new Set(train));
+  const consecutive = maxConsecutiveDays(new Set(train), len);
   // หักคะแนนจาก "กล้ามเนื้อกลุ่มเดิมโดนหนักถี่เกินไป" เท่านั้น — ไม่หักจากจำนวนวันติดกันแบบเหมารวมอีกแล้ว
   //
   // เหตุผล: ตาราง PPL×2 ที่ฝึก 6 วันติดพัก 1 วัน เป็นตารางมาตรฐานที่คนใช้กันจริงและถูกหลัก
@@ -353,7 +358,7 @@ export function analyzeProgram(data: Data): Analysis {
   // การให้ 0 ทำให้ผู้ใช้เห็นคะแนนต่ำผิดจริงจนคิดว่าตารางตัวเองใช้ไม่ได้
   let recPenalty = Math.min(0.75, recovery.length * 0.15);
   for (const r of recovery)
-    issues.push(`${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${DAY_TH[r.a]}และ${DAY_TH[r.b]} ห่างแค่ ${r.gapHours} ชม. — ต้องการ ${MIN_RECOVERY_HOURS} ชม.`);
+    issues.push(`${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${slotName(data, r.a)}และ${slotName(data, r.b)} ห่างแค่ ${r.gapHours} ชม. — ต้องการ ${MIN_RECOVERY_HOURS} ชม.`);
   if (consecutive > 3) issues.push(`ฝึกติดต่อกัน ${consecutive} วันไม่พัก`);
   const recoveryScore = Math.max(0, 1 - recPenalty);
   // เพดาน: ถ้าตารางไม่เอื้อให้กระจาย 2 วัน ก็ไม่ควรหักคะแนนจนต่ำเกินจริง (สเปค 6)
@@ -364,8 +369,8 @@ export function analyzeProgram(data: Data): Analysis {
   for (const d of overDays)
     issues.push(
       d.overTime
-        ? `${DAY_TH[d.day]}ใช้เวลาราว ${d.minutes} นาที เกินที่ตั้งไว้ ${timeCap} นาที`
-        : `${DAY_TH[d.day]}มี ${d.sets} เซต เกินเพดาน ${maxSets}`,
+        ? `${slotName(data, d.day)}ใช้เวลาราว ${d.minutes} นาที เกินที่ตั้งไว้ ${timeCap} นาที`
+        : `${slotName(data, d.day)}มี ${d.sets} เซต เกินเพดาน ${maxSets}`,
     );
   const sessionScore = dayLoads.length ? 1 - overDays.length / dayLoads.length : 1;
 
@@ -402,7 +407,7 @@ export function analyzeProgram(data: Data): Analysis {
     if (lowFreq.length)
       blockedInsights.push({
         issue: `${lowFreq.map((s) => MUSCLE_TH[s.muscle]).slice(0, 3).join(", ")}โดนแค่ 1 ครั้ง/สัปดาห์`,
-        whyCannotFix: `ฝึก ${train.map((d) => DAY_TH[d]).join("+")} — วันที่มีห่างกันไม่ถึง ${MIN_RECOVERY_HOURS} ชม. จึงกระจายเป็น 2 วันไม่ได้`,
+        whyCannotFix: `ฝึก ${train.map((d) => slotName(data, d)).join("+")} — วันที่มีห่างกันไม่ถึง ${MIN_RECOVERY_HOURS} ชม. จึงกระจายเป็น 2 วันไม่ได้`,
         realSolution: "เพิ่มวันฝึกกลางสัปดาห์ หรือรับปริมาณรวมในวันเดียวไปก่อน (ยังได้ผลถ้าไม่เกินเพดานต่อวัน)",
       });
   }
@@ -435,7 +440,7 @@ export function analyzeProgram(data: Data): Analysis {
 }
 
 // จำนวนวันฝึกมากสุดที่เว้นห่างกันได้ >= 48 ชม. (= ความถี่สูงสุดต่อกล้ามเนื้อหนึ่งมัด)
-function maxIndependentDays(train: DayKey[]): number {
+function maxIndependentDays(train: DayKey[], len = 7): number {
   if (train.length <= 1) return train.length;
   let best = 1;
   // ลองทุกชุดย่อย (วันฝึกมีไม่เกิน 7 คำนวณตรงๆ ได้)
@@ -446,7 +451,7 @@ function maxIndependentDays(train: DayKey[]): number {
     let ok = true;
     for (let i = 0; i < pick.length && ok; i++)
       for (let j = i + 1; j < pick.length; j++)
-        if (minGapHours(pick[i], pick[j]) < MIN_RECOVERY_HOURS) {
+        if (minGapHours(pick[i], pick[j], len) < MIN_RECOVERY_HOURS) {
           ok = false;
           break;
         }
@@ -518,7 +523,7 @@ export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKe
   if (tpl && !canDoWithEquip(tpl.equip, getDayEquip(data, day))) {
     return {
       ok: false,
-      reason: `${DAY_TH[day]}ไม่มีอุปกรณ์ที่ท่านี้ต้องใช้`,
+      reason: `${slotName(data, day)}ไม่มีอุปกรณ์ที่ท่านี้ต้องใช้`,
       fix: "เลือกท่าที่ใช้อุปกรณ์ที่มี หรือแก้อุปกรณ์ของวันนั้นในแท็บจัดการ",
     };
   }
@@ -526,11 +531,11 @@ export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKe
   // ด่าน 2: เพดานเซสชัน (ทั้งจำนวนเซตและเวลา)
   const curSets = exs.reduce((a, e) => a + e.sets, 0);
   if (curSets + addSets > getMaxSetsPerSession(data))
-    return { ok: false, reason: `${DAY_TH[day]}จะเกินเพดาน ${getMaxSetsPerSession(data)} เซต`, fix: "ย้ายบางท่าไปวันอื่นก่อน" };
+    return { ok: false, reason: `${slotName(data, day)}จะเกินเพดาน ${getMaxSetsPerSession(data)} เซต`, fix: "ย้ายบางท่าไปวันอื่นก่อน" };
 
   const addMin = tpl ? addSets * MINUTES_PER_SET[tpl.fatigue] : addSets * MINUTES_PER_SET.moderate;
   if (estimateMinutes(exs) + addMin > getDayTimeCap(data, day))
-    return { ok: false, reason: `${DAY_TH[day]}มีเวลาแค่ ${getDayTimeCap(data, day)} นาที เต็มแล้ว`, fix: "เพิ่มเวลาของวันนั้น หรือใส่ท่านี้ในวันที่ยังมีเวลาเหลือ" };
+    return { ok: false, reason: `${slotName(data, day)}มีเวลาแค่ ${getDayTimeCap(data, day)} นาที เต็มแล้ว`, fix: "เพิ่มเวลาของวันนั้น หรือใส่ท่านี้ในวันที่ยังมีเวลาเหลือ" };
 
   // ด่าน 3: เพดานกล้ามเนื้อในวันนั้น
   const primary = tpl?.pri[0];
@@ -540,7 +545,7 @@ export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKe
     if (cur + addSets > MAX_SETS_PER_MUSCLE_PER_SESSION)
       return {
         ok: false,
-        reason: `${MUSCLE_TH[primary]}ใน${DAY_TH[day]}จะเกิน ${MAX_SETS_PER_MUSCLE_PER_SESSION} เซต`,
+        reason: `${MUSCLE_TH[primary]}ใน${slotName(data, day)}จะเกิน ${MAX_SETS_PER_MUSCLE_PER_SESSION} เซต`,
         fix: "กระจายไปวันอื่นแทนการอัดเพิ่มวันเดียว",
       };
   }
@@ -552,11 +557,11 @@ export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKe
       let load = 0;
       for (const ex of exercisesForDay(data, other)) for (const h of muscleMap(ex.name)) if (h.m === primary) load += ex.sets * h.w;
       if (load < HEAVY_HIT_SETS) continue;
-      const gap = minGapHours(other, day);
+      const gap = minGapHours(other, day, cycleLen(data));
       if (gap < MIN_RECOVERY_HOURS)
         return {
           ok: false,
-          reason: `${MUSCLE_TH[primary]}โดนหนักอยู่แล้วใน${DAY_TH[other]} ห่างกันแค่ ${gap} ชม.`,
+          reason: `${MUSCLE_TH[primary]}โดนหนักอยู่แล้วใน${slotName(data, other)} ห่างกันแค่ ${gap} ชม.`,
           fix: `เว้นอย่างน้อย ${MIN_RECOVERY_HOURS} ชม. — ใส่วันอื่นหรือเพิ่มวันฝึก`,
         };
     }
@@ -853,8 +858,8 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
         kind: "buildProgram",
         splitDays: dayCount,
         title: `สร้างโปรแกรม ${dayCount} วัน/สัปดาห์`,
-        detail: `${splitSummary(dayCount)} — ${built.exercises.length} ท่า ${sets} เซต · พัก${restDays.map((d) => DAY_TH[d]).join(" ")}`,
-        reason: `ฝึก${days.map((d) => DAY_TH[d]).join(" ")} · กล้ามเนื้อกลุ่มเดิมห่างกันอย่างน้อย 48 ชม. — คาดว่าจะได้ ${predicted} คะแนน`,
+        detail: `${splitSummary(dayCount)} — ${built.exercises.length} ท่า ${sets} เซต · พัก${restDays.map((d) => slotName(data, d)).join(" ")}`,
+        reason: `ฝึก${days.map((d) => slotName(data, d)).join(" ")} · กล้ามเนื้อกลุ่มเดิมห่างกันอย่างน้อย 48 ชม. — คาดว่าจะได้ ${predicted} คะแนน`,
         gain: predicted,
         priority: "high",
       });
@@ -870,8 +875,8 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   for (const dl of analysis.dayLoads.filter((d) => d.overSets || d.overTime)) {
     blockedInsight(analysis, {
       issue: dl.overTime
-        ? `${DAY_TH[dl.day]}ใช้เวลาราว ${dl.minutes} นาที (มีเวลา ${getDayTimeCap(data, dl.day)})`
-        : `${DAY_TH[dl.day]}มี ${dl.sets} เซต (เพดาน ${getMaxSetsPerSession(data)})`,
+        ? `${slotName(data, dl.day)}ใช้เวลาราว ${dl.minutes} นาที (มีเวลา ${getDayTimeCap(data, dl.day)})`
+        : `${slotName(data, dl.day)}มี ${dl.sets} เซต (เพดาน ${getMaxSetsPerSession(data)})`,
       whyCannotFix: "วันนี้แน่นเกินเพดานที่ตั้งไว้ — เซตท้ายๆ จะได้แรงไม่เต็ม",
       realSolution: "ย้ายท่าท้ายไปวันที่คุณว่างจริง หรือลดเซตท่าที่ซ้ำซ้อนลง",
     });
@@ -884,7 +889,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   // แย่กว่าปล่อยไว้เฉยๆ ตามเดิมเสียอีก
   for (const r of analysis.recovery.slice(0, 2)) {
     blockedInsight(analysis, {
-      issue: `${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${DAY_TH[r.a]}และ${DAY_TH[r.b]} ห่างกันแค่ ${r.gapHours} ชม.`,
+      issue: `${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${slotName(data, r.a)}และ${slotName(data, r.b)} ห่างกันแค่ ${r.gapHours} ชม.`,
       whyCannotFix: `กล้ามเนื้อต้องการ ${MIN_RECOVERY_HOURS} ชม. ก่อนโดนหนักซ้ำ`,
       realSolution: `ถ้าสองวันนี้เลี่ยงไม่ได้ ให้ลดเซต${MUSCLE_TH[r.muscle]}ในวันหนึ่งลง หรือสลับเป็นท่าเบากว่า`,
     });
@@ -927,7 +932,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
         template: c,
         day: spot.day,
         title: `เพิ่ม ${c.name}`,
-        detail: `ใส่เข้า${DAY_TH[spot.day]} ${MIN_SETS_PER_EX} เซต — ${c.reason}`,
+        detail: `ใส่เข้า${slotName(data, spot.day)} ${MIN_SETS_PER_EX} เซต — ${c.reason}`,
         reason: need.why,
         gain: 0,
         priority: "high",
@@ -983,7 +988,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
         template: c,
         day: spot.day,
         title: `เพิ่ม ${c.name}`,
-        detail: `ใส่เข้า${DAY_TH[spot.day]} ${MIN_SETS_PER_EX} เซต — ${c.reason}`,
+        detail: `ใส่เข้า${slotName(data, spot.day)} ${MIN_SETS_PER_EX} เซต — ${c.reason}`,
         reason: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min}`,
         gain: 0,
         priority: s.status === "missing" && MAJOR_MUSCLES.includes(s.muscle) ? "high" : "medium",

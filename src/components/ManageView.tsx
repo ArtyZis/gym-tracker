@@ -7,6 +7,8 @@ import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
 import SeedWeightsCard from "./SeedWeightsCard";
+import LoopCard from "./LoopCard";
+import { activeDays as slotsOf, slotName } from "../lib/loop";
 import RecoveryCard from "./RecoveryCard";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
@@ -54,6 +56,8 @@ export default function ManageView() {
 
       <SavedProgramsCard />
 
+      <LoopCard />
+
       <SeedWeightsCard />
 
       <RecoveryCard />
@@ -94,9 +98,9 @@ export default function ManageView() {
             )}
             <FieldLabel>ฝึกวันไหน</FieldLabel>
             <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {DAYS.map((d) => (
+              {slotsOf(data).map((d) => (
                 <Chip key={d} on={draft.day === d} onClick={() => setDraft({ ...draft, day: d })}>
-                  {DAY_TH[d]}
+                  {slotName(data, d)}
                 </Chip>
               ))}
             </div>
@@ -256,13 +260,13 @@ export default function ManageView() {
 
       <div className="glass p-4 mb-3">
         <Kicker>ท่าทั้งหมด</Kicker>
-        {DAYS.map((d) => {
+        {slotsOf(data).map((d) => {
           const exs = exercisesForDay(data, d);
           if (!exs.length) return null;
           return (
             <div key={d}>
               <div className="font-disp text-[12.5px] mt-3 mb-1" style={{ color: "var(--cyan-dim)" }}>
-                {DAY_TH[d]}
+                {slotName(data, d)}
                 {data.dayLabels[d] ? ` · ${data.dayLabels[d]}` : ""}
               </div>
               {exs.map((ex, i) => (
@@ -315,9 +319,9 @@ export default function ManageView() {
           <div>
             <FieldLabel>จากวัน</FieldLabel>
             <select className={inputCls} value={moveFrom} onChange={(e) => setMoveFrom(e.target.value as DayKey)}>
-              {DAYS.map((d) => (
+              {slotsOf(data).map((d) => (
                 <option key={d} value={d}>
-                  {DAY_TH[d]}
+                  {slotName(data, d)}
                 </option>
               ))}
             </select>
@@ -325,9 +329,9 @@ export default function ManageView() {
           <div>
             <FieldLabel>ไปวัน</FieldLabel>
             <select className={inputCls} value={moveTo} onChange={(e) => setMoveTo(e.target.value as DayKey)}>
-              {DAYS.map((d) => (
+              {slotsOf(data).map((d) => (
                 <option key={d} value={d}>
-                  {DAY_TH[d]}
+                  {slotName(data, d)}
                 </option>
               ))}
             </select>
@@ -350,7 +354,7 @@ export default function ManageView() {
                   }
                 });
               });
-              toast(count ? `ย้าย ${count} ท่าไป${DAY_TH[moveTo]}แล้ว` : "วันนั้นไม่มีท่า");
+              toast(count ? `ย้าย ${count} ท่าไป${slotName(data, moveTo)}แล้ว` : "วันนั้นไม่มีท่า");
             }}
           >
             ย้ายไปทับ
@@ -382,7 +386,7 @@ export default function ManageView() {
                 d.dayLabels[moveFrom] = d.dayLabels[moveTo] ?? "";
                 d.dayLabels[moveTo] = la;
               });
-              toast(a + b ? `สลับ${DAY_TH[moveFrom]} ↔ ${DAY_TH[moveTo]} แล้ว` : "ทั้งสองวันไม่มีท่า");
+              toast(a + b ? `สลับ${slotName(data, moveFrom)} ↔ ${slotName(data, moveTo)} แล้ว` : "ทั้งสองวันไม่มีท่า");
             }}
           >
             สลับกัน ⇄
@@ -390,10 +394,10 @@ export default function ManageView() {
         </div>
         <div className="hairline mt-4 pt-3.5">
           <Kicker>ชื่อวันฝึก</Kicker>
-          {DAYS.map((d) => (
+          {slotsOf(data).map((d) => (
             <div key={d} className="grid grid-cols-[54px_1fr] gap-2 items-center mb-1.5">
               <span className="font-mono2 text-[11px]" style={{ color: "var(--mut)" }}>
-                {DAY_TH[d]}
+                {slotName(data, d)}
               </span>
               <input
                 className="px-3 py-2 text-[13px]"

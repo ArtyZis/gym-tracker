@@ -20,6 +20,7 @@ import { isPremium } from "../lib/premium";
 import { findTemplate } from "../lib/exerciseDB";
 import SessionClockBar from "./SessionClockBar";
 import { sessionClock } from "../lib/session";
+import { activeDays, isLoop, slotName, slotShort, todaySlot } from "../lib/loop";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
 function restForExercise(data: Data, ex: Exercise, fallback: number): number {
@@ -59,8 +60,8 @@ export default function TodayView() {
   const { data, update, toast, notice, rest, goTab } = useApp();
   const premium = isPremium(data);
   const [day, setDay] = useState(() => {
-    const today = JS_DAYS[new Date().getDay()];
-    return exercisesForDay(data, today).length ? today : (DAYS.find((d) => exercisesForDay(data, d).length) ?? today);
+    const today = todaySlot(data);
+    return exercisesForDay(data, today).length ? today : (activeDays(data).find((d) => exercisesForDay(data, d).length) ?? today);
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -71,7 +72,7 @@ export default function TodayView() {
   // วันนี้ใช้ท่าที่ผ่านการสลับชั่วคราวแล้ว (วันอื่นเป็นท่าตามโปรแกรม)
   const exs = effectiveExercisesForDay(data, day);
   const label = data.dayLabels[day];
-  const isToday = day === JS_DAYS[new Date().getDay()];
+  const isToday = day === todaySlot(data);
 
   const todaySession = (exId: string) => (data.history[exId] || []).find((s) => s.date === todayStr());
   const doneCount = (exId: string) => {
@@ -220,7 +221,7 @@ export default function TodayView() {
           </div>
           <div className="flex items-center gap-2">
             <h2 className="font-disp font-bold text-[26px] leading-none tracking-wide text-glow">
-              {exs.length ? label || DAY_TH[day] : "วันพัก"}
+              {exs.length ? label || slotName(data, day) : "วันพัก"}
             </h2>
             {allDone && (
               <span
@@ -306,7 +307,7 @@ export default function TodayView() {
       <SessionClockBar day={day} isToday={isToday} />
 
       <div className="flex gap-1.5 mb-3">
-        {DAYS.map((d) => {
+        {activeDays(data).map((d) => {
           const dayExs = exercisesForDay(data, d);
           const has = dayExs.length > 0;
           const complete = has && dayExs.every(isDone);
@@ -329,7 +330,7 @@ export default function TodayView() {
                   : { color: has ? "var(--mut)" : "var(--dim)" }
               }
             >
-              <span className="font-mono2 text-[10.5px] font-bold">{DAY_TH_SHORT[d]}</span>
+              <span className="font-mono2 text-[10.5px] font-bold">{slotShort(data, d)}</span>
               <span
                 className="w-[5px] h-[5px] rounded-full"
                 style={{

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { AppContext } from "./AppContext";
 import type { Data } from "./lib/store";
-import { DAY_TH, JS_DAYS, createDefault, store } from "./lib/store";
+import { DAYS, DAY_TH, JS_DAYS, createDefault, store } from "./lib/store";
 import { setSoundEnabled } from "./lib/sound";
 import { resolveAccent } from "./lib/accent";
 import { ensureStartedAt } from "./lib/premium";
 import { readProgramFromUrl } from "./lib/programLink";
+import { cycleLen, isLoop, todaySlot } from "./lib/loop";
 import IncomingProgram from "./components/IncomingProgram";
 import TodayView from "./components/TodayView";
 import ProgramView from "./components/ProgramView";
@@ -165,7 +166,7 @@ export default function App() {
             }}
           >
             <div className="font-disp font-bold text-[14px] leading-none" style={{ color: "var(--ink)" }}>
-              {DAY_TH[JS_DAYS[now.getDay()]]}
+              {isLoop(data) ? `วันที่ ${DAYS.indexOf(todaySlot(data)) + 1}/${cycleLen(data)}` : DAY_TH[JS_DAYS[now.getDay()]]}
             </div>
             <div className="font-mono2 text-[8.5px] mt-[3px]" style={{ color: "var(--dim)" }}>
               {now.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}

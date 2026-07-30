@@ -2,6 +2,7 @@
 
 import type { Data, DayKey } from "./store";
 import { JS_DAYS, exercisesForDay } from "./store";
+import { isLoop, slotForDate } from "./loop";
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -29,7 +30,11 @@ export interface StreakInfo {
 
 export function computeStreak(data: Data): StreakInfo {
   const trained = setsPerDay(data);
-  const scheduled = (d: Date) => exercisesForDay(data, JS_DAYS[d.getDay()] as DayKey).length > 0;
+  // ตารางแบบรอบไม่ผูกกับวันในสัปดาห์ ต้องหาว่าวันนั้นตกช่องไหนของรอบก่อน
+  // ถ้ายังใช้ JS_DAYS จะได้ช่องผิด แล้ว "วันที่มีตารางแต่ไม่ฝึก" จะตัดสตรีคมั่ว
+  const slotOf = (d: Date): DayKey =>
+    isLoop(data) ? slotForDate(data, dateKey(d)) : (JS_DAYS[d.getDay()] as DayKey);
+  const scheduled = (d: Date) => exercisesForDay(data, slotOf(d)).length > 0;
 
   // current: เดินถอยหลังจากวันนี้ วันที่ฝึก → นับ, วันพัก → ข้าม,
   // วันที่มีตารางแต่ไม่ฝึก → หยุด (ยกเว้นวันนี้ที่ยังไม่จบวัน)
