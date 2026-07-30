@@ -158,7 +158,7 @@ export default function App() {
             className="text-center shrink-0"
             style={{
               padding: "6px 11px",
-              borderRadius: 13,
+              clipPath: "var(--cut-path-sm)",
               background: "rgba(10,20,31,.5)",
               border: "1px solid var(--edge)",
               backdropFilter: "blur(8px)",
@@ -195,7 +195,7 @@ export default function App() {
         <SystemNotice notice={noticeState} onClose={() => setNoticeState(null)} />
 
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[520px] z-30 px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
-          <div className="glass flex gap-0.5 p-[7px]" style={{ borderRadius: 22 }}>
+          <div className="glass flex gap-0.5 p-[7px]">
             {TABS.map((t) => {
               const on = tab === t.id;
               return (
@@ -205,7 +205,7 @@ export default function App() {
                     setTab(t.id);
                     window.scrollTo({ top: 0 });
                   }}
-                  className="flex-1 flex flex-col items-center gap-1 py-2 rounded-[15px] transition-all"
+                  className="flex-1 flex flex-col items-center gap-1 py-2 cut-sm transition-all"
                   style={
                     on
                       ? {

@@ -263,7 +263,7 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         className="glass edge-glow flex items-center gap-2 pl-1.5 pr-2 py-2 rise pointer-events-auto max-w-full touch-none"
-        style={{ borderRadius: 28, transform: `translate(${pos.dx}px, ${pos.dy}px)`, cursor: "grab" }}
+        style={{ transform: `translate(${pos.dx}px, ${pos.dy}px)`, cursor: "grab" }}
       >
         {/* handle ลาก */}
         <div className="flex flex-col gap-[3px] px-1.5 shrink-0" style={{ cursor: "grab" }} aria-label="ลากเพื่อย้าย">

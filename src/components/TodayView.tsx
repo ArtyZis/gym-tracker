@@ -282,14 +282,13 @@ export default function TodayView() {
                 setDay(d);
                 setOpenId(null);
               }}
-              className="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl glass-soft transition-all"
+              className={`flex-1 flex flex-col items-center gap-1 py-2 glass-soft transition-all${selected ? " fill" : ""}`}
               style={
                 selected
                   ? {
                       background: "linear-gradient(180deg, var(--acc), var(--acc-2))",
-                      border: "1px solid transparent",
                       color: "#031420",
-                      boxShadow: "0 6px 16px -4px color-mix(in srgb, var(--acc) 56%, transparent), inset 0 1px 0 rgba(255,255,255,.5)",
+                      boxShadow: "0 6px 16px -4px color-mix(in srgb, var(--acc) 56%, transparent)",
                     }
                   : { color: has ? "var(--mut)" : "var(--dim)" }
               }
@@ -633,7 +632,7 @@ function ProgressRing({ pct, done, total, allDone }: { pct: number; done: number
 
 function Stepper({ val, unit, onDelta }: { val: number; unit: string; onDelta: (dir: number) => void }) {
   return (
-    <div className="glass-inset flex items-center flex-1 min-w-0 overflow-hidden" style={{ borderRadius: 12 }}>
+    <div className="glass-inset flex items-center flex-1 min-w-0 overflow-hidden">
       <button
         className="w-[30px] h-[38px] shrink-0 text-[17px] font-semibold"
         style={{ color: "var(--cyan)" }}

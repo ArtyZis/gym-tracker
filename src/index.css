@@ -177,6 +177,23 @@ body::after {
   box-shadow: inset 0 2px 8px #00000059;
 }
 
+/* ปิดพื้นของ ::before เมื่อต้องการให้ background ที่ตั้งเองทึบเต็มรูปทรง
+   (เช่นชิปวันที่เลือกอยู่ ที่ต้องเป็นสี accent เต็มใบ ไม่ใช่แค่ขอบ) */
+.fill::before {
+  display: none;
+}
+
+/* รูปทรงมุมตัดสำหรับ element ที่ไม่ได้ใช้คลาส glass — ใช้แทน rounded-* ของ Tailwind */
+.cut {
+  border-radius: 0;
+  clip-path: var(--cut-path);
+}
+
+.cut-sm {
+  border-radius: 0;
+  clip-path: var(--cut-path-sm);
+}
+
 .edge-glow {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--acc) 28%, transparent),
@@ -193,7 +210,8 @@ body::after {
   color: #03131c;
   background: linear-gradient(var(--acc), var(--acc-2));
   border: none;
-  border-radius: 12px;
+  border-radius: 0;
+  clip-path: var(--cut-path-sm);
   padding: 13px 16px;
   font-family: "Chakra Petch", sans-serif;
   font-weight: 600;
@@ -215,7 +233,8 @@ body::after {
   backdrop-filter: blur(8px);
   background: var(--acc-08);
   border: 1px solid color-mix(in srgb, var(--acc) 28%, transparent);
-  border-radius: 12px;
+  border-radius: 0;
+  clip-path: var(--cut-path-sm);
   padding: 12px 15px;
   font-family: "Chakra Petch", sans-serif;
   font-weight: 500;
@@ -231,7 +250,8 @@ body::after {
   color: var(--bad);
   background: transparent;
   border: 1px solid #ff6b6b66;
-  border-radius: 12px;
+  border-radius: 0;
+  clip-path: var(--cut-path-sm);
   padding: 12px 15px;
   font-family: "Chakra Petch", sans-serif;
 }
@@ -243,7 +263,8 @@ textarea {
   color: var(--ink) !important;
   background: #060c1699 !important;
   border: 1px solid #8ccdff29 !important;
-  border-radius: 12px !important;
+  border-radius: 0 !important;
+  clip-path: var(--cut-path-sm);
 }
 
 input:focus,
