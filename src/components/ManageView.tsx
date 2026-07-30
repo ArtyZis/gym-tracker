@@ -8,6 +8,9 @@ import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
 import { DayEquipmentCard } from "./ProfileCard";
 import DayWindowCard from "./DayWindowCard";
+import SeedWeightsCard from "./SeedWeightsCard";
+import RecoveryCard from "./RecoveryCard";
+import { hasSetWindows } from "../lib/profile";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isPro } from "../lib/edition";
@@ -57,6 +60,10 @@ export default function ManageView() {
       <DayEquipmentCard />
 
       <DayWindowCard />
+
+      <SeedWeightsCard />
+
+      <RecoveryCard />
 
       <TrainingSettingsCard />
 
@@ -414,8 +421,8 @@ export default function ManageView() {
                 </span>
               ))}
               {plates.list.length === 0 && (
-                <span className="text-[12px]" style={{ color: "var(--dim)" }}>
-                  ไม่ต้องใส่แผ่น
+                <span className="text-[12px]" style={{ color: plates.barOnly ? "var(--acc)" : "var(--dim)" }}>
+                  {plates.barOnly ? `บาร์เปล่า (${bar} kg)` : "ไม่ต้องใส่แผ่น"}
                 </span>
               )}
             </div>
@@ -512,6 +519,8 @@ function TrainingSettingsCard() {
   const { data, update, toast } = useApp();
   const soundOn = data.settings.soundEnabled !== false;
   const smartOn = data.settings.smartRest !== false;
+  const tierS = data.settings.tierSOnly === true;
+  const clockOn = data.settings.sessionClock ?? hasSetWindows(data);
   return (
     <div className="glass p-4 mb-3">
       <Kicker>ตั้งค่าการฝึก</Kicker>
@@ -535,6 +544,28 @@ function TrainingSettingsCard() {
             d.settings.smartRest = !smartOn;
           });
           toast(smartOn ? "ใช้เวลาพักค่าเดียวแล้ว" : "เปิดเวลาพักอัตโนมัติแล้ว");
+        }}
+      />
+      <ToggleRow
+        label="เน้นท่า tier S"
+        desc="เสนอเฉพาะท่าที่คุ้มค่าที่สุด — ยกเว้นกล้ามเนื้อที่ไม่มีท่า tier S (ไหล่ข้าง น่อง ปลายแขน) จะยังเสนอท่าเสริมให้ ไม่งั้นตารางจะขาดทั้งมัด"
+        on={tierS}
+        onToggle={() => {
+          update((d) => {
+            d.settings.tierSOnly = !tierS;
+          });
+          toast(tierS ? "กลับไปเสนอทุกท่า" : "เน้นท่า tier S แล้ว");
+        }}
+      />
+      <ToggleRow
+        label="นาฬิกาเซสชัน"
+        desc="แถบบอกเวลาที่ใช้ไป/เหลือในแท็บวันนี้ และเตือนเมื่อเวลาไม่พอเล่นให้ครบ (ต้องตั้งเวลาเข้ายิมรายวันก่อน)"
+        on={clockOn}
+        onToggle={() => {
+          update((d) => {
+            d.settings.sessionClock = !clockOn;
+          });
+          toast(clockOn ? "ปิดนาฬิกาเซสชัน" : "เปิดนาฬิกาเซสชัน");
         }}
       />
     </div>

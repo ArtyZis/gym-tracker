@@ -3,7 +3,7 @@ import { useApp } from "../AppContext";
 import type { EffectiveExercise, SwapTarget } from "../lib/store";
 import { DAY_TH, addExtra, clearSwap, normName, removeExtra, setSwap } from "../lib/store";
 import { MUSCLE_TH, muscleMap } from "../lib/analyzer";
-import { EQUIP_TH, incFor, isMachineEx, searchExercises, unitFor } from "../lib/exerciseDB";
+import { EQUIP_TH, incFor, isMachineEx, searchExercises, tierOf, unitFor } from "../lib/exerciseDB";
 
 interface Option extends SwapTarget {
   from: string; // มาจากไหน — วันในโปรแกรม หรืออุปกรณ์ที่ใช้ (ท่าจากคลัง)
@@ -58,7 +58,11 @@ export default function ExercisePicker({
     }
 
     // 2) คลังท่าหลักทั้งหมด — ค้นได้ทั้งชื่อไทยและอังกฤษ
+    // โหมด tier S: กรองเหลือ S เป็นค่าเริ่มต้น แต่พอผู้ใช้พิมพ์ค้นหาแล้วต้องเห็นทุกท่า
+    // (ไม่งั้นค้นท่าที่ตั้งใจหาแล้วไม่เจอ กลายเป็นโหมดนี้ทำให้ใช้งานยากขึ้นแทนที่จะช่วย)
+    const sOnly = data.settings.tierSOnly === true && !q.trim();
     for (const t of searchExercises(q, 80)) {
+      if (sOnly && tierOf(t.name) !== "S") continue;
       if (seen.has(normName(t.name))) continue;
       seen.add(normName(t.name));
       out.push({

@@ -13,11 +13,12 @@ import {
   todayStr,
 } from "../lib/store";
 import ExercisePicker from "./ExercisePicker";
-import { restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progression";
+import { plateText, restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progression";
 import { haptics } from "../lib/haptics";
 import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
 import { isPremium } from "../lib/premium";
 import { findTemplate } from "../lib/exerciseDB";
+import SessionClockBar from "./SessionClockBar";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
 function restForExercise(data: Data, ex: Exercise, fallback: number): number {
@@ -133,12 +134,15 @@ export default function TodayView() {
       if (session.sets[idx]) {
         session.sets[idx] = null;
       } else {
+        // บันทึกเวลาที่ติ๊กด้วย — นาฬิกาเซสชันคำนวณจาก timestamp ไม่ใช่ตัวนับถอยหลัง
+        // เพราะ iOS Safari suspend JS ตอนสลับแอป ตัวนับจะเพี้ยนทันทีที่กลับมา
+        const at = Date.now();
         session.sets[idx] =
           ex.type === "time"
-            ? { duration: draft.reps }
+            ? { duration: draft.reps, at }
             : ex.type === "bodyweight"
-              ? { reps: draft.reps }
-              : { weight: draft.weight, reps: draft.reps };
+              ? { reps: draft.reps, at }
+              : { weight: draft.weight, reps: draft.reps, at };
       }
       if (session.sets.every((s) => !s)) d.history[ex.id] = d.history[ex.id].filter((s) => s !== session);
     });
@@ -238,6 +242,8 @@ export default function TodayView() {
           </div>
         )}
       </div>
+
+      <SessionClockBar day={day} isToday={isToday} />
 
       <div className="flex gap-1.5 mb-3">
         {DAYS.map((d) => {
@@ -408,6 +414,15 @@ export default function TodayView() {
                         <span className="text-[13px] mt-px">🎯</span>
                         <span className="text-[12.5px] leading-relaxed" style={{ color: "#dbe9f7" }}>
                           {target.msg}
+                          {/* บอกวิธีใส่แผ่นเลย จะได้ไม่ต้องคิดเลขหน้าแร็ค */}
+                          {(() => {
+                            const pt = plateText(data, ex, target.weight ?? firstWeight ?? 0);
+                            return pt ? (
+                              <span className="block font-mono2 text-[11px] mt-1" style={{ color: "var(--acc)" }}>
+                                {pt}
+                              </span>
+                            ) : null;
+                          })()}
                         </span>
                       </div>
                     )

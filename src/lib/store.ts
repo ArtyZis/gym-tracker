@@ -19,12 +19,21 @@ export interface Exercise {
   order?: number;
   restSec?: number; // เวลาพักที่ผู้ใช้ตั้งเองต่อท่า — ไม่มี = ใช้ค่าที่ระบบแนะนำ
   machine?: boolean; // ท่าเครื่อง (machine/cable) — น้ำหนักรวมทั้งเครื่อง ไม่ใช่ต่อข้าง
+  // น้ำหนักบาร์เฉพาะท่านี้ — ไม่มี = ใช้ settings.barWeight
+  // จำเป็นเพราะบาร์ไม่ได้หนักเท่ากันทุกอัน: EZ bar ~10 กก. · บาร์สั้น ~15 · Smith machine แล้วแต่เครื่อง
+  barKg?: number;
+  // เป้าเริ่มต้นที่ระบบประเมินให้ (ฟีเจอร์ตั้งน้ำหนักเริ่มต้น) — เป็น "ค่าประมาณ" ไม่ใช่ของจริง
+  // เก็บแยกจาก history โดยตั้งใจ ถ้าเขียนปนกันกราฟความก้าวหน้าและ forecast จะเพี้ยน
+  seededTarget?: number;
 }
 
 export interface SetLog {
   weight?: number;
   reps?: number;
   duration?: number;
+  // เวลาที่ติ๊กเซตนี้ (epoch ms) — ใช้คำนวณว่าเล่นมานานแค่ไหนแล้วในเซสชันนี้
+  // optional เพราะข้อมูลเก่าไม่มี: ไม่มี = นาฬิกาเซสชันจะไม่แสดงสำหรับเซสชันนั้น (ไม่พัง ไม่เดา)
+  at?: number;
 }
 
 export interface SessionLog {
@@ -51,6 +60,8 @@ export interface Settings {
   barWeight: number;
   heightCm?: number;
   soundEnabled?: boolean; // เสียงตอนกดติ๊ก/ครบท่า/PR — undefined = เปิด (default)
+  sessionClock?: boolean; // แถบนาฬิกาเซสชันในแท็บวันนี้ — undefined = เปิดถ้าตั้งช่องเวลาไว้
+  tierSOnly?: boolean; // โหมดเสนอเฉพาะท่า tier S — undefined = ปิด (เห็นทุกท่าเหมือนเดิม)
   smartRest?: boolean; // ใช้เวลาพักที่ระบบแนะนำต่อท่า — undefined = เปิด (default)
   accent?: string; // สีธีม (accent) — undefined = cyan #4fd8ff (ค่าเดิมของแบรนด์)
   showCoachNotes?: boolean; // โน้ตโค้ชในการ์ดท่า — undefined = แสดง (default)
@@ -152,6 +163,8 @@ export interface Data {
   sleepLog?: SleepEntry[];
   // วันที่กินถึงเป้าหรือไม่ (ฟีเจอร์ 5) — ติ๊กวันละครั้ง ไม่ใช่บันทึกรายมื้อ
   nutritionLog?: NutritionDay[];
+  // ภาระแรกของวัน ("HH:MM" เช่นเข้าเรียน 08:00) — ใช้คำนวณเวลาที่ควรเข้านอนคืนก่อนหน้า
+  dayFirstCommitment?: Partial<Record<DayKey, string>>;
 }
 
 export const DAYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -287,6 +300,9 @@ export function normalizeData(d: any): Data | null {
   else d.sleepLog = d.sleepLog.filter((s: any) => isObj(s) && typeof s.date === "string" && typeof s.hours === "number");
   if (!Array.isArray(d.nutritionLog)) d.nutritionLog = undefined;
   else d.nutritionLog = d.nutritionLog.filter((n: any) => isObj(n) && typeof n.date === "string" && typeof n.hit === "boolean");
+  if (d.dayFirstCommitment !== undefined && !isObj(d.dayFirstCommitment)) d.dayFirstCommitment = undefined;
+  else if (d.dayFirstCommitment)
+    for (const k of Object.keys(d.dayFirstCommitment)) if (typeof d.dayFirstCommitment[k] !== "string") delete d.dayFirstCommitment[k];
   if (d.profile && !isObj(d.profile.nutrition)) d.profile.nutrition = undefined;
   if (d.profile?.nutrition && (typeof d.profile.nutrition.kcal !== "number" || typeof d.profile.nutrition.protein !== "number"))
     d.profile.nutrition = undefined;

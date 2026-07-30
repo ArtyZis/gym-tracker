@@ -3,6 +3,7 @@
 import type { Data, Exercise, SetLog } from "./store";
 import { todayStr } from "./store";
 import { muscleMap } from "./analyzer";
+import { findTemplate } from "./exerciseDB";
 
 export interface TargetSuggestion {
   weight: number | null;
@@ -15,8 +16,17 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
   const last = sessions[sessions.length - 1];
   const done: SetLog[] = last ? (last.sets.filter(Boolean) as SetLog[]) : [];
 
-  if (!done.length)
+  if (!done.length) {
+    // ยังไม่เคยเล่นท่านี้ — ถ้าเคยประเมินไว้จากท่าหลัก ใช้เป็นจุดตั้งต้น
+    // ต้องบอกชัดว่าเป็น "ค่าประมาณ" ไม่ใช่ตัวเลขที่รู้แน่ ผู้ใช้จะได้ปรับตามจริงตั้งแต่เซตแรก
+    if (ex.seededTarget && ex.type === "weight")
+      return {
+        weight: ex.seededTarget,
+        kind: "start",
+        msg: `ค่าประมาณจากท่าหลัก ~${ex.seededTarget} ${ex.unit || "kg"} — ลองเซตแรกแล้วปรับตามจริงได้เลย`,
+      };
     return { weight: null, kind: "start", msg: "เซสชันแรก: เลือกน้ำหนักที่ทำได้ตามเป้าแบบเหลือแรง 1-2 ครั้ง" };
+  }
 
   if (ex.type === "weight") {
     const w = done[0].weight || 0;
@@ -90,7 +100,9 @@ export function warmupRamp(ex: Exercise, workingWeight: number | null): WarmupSt
 }
 
 // แผ่นน้ำหนักมาตรฐานต่อข้าง
-export function plateCalc(target: number, bar: number): { list: number[]; leftover: number } {
+// barOnly = เป้าน้อยกว่าหรือเท่าน้ำหนักบาร์ -> ยกบาร์เปล่า (เดิมคืน leftover ติดลบซึ่งแสดงผลแล้วงง)
+export function plateCalc(target: number, bar: number): { list: number[]; leftover: number; barOnly: boolean } {
+  if (target <= bar) return { list: [], leftover: 0, barOnly: true };
   let perSide = (target - bar) / 2;
   const list: number[] = [];
   for (const p of [25, 20, 15, 10, 5, 2.5, 1.25]) {
@@ -99,7 +111,150 @@ export function plateCalc(target: number, bar: number): { list: number[]; leftov
       perSide -= p;
     }
   }
-  return { list, leftover: perSide };
+  return { list, leftover: perSide, barOnly: false };
+}
+
+// น้ำหนักบาร์ที่ใช้กับท่านี้ — ตั้งรายท่าได้ ไม่ตั้งใช้ค่ากลาง
+export const barKgFor = (data: Data, ex: Exercise): number => ex.barKg ?? data.settings.barWeight ?? 20;
+
+// ท่านี้ต้องคิดเรื่องแผ่นน้ำหนักไหม — ท่าเครื่อง/เคเบิลใส่น้ำหนักรวม ไม่มีแผ่นให้ใส่
+export function usesPlates(data: Data, ex: Exercise): boolean {
+  if (ex.type !== "weight" || ex.machine) return false;
+  const tpl = findTemplate(ex.name);
+  if (!tpl) return true; // ท่าที่ผู้ใช้พิมพ์เอง — สมมติว่าใช้บาร์ (แสดงข้อมูลเพิ่มดีกว่าซ่อน)
+  return tpl.equip.includes("barbell");
+}
+
+// ข้อความสั้นบอกว่าต้องใส่แผ่นอะไรข้างละกี่แผ่น เช่น "บาร์ 20 + (15+7.5)×2"
+export function plateText(data: Data, ex: Exercise, target: number): string | null {
+  if (!usesPlates(data, ex) || !target) return null;
+  const bar = barKgFor(data, ex);
+  const { list, leftover, barOnly } = plateCalc(target, bar);
+  if (barOnly) return `บาร์เปล่า (${bar} ${ex.unit || "kg"})`;
+  if (!list.length) return null;
+  const txt = `บาร์ ${bar} + (${list.join("+")})×2`;
+  return leftover > 0.01 ? `${txt} · ขาดอีก ${(leftover * 2).toFixed(1)}` : txt;
+}
+
+// ══════════ ประเมินน้ำหนักเริ่มต้นจากท่าหลัก ══════════
+//
+// ปัญหา: สร้างโปรแกรมใหม่ 40 ท่า แล้วต้องเดาน้ำหนักเองทุกท่า เสียเวลาและเดาผิดบ่อย
+// วิธี: กรอกท่าหลัก 4 ท่า -> ประเมิน 1RM -> เทียบสัดส่วนไปท่าอื่น
+//
+// **ค่าที่ได้เป็นค่าประมาณเท่านั้น** สัดส่วนพวกนี้เป็นค่าเฉลี่ยประชากร ของจริงต่างกันมาก
+// ตามสัดส่วนร่างกาย ช่วงการเคลื่อนไหว และประสบการณ์ของแต่ละท่า
+// สัปดาห์แรกต้องปรับตามจริง — UI ต้องบอกชัดว่าเป็นค่าประมาณ ห้ามทำเหมือนรู้แน่
+
+export type LiftKey = "bench" | "squat" | "deadlift" | "ohp";
+
+export const LIFT_TH: Record<LiftKey, string> = {
+  bench: "เบนช์เพรส",
+  squat: "สควอท",
+  deadlift: "เดดลิฟต์",
+  ohp: "ดันบ่าเหนือหัว",
+};
+
+// ชื่อท่าในคลังที่ตรงกับท่าหลักแต่ละตัว (ใช้ prefill ถ้ามีประวัติอยู่แล้ว)
+export const LIFT_EXERCISE: Record<LiftKey, string> = {
+  bench: "Barbell Bench Press",
+  squat: "Barbell Squat",
+  deadlift: "Deadlift",
+  ohp: "Overhead Press",
+};
+
+// สูตร Epley — แม่นพอในช่วง 1-10 เรป เกินกว่านั้นเริ่มประเมินสูงเกินจริง
+export const epley1RM = (weight: number, reps: number): number =>
+  reps <= 1 ? weight : weight * (1 + reps / 30);
+
+// น้ำหนักที่ควรใช้สำหรับเรปเป้าหมาย (ผกผันของ Epley)
+export const weightForReps = (oneRM: number, reps: number): number =>
+  reps <= 1 ? oneRM : oneRM / (1 + reps / 30);
+
+// สัดส่วนของแต่ละท่าเทียบ 1RM ของท่าหลัก
+// ที่มา: ค่าเฉลี่ยที่ใช้กันทั่วไปในวงการฝึกความแข็งแรง ไม่ใช่ค่าที่วัดจากผู้ใช้คนนี้
+// ใส่เฉพาะท่าที่เทียบกันได้ตรงๆ — ท่าที่ไม่มีในตารางนี้จะไม่ประเมินให้ (ปล่อยให้ผู้ใช้กรอกเอง
+// ดีกว่าเดามั่วแล้วเขาเชื่อ)
+const LIFT_RATIO: { name: string; base: LiftKey; ratio: number }[] = [
+  // ดัน — ฐานเบนช์
+  { name: "Barbell Bench Press", base: "bench", ratio: 1.0 },
+  { name: "Incline Barbell Press", base: "bench", ratio: 0.8 },
+  { name: "Close Grip Bench Press", base: "bench", ratio: 0.85 },
+  { name: "Dumbbell Bench Press", base: "bench", ratio: 0.4 }, // ต่อข้าง
+  { name: "Incline DB Press", base: "bench", ratio: 0.35 }, // ต่อข้าง
+  // ดันเหนือหัว — ฐาน OHP
+  { name: "Overhead Press", base: "ohp", ratio: 1.0 },
+  { name: "Overhead Press (DB)", base: "ohp", ratio: 0.4 }, // ต่อข้าง
+  { name: "Push Press", base: "ohp", ratio: 1.2 },
+  { name: "Arnold Press", base: "ohp", ratio: 0.35 },
+  // สควอท
+  { name: "Barbell Squat", base: "squat", ratio: 1.0 },
+  { name: "Front Squat", base: "squat", ratio: 0.8 },
+  { name: "Hack Squat", base: "squat", ratio: 0.9 },
+  { name: "Leg Press", base: "squat", ratio: 1.8 },
+  { name: "Bulgarian Split Squat", base: "squat", ratio: 0.25 }, // ต่อข้าง
+  { name: "Goblet Squat", base: "squat", ratio: 0.35 },
+  // บานพับสะโพก — ฐานเดดลิฟต์
+  { name: "Deadlift", base: "deadlift", ratio: 1.0 },
+  { name: "Romanian Deadlift", base: "deadlift", ratio: 0.75 },
+  { name: "Stiff Leg Deadlift", base: "deadlift", ratio: 0.7 },
+  { name: "Sumo Deadlift", base: "deadlift", ratio: 1.0 },
+  { name: "Barbell Hip Thrust", base: "deadlift", ratio: 0.9 },
+  // ดึง — ฐานเดดลิฟต์ (หลังแข็งแรงตามกัน)
+  { name: "Barbell Row", base: "deadlift", ratio: 0.5 },
+  { name: "Chest Supported Row", base: "deadlift", ratio: 0.4 },
+  { name: "Lat Pulldown", base: "deadlift", ratio: 0.45 },
+  { name: "Seated Cable Row", base: "deadlift", ratio: 0.5 },
+  { name: "Dumbbell Row", base: "deadlift", ratio: 0.22 }, // ต่อข้าง
+  // แขน — ฐาน OHP (ไตรเซป) / เบนช์ (ไบเซปเทียบหยาบๆ)
+  { name: "Barbell Curl", base: "ohp", ratio: 0.55 },
+  { name: "Dumbbell Curl", base: "ohp", ratio: 0.22 },
+  { name: "Tricep Pushdown", base: "ohp", ratio: 0.6 },
+];
+
+export interface OneRMInput {
+  weight: number;
+  reps: number;
+}
+
+export type OneRMMap = Partial<Record<LiftKey, number>>; // 1RM ที่ประเมินได้
+
+export function estimate1RMs(inputs: Partial<Record<LiftKey, OneRMInput>>): OneRMMap {
+  const out: OneRMMap = {};
+  for (const k of Object.keys(inputs) as LiftKey[]) {
+    const v = inputs[k];
+    if (!v || !(v.weight > 0) || !(v.reps > 0)) continue;
+    out[k] = Math.round(epley1RM(v.weight, v.reps) * 10) / 10;
+  }
+  return out;
+}
+
+export interface SeedResult {
+  exId: string;
+  name: string;
+  weight: number;
+}
+
+// ประเมินเป้าเริ่มต้นของทุกท่าในโปรแกรมที่เทียบสัดส่วนได้
+// ข้ามท่าที่มีประวัติจริงแล้ว — ของจริงย่อมดีกว่าค่าประมาณเสมอ
+export function seedTargets(data: Data, oneRM: OneRMMap): SeedResult[] {
+  const out: SeedResult[] = [];
+  for (const ex of data.exercises) {
+    if (ex.type !== "weight") continue;
+    if ((data.history[ex.id] ?? []).some((s) => s.sets.some(Boolean))) continue; // เคยเล่นจริงแล้ว
+    const tpl = findTemplate(ex.name);
+    const canon = tpl?.name ?? ex.name;
+    const row = LIFT_RATIO.find((r) => r.name === canon);
+    if (!row) continue;
+    const base = oneRM[row.base];
+    if (!base) continue;
+    // เป้าคือน้ำหนักที่ทำได้ตามจำนวนเรปของท่านั้น ไม่ใช่ 1RM
+    const reps = ex.amrap ? 10 : Math.round((ex.rmin + ex.rmax) / 2);
+    const raw = weightForReps(base * row.ratio, Math.max(1, Math.min(15, reps)));
+    const inc = ex.inc || 2.5;
+    const weight = Math.max(inc, Math.round(raw / inc) * inc);
+    out.push({ exId: ex.id, name: ex.name, weight });
+  }
+  return out;
 }
 
 // ท่า compound (โดนหลายกล้ามเนื้อ) ต้องพักนานกว่า เพราะใช้ระบบประสาท/พลังงานเยอะกว่า

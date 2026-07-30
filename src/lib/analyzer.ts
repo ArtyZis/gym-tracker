@@ -33,6 +33,7 @@ import {
   splitSummary,
 } from "./blueprint";
 import { canDoWithEquip, getDayEquip, getDayTimeCap, getInjuries, getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "./profile";
+import { sleepSummary } from "./recovery";
 
 export type { MuscleKey } from "./muscles";
 export { MUSCLE_TH, MUSCLE_KEYS } from "./muscles";
@@ -577,9 +578,51 @@ export interface SuggestionTemplate {
   tpl?: ExTemplate;
 }
 
+// ความสม่ำเสมอจริง 3 สัปดาห์ล่าสุด — ทำได้กี่ % ของที่วางไว้
+//
+// ใช้บอกความจริงที่ผู้ใช้มักไม่ยอมรับเอง: ตั้งตาราง 6 วันแต่ทำได้จริง 4 วันมาตลอด
+// ตารางที่ทำได้จริง 100% ดีกว่าตารางสวยๆ ที่ทำได้ 60% เสมอ
+export interface Adherence {
+  planned: number;
+  done: number;
+  pct: number;
+  weeks: number;
+  low: boolean; // ต่ำกว่า 75% ติดกัน 3 สัปดาห์
+}
+
+const ADHERENCE_WEEKS = 3;
+const ADHERENCE_LOW_PCT = 75;
+
+export function adherence(data: Data): Adherence {
+  const perWeek = trainingDays(data).length;
+  const weeks = ADHERENCE_WEEKS;
+  const planned = perWeek * weeks;
+  if (!planned) return { planned: 0, done: 0, pct: 100, weeks, low: false };
+
+  // นับ "วันที่มีการติ๊กเซตจริง" ไม่ใช่จำนวนเซต — ไปยิมแล้วเล่นน้อยก็ยังนับว่าไป
+  const cutoff = Date.now() - weeks * 7 * 86400000;
+  const daysWithLogs = new Set<string>();
+  for (const sessions of Object.values(data.history))
+    for (const s of sessions) {
+      const t = Date.parse(s.date);
+      if (Number.isFinite(t) && t >= cutoff && s.sets.some(Boolean)) daysWithLogs.add(s.date);
+    }
+
+  const done = daysWithLogs.size;
+  const pct = Math.round((100 * done) / planned);
+  return { planned, done, pct, weeks, low: pct < ADHERENCE_LOW_PCT };
+}
+
 // เรียง tier S ก่อนเสมอ — ท่าคุ้มค่าที่สุดควรถูกเสนอก่อนท่าเสริม
-export function candidatesFor(muscle: MuscleKey): SuggestionTemplate[] {
-  return EXERCISE_DB.filter((t) => t.pri.includes(muscle))
+//
+// โหมด tierSOnly กรองเหลือ S เท่านั้น **ยกเว้น** กล้ามเนื้อที่ไม่มีท่า S เลย
+// (ไหล่ข้าง/ไหล่หลัง/น่อง/ปลายแขน ต้องใช้ท่า isolation ซึ่งส่วนใหญ่เป็น tier A)
+// ยึดกฎจนตารางขาดกล้ามเนื้อไปทั้งมัด = แย่กว่าไม่มีโหมดนี้เลย
+export function candidatesFor(muscle: MuscleKey, tierSOnly = false): SuggestionTemplate[] {
+  const all = EXERCISE_DB.filter((t) => t.pri.includes(muscle));
+  const sOnly = all.filter((t) => tierOf(t.name) === "S");
+  const pool = tierSOnly && sOnly.length ? sOnly : all;
+  return pool
     .sort(
       (a, b) =>
         TIER_RANK[tierOf(a.name)] - TIER_RANK[tierOf(b.name)] ||
@@ -757,8 +800,36 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   const recs: Recommendation[] = [];
   const existing = new Set(data.exercises.map((e) => normName(e.name)));
   const target = getVolumeTarget(data);
+  const tierSOnly = data.settings.tierSOnly === true;
   let n = 0;
   const mkId = () => "rec" + n++;
+
+  // -1) นอนไม่พอติดกันหลายวัน — คอขวดอยู่ที่การฟื้นตัว ไม่ใช่ปริมาณการฝึก
+  //
+  // การเพิ่มปริมาณตอนที่ฟื้นตัวไม่ทันไม่ได้ทำให้โตขึ้น แต่ทำให้ล้าสะสมและเสี่ยงบาดเจ็บ
+  // ตัดคำแนะนำที่ "เพิ่มของ" ออกทั้งหมด เหลือแต่คำแนะนำที่ลด/ปรับ แล้วบอกต้นเหตุจริง
+  // -2) ทำตามตารางไม่ค่อยได้ — บอกความจริงแต่ไม่ลดวันให้เอง
+  //
+  // สเปคเดิมอยากให้ระบบรวมวันให้อัตโนมัติ แต่ขัดกับหลัก "ไม่รื้อตารางที่ผู้ใช้จัดเอง"
+  // ระบบไม่รู้ว่าสัปดาห์ที่ขาดเพราะป่วย สอบ หรือตารางไม่ไหวจริง — ผู้ใช้ตัดสินใจเองถูกกว่า
+  const adh = adherence(data);
+  if (adh.low && adh.planned > 0) {
+    const realistic = Math.max(1, Math.round(adh.done / adh.weeks));
+    blockedInsight(analysis, {
+      issue: `${adh.weeks} สัปดาห์ล่าสุดทำได้ ${adh.done}/${adh.planned} ครั้ง (${adh.pct}%)`,
+      whyCannotFix: `ตั้งไว้ ${trainingDays(data).length} วัน/สัปดาห์ แต่ทำได้จริงราว ${realistic} วัน`,
+      realSolution: `ตารางที่ทำได้ครบ ${realistic} วันให้ผลดีกว่าตาราง ${trainingDays(data).length} วันที่ขาดประจำ — ลองย้ายท่าสำคัญของวันที่ขาดบ่อยไปวันที่ไปได้แน่`,
+    });
+  }
+
+  const sleep = sleepSummary(data);
+  if (sleep.underRecovered) {
+    blockedInsight(analysis, {
+      issue: `นอนเฉลี่ย ${sleep.avg7 ?? "<6.5"} ชม./คืน ติดกันหลายวัน`,
+      whyCannotFix: "ฟื้นตัวไม่ทัน — เพิ่มปริมาณตอนนี้ไม่ทำให้โตขึ้น แต่ล้าสะสมและเสี่ยงบาดเจ็บ",
+      realSolution: "คอขวดอยู่ที่การนอน ไม่ใช่ตาราง — นอนให้ถึง 7 ชม. สัก 1 สัปดาห์ก่อนค่อยเพิ่มปริมาณ",
+    });
+  }
 
   // 0) ตารางว่างเปล่า — เสนอสร้างทั้งโปรแกรมทีเดียว ให้เลือกว่าฝึกได้กี่วัน
   //
@@ -844,7 +915,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
 
   for (const need of patternNeeds) {
     if (recs.length >= MAX_RECOMMENDATIONS) break;
-    const cands = candidatesFor(need.muscle).filter((c) => !existing.has(normName(c.name)) && c.tpl?.pattern === need.pattern);
+    const cands = candidatesFor(need.muscle, tierSOnly).filter((c) => !existing.has(normName(c.name)) && c.tpl?.pattern === need.pattern);
     let bestPat: { rec: Recommendation; predicted: number } | null = null;
     for (const c of cands) {
       if (!c.tpl) continue;
@@ -882,7 +953,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
 
   for (const s of gaps) {
     if (recs.length >= MAX_RECOMMENDATIONS) break;
-    const cands = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
+    const cands = candidatesFor(s.muscle, tierSOnly).filter((c) => !existing.has(normName(c.name)));
     const blockedReasons: FilterVerdict[] = [];
 
     // สามทางเลือก: (1) เพิ่มท่าใหม่ในวันเดิม (2) เพิ่มเซตท่าที่มีอยู่ (3) เปิดวันใหม่
@@ -992,7 +1063,9 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
     recs.push(candidateRec);
   }
 
-  return recs.sort((a, b) => b.gain - a.gain).slice(0, MAX_RECOMMENDATIONS);
+  // นอนไม่พอ -> ตัดคำแนะนำที่เพิ่มภาระออกทั้งหมด (เหตุผลอยู่ใน blockedInsights แล้ว)
+  const out = sleep.underRecovered ? recs.filter((r) => r.kind !== "add" && r.kind !== "increaseSets") : recs;
+  return out.sort((a, b) => b.gain - a.gain).slice(0, MAX_RECOMMENDATIONS);
 }
 
 // จัดลำดับท่าในวันหนึ่งให้ถูกหลัก: compound หนัก -> ปานกลาง -> เจาะจง -> core/น่องปิดท้าย
