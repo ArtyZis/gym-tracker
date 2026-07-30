@@ -6,11 +6,8 @@ import { DAYS, DAY_TH, archiveOne, createEmpty, decodeTransfer, exercisesForDay,
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
-import { DayEquipmentCard } from "./ProfileCard";
-import DayWindowCard from "./DayWindowCard";
 import SeedWeightsCard from "./SeedWeightsCard";
 import RecoveryCard from "./RecoveryCard";
-import { hasSetWindows } from "../lib/profile";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isPro } from "../lib/edition";
@@ -56,10 +53,6 @@ export default function ManageView() {
       <ImportProgramCard />
 
       <SavedProgramsCard />
-
-      <DayEquipmentCard />
-
-      <DayWindowCard />
 
       <SeedWeightsCard />
 
@@ -340,27 +333,61 @@ export default function ManageView() {
             </select>
           </div>
         </div>
-        <button
-          className="btn-gh w-full !text-[12.5px]"
-          onClick={() => {
-            if (moveFrom === moveTo) {
-              toast("เลือกคนละวัน");
-              return;
-            }
-            let count = 0;
-            update((d) => {
-              d.exercises.forEach((e) => {
-                if (e.day === moveFrom) {
-                  e.day = moveTo;
-                  count++;
-                }
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            className="btn-gh w-full !text-[12.5px]"
+            onClick={() => {
+              if (moveFrom === moveTo) {
+                toast("เลือกคนละวัน");
+                return;
+              }
+              let count = 0;
+              update((d) => {
+                d.exercises.forEach((e) => {
+                  if (e.day === moveFrom) {
+                    e.day = moveTo;
+                    count++;
+                  }
+                });
               });
-            });
-            toast(count ? `ย้าย ${count} ท่าไป${DAY_TH[moveTo]}แล้ว` : "วันนั้นไม่มีท่า");
-          }}
-        >
-          ย้ายทั้งหมด
-        </button>
+              toast(count ? `ย้าย ${count} ท่าไป${DAY_TH[moveTo]}แล้ว` : "วันนั้นไม่มีท่า");
+            }}
+          >
+            ย้ายไปทับ
+          </button>
+          {/* สลับสองวันเข้าหากัน — ใช้บ่อยกว่าย้ายทับ เพราะตารางจริงมักแค่ "วันนี้ไม่ว่าง
+              ขอสลับกับอีกวัน" ถ้าใช้ย้ายทับต้องทำ 3 ขั้น (ย้ายไปวันว่าง -> ย้ายกลับ -> ย้ายอีกที)
+              และเสี่ยงท่าสองวันไปกองรวมกันถ้าพลาดลำดับ */}
+          <button
+            className="btn-cy w-full !text-[12.5px]"
+            onClick={() => {
+              if (moveFrom === moveTo) {
+                toast("เลือกคนละวัน");
+                return;
+              }
+              let a = 0;
+              let b = 0;
+              update((d) => {
+                d.exercises.forEach((e) => {
+                  if (e.day === moveFrom) {
+                    e.day = moveTo;
+                    a++;
+                  } else if (e.day === moveTo) {
+                    e.day = moveFrom;
+                    b++;
+                  }
+                });
+                // ชื่อวันต้องสลับตามด้วย ไม่งั้นวันที่เป็น Push จะยังเขียนว่า Pull
+                const la = d.dayLabels[moveFrom] ?? "";
+                d.dayLabels[moveFrom] = d.dayLabels[moveTo] ?? "";
+                d.dayLabels[moveTo] = la;
+              });
+              toast(a + b ? `สลับ${DAY_TH[moveFrom]} ↔ ${DAY_TH[moveTo]} แล้ว` : "ทั้งสองวันไม่มีท่า");
+            }}
+          >
+            สลับกัน ⇄
+          </button>
+        </div>
         <div className="hairline mt-4 pt-3.5">
           <Kicker>ชื่อวันฝึก</Kicker>
           {DAYS.map((d) => (
@@ -520,7 +547,9 @@ function TrainingSettingsCard() {
   const soundOn = data.settings.soundEnabled !== false;
   const smartOn = data.settings.smartRest !== false;
   const tierS = data.settings.tierSOnly === true;
-  const clockOn = data.settings.sessionClock ?? hasSetWindows(data);
+  // ค่าเริ่มต้นปิด — เดิมเปิดอัตโนมัติถ้าตั้งช่องเวลารายวันไว้ แต่ถอดฟีเจอร์นั้นออกแล้ว
+  // เปิดเองได้ตรงนี้ จะใช้เพดานเวลาต่อครั้งจากตั้งค่าการฝึกแทน
+  const clockOn = data.settings.sessionClock === true;
   return (
     <div className="glass p-4 mb-3">
       <Kicker>ตั้งค่าการฝึก</Kicker>

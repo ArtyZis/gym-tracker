@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
 import { sessionClock, suggestCuts } from "../lib/session";
-import { hasSetWindows } from "../lib/profile";
 
 export default function SessionClockBar({ day, isToday }: { day: DayKey; isToday: boolean }) {
   const { data } = useApp();
@@ -20,8 +19,9 @@ export default function SessionClockBar({ day, isToday }: { day: DayKey; isToday
     return () => window.clearInterval(id);
   }, []);
 
-  // เปิดเมื่อ: ตั้งค่าเปิดไว้ชัดเจน หรือ (ยังไม่เคยตั้ง แต่มีช่องเวลารายวันแล้ว)
-  const enabled = data.settings.sessionClock ?? hasSetWindows(data);
+  // เปิดเฉพาะที่ผู้ใช้เปิดเองในตั้งค่าการฝึก (ช่องเวลารายวันถูกถอดออกแล้ว
+  // จึงใช้เพดานเวลาต่อครั้งค่าเดียวเป็นฐานคำนวณ)
+  const enabled = data.settings.sessionClock === true;
   if (!enabled || !isToday) return null;
 
   const c = sessionClock(data, day);
