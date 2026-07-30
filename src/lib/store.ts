@@ -93,11 +93,40 @@ export interface Profile {
   experience?: Experience; // กำหนดช่วงเป้าหมายเซตต่อสัปดาห์
   goal?: Goal;
   injuries?: InjuryKey[]; // ใช้กรองท่าที่ไม่ควรทำ
+  nutrition?: NutritionTarget; // เป้าแคลอรี/โปรตีนต่อวัน
+  gainKgPerWeek?: number; // อัตราเพิ่มน้ำหนักเป้าหมาย (กก./สัปดาห์) — ไม่ตั้ง = 0.25-0.4 ตามค่าเริ่มต้น
 }
 
 export interface Constraints {
-  sessionTimeCapMinutes?: number; // ห้ามเสนอเพิ่มท่าถ้าวันนั้นจะยาวเกินนี้
+  sessionTimeCapMinutes?: number; // ห้ามเสนอเพิ่มท่าถ้าวันนั้นจะยาวเกินนี้ (ค่ากลาง ใช้เมื่อวันนั้นไม่ได้ตั้ง dayWindows)
   maxSetsPerSession?: number;
+}
+
+// ช่องเวลาที่เข้ายิมได้จริงของวันนั้น — "HH:MM" 24 ชม.
+// bufferMin = เวลาที่ไม่ได้ใช้ยกจริง (เดินทางในยิม เปลี่ยนชุด รอเครื่อง) ไม่ใส่ = 10 นาที
+// ต้องหักออก ไม่งั้นระบบคิดว่ามีเวลายกเต็มช่อง แล้วเสนอเพิ่มท่าจนทำจริงไม่ทัน
+export interface DayWindow {
+  start: string;
+  end: string;
+  bufferMin?: number;
+}
+
+// บันทึกการนอน — ตัวเลขเดียวต่อวัน ไม่ต้องกรอกเวลาเข้า/ออก ให้กรอกง่ายที่สุดเพื่อให้ทำจริงต่อเนื่อง
+export interface SleepEntry {
+  date: string; // YYYY-MM-DD
+  hours: number;
+}
+
+// วันนี้กินถึงเป้าไหม — ติ๊กวันละครั้ง จงใจไม่ทำระบบบันทึกรายมื้อเพราะไม่มีใครทำต่อเนื่องได้จริง
+export interface NutritionDay {
+  date: string; // YYYY-MM-DD
+  hit: boolean;
+}
+
+// เป้าโภชนาการ
+export interface NutritionTarget {
+  kcal: number;
+  protein: number;
 }
 
 export interface Data {
@@ -116,6 +145,13 @@ export interface Data {
   // คนจำนวนมากเข้ายิมบางวันและเล่นที่บ้านบางวัน เก็บรวมเป็นค่าเดียวจะเสนอท่าที่ทำไม่ได้
   // ไม่ได้ตั้ง = ถือว่ามีครบทุกอย่าง (ไม่บล็อกอะไรเลย ปลอดภัยกว่าเดาว่าไม่มี)
   dayEquip?: Partial<Record<DayKey, EquipTag[]>>;
+  // ช่องเวลาที่เข้ายิมได้จริงแยกรายวัน — เวลาว่างแต่ละวันไม่เท่ากันเพราะตารางงาน/เรียนต่างกัน
+  // ใช้แทนเพดานเวลาค่ากลางจาก constraints เฉพาะวันที่ตั้งไว้ · ไม่ตั้ง = ใช้ค่ากลางเดิม
+  dayWindows?: Partial<Record<DayKey, DayWindow>>;
+  // บันทึกการนอน (ฟีเจอร์ 6) — คอขวดการฟื้นตัวที่สำคัญกว่าปริมาณการฝึก
+  sleepLog?: SleepEntry[];
+  // วันที่กินถึงเป้าหรือไม่ (ฟีเจอร์ 5) — ติ๊กวันละครั้ง ไม่ใช่บันทึกรายมื้อ
+  nutritionLog?: NutritionDay[];
 }
 
 export const DAYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -239,6 +275,21 @@ export function normalizeData(d: any): Data | null {
   if (d.dayEquip !== undefined && !isObj(d.dayEquip)) d.dayEquip = undefined;
   else if (d.dayEquip)
     for (const k of Object.keys(d.dayEquip)) if (!Array.isArray(d.dayEquip[k])) delete d.dayEquip[k];
+  // ช่องเวลารายวัน — ต้องมี start/end เป็นสตริง "HH:MM" ทั้งคู่ ไม่งั้นทิ้งวันนั้นไป (กลับไปใช้ค่ากลาง)
+  if (d.dayWindows !== undefined && !isObj(d.dayWindows)) d.dayWindows = undefined;
+  else if (d.dayWindows)
+    for (const k of Object.keys(d.dayWindows)) {
+      const w = d.dayWindows[k];
+      if (!isObj(w) || typeof w.start !== "string" || typeof w.end !== "string") delete d.dayWindows[k];
+    }
+  // บันทึกการนอน / การกิน — ทิ้งแถวที่ shape ผิด ไม่ทิ้งทั้งก้อน (ข้อมูลที่ถูกต้องต้องรอด)
+  if (!Array.isArray(d.sleepLog)) d.sleepLog = undefined;
+  else d.sleepLog = d.sleepLog.filter((s: any) => isObj(s) && typeof s.date === "string" && typeof s.hours === "number");
+  if (!Array.isArray(d.nutritionLog)) d.nutritionLog = undefined;
+  else d.nutritionLog = d.nutritionLog.filter((n: any) => isObj(n) && typeof n.date === "string" && typeof n.hit === "boolean");
+  if (d.profile && !isObj(d.profile.nutrition)) d.profile.nutrition = undefined;
+  if (d.profile?.nutrition && (typeof d.profile.nutrition.kcal !== "number" || typeof d.profile.nutrition.protein !== "number"))
+    d.profile.nutrition = undefined;
   // วันเปลี่ยนแล้ว — เก็บบันทึกของท่าที่สลับไว้ แล้วกลับไปใช้ท่าตามโปรแกรมเดิม
   if (d.swaps && d.swaps.date !== todayStr()) {
     archiveSwapLogs(d as Data);

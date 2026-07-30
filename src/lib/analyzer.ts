@@ -32,7 +32,7 @@ import {
   splitDays,
   splitSummary,
 } from "./blueprint";
-import { canDoWithEquip, getDayEquip, getInjuries, getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "./profile";
+import { canDoWithEquip, getDayEquip, getDayTimeCap, getInjuries, getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "./profile";
 
 export type { MuscleKey } from "./muscles";
 export { MUSCLE_TH, MUSCLE_KEYS } from "./muscles";
@@ -291,7 +291,8 @@ export function analyzeProgram(data: Data): Analysis {
     const exs = exercisesForDay(data, day);
     const sets = exs.reduce((a, e) => a + e.sets, 0);
     const minutes = estimateMinutes(exs);
-    return { day, sets, exercises: exs.length, minutes, overSets: sets > maxSets, overTime: minutes > timeCap };
+    // เทียบกับเวลาที่มีจริงของวันนั้น ไม่ใช่ค่ากลาง — วันที่ว่างแค่ 75 นาทีต้องรู้ว่าตัวเองเต็มแล้ว
+    return { day, sets, exercises: exs.length, minutes, overSets: sets > maxSets, overTime: minutes > getDayTimeCap(data, day) };
   });
 
   // ── การฟื้นตัว: กล้ามเดิมโดนหนักในวันที่ห่างกัน < 48 ชม. ──
@@ -456,10 +457,10 @@ function maxIndependentDays(train: DayKey[]): number {
 // ตารางนี้มีที่ว่างพอให้ทุกกล้ามเนื้อถึงเป้าขั้นต่ำไหม (0-1)
 function capacityFor(data: Data, train: DayKey[], maxSets: number, minTarget: number, muscleCount: number): number {
   if (!train.length) return 0;
-  const timeCap = getTimeCap(data);
-  // ความจุจริงของแต่ละวัน = น้อยกว่าระหว่างเพดานเซตกับเพดานเวลา
+  // ความจุจริงของแต่ละวัน = น้อยกว่าระหว่างเพดานเซตกับเวลาที่วันนั้นมีจริง
+  // ใช้เวลารายวัน ไม่ใช่ค่ากลาง — คนที่ว่างวันละ 60 นาทีมีเพดานคะแนนต่ำกว่าคนที่ว่าง 120 นาทีจริงๆ
   const capacity = train.reduce((a, d) => {
-    const byTime = Math.floor(timeCap / MINUTES_PER_SET.moderate);
+    const byTime = Math.floor(getDayTimeCap(data, d) / MINUTES_PER_SET.moderate);
     return a + Math.min(maxSets, byTime);
   }, 0);
   const needed = minTarget * muscleCount * 0.6; // นับ fractional แล้วท่า compound ครอบหลายมัด
@@ -527,8 +528,8 @@ export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKe
     return { ok: false, reason: `${DAY_TH[day]}จะเกินเพดาน ${getMaxSetsPerSession(data)} เซต`, fix: "ย้ายบางท่าไปวันอื่นก่อน" };
 
   const addMin = tpl ? addSets * MINUTES_PER_SET[tpl.fatigue] : addSets * MINUTES_PER_SET.moderate;
-  if (estimateMinutes(exs) + addMin > getTimeCap(data))
-    return { ok: false, reason: `${DAY_TH[day]}จะใช้เวลาเกิน ${getTimeCap(data)} นาที`, fix: "เพิ่มเวลาต่อครั้ง หรือย้ายบางท่าไปวันอื่น" };
+  if (estimateMinutes(exs) + addMin > getDayTimeCap(data, day))
+    return { ok: false, reason: `${DAY_TH[day]}มีเวลาแค่ ${getDayTimeCap(data, day)} นาที เต็มแล้ว`, fix: "เพิ่มเวลาของวันนั้น หรือใส่ท่านี้ในวันที่ยังมีเวลาเหลือ" };
 
   // ด่าน 3: เพดานกล้ามเนื้อในวันนั้น
   const primary = tpl?.pri[0];
@@ -672,7 +673,7 @@ function canIncreaseSets(data: Data, ex: Exercise): boolean {
   const exs = exercisesForDay(data, ex.day);
   const curSets = exs.reduce((a, e) => a + e.sets, 0);
   if (curSets + 1 > getMaxSetsPerSession(data)) return false;
-  if (estimateMinutes(exs) + MINUTES_PER_SET[fatigueOf(ex)] > getTimeCap(data)) return false;
+  if (estimateMinutes(exs) + MINUTES_PER_SET[fatigueOf(ex)] > getDayTimeCap(data, ex.day)) return false;
   const primary = muscleMap(ex.name).find((h) => h.w >= 1)?.m;
   if (primary) {
     let cur = 0;
@@ -798,7 +799,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   for (const dl of analysis.dayLoads.filter((d) => d.overSets || d.overTime)) {
     blockedInsight(analysis, {
       issue: dl.overTime
-        ? `${DAY_TH[dl.day]}ใช้เวลาราว ${dl.minutes} นาที (เพดาน ${getTimeCap(data)})`
+        ? `${DAY_TH[dl.day]}ใช้เวลาราว ${dl.minutes} นาที (มีเวลา ${getDayTimeCap(data, dl.day)})`
         : `${DAY_TH[dl.day]}มี ${dl.sets} เซต (เพดาน ${getMaxSetsPerSession(data)})`,
       whyCannotFix: "วันนี้แน่นเกินเพดานที่ตั้งไว้ — เซตท้ายๆ จะได้แรงไม่เต็ม",
       realSolution: "ย้ายท่าท้ายไปวันที่คุณว่างจริง หรือลดเซตท่าที่ซ้ำซ้อนลง",

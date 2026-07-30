@@ -72,18 +72,20 @@ export const EXERCISE_DB: ExTemplate[] = [
   { name: "Machine Row", th: "เครื่องดึงหลัง", alias: "โรว์เครื่อง", equip: ["machine"], pri: ["back"], sec: ["biceps"], pattern: "horizontal_pull", fatigue: "moderate", type: "weight", sets: 3, rmin: 10, rmax: 12, tip: "เหมาะคนเริ่มต้น ฟอร์มถูกง่ายกว่าฟรีเวท" },
   { name: "Lat Pulldown", th: "แลทพูลดาวน์ (ดึงบนลงล่าง)", alias: "ดึงบาร์ลง ดึงบน", equip: ["machine"], pri: ["back"], sec: ["biceps"], pattern: "vertical_pull", fatigue: "moderate", type: "weight", sets: 3, rmin: 8, rmax: 12, tip: "ดึงข้อศอกลงหาสะโพก อย่าเอนหลังมากเกิน" },
   { name: "Close Grip Pulldown", th: "พูลดาวน์จับแคบ", alias: "ดึงบนมือชิด", equip: ["machine"], pri: ["back"], sec: ["biceps"], pattern: "vertical_pull", fatigue: "moderate", type: "weight", sets: 3, rmin: 10, rmax: 12, tip: "จับแคบ/หงายมือ เน้นแลทช่วงล่างและไบเซป" },
+  { name: "Pull-up", th: "พูลอัพ (ดึงข้อคว่ำมือ)", alias: "ดึงข้อ โหนบาร์ พูลอัป", equip: ["pullup_bar","bodyweight"], pri: ["back"], sec: ["biceps","forearms"], pattern: "vertical_pull", fatigue: "high", type: "bodyweight", sets: 4, rmin: 1, rmax: 999, amrap: true, tip: "จับกว้างกว่าไหล่เล็กน้อย ดึงจนคางพ้นบาร์ ลงช้าจนแขนตรงสุด" },
   { name: "Wide Grip Pull-up", th: "พูลอัพจับกว้าง (ดึงข้อ)", alias: "ดึงข้อ โหนบาร์", equip: ["pullup_bar","bodyweight"], pri: ["back"], sec: ["biceps","forearms"], pattern: "vertical_pull", fatigue: "high", type: "bodyweight", sets: 4, rmin: 1, rmax: 999, amrap: true, tip: "เริ่มจากแขวนสุด ดึงจนคางพ้นบาร์ ลงช้า" },
   { name: "Chin-up", th: "ชินอัพ (ดึงข้อหงายมือ)", alias: "ดึงข้อหงาย", equip: ["pullup_bar","bodyweight"], pri: ["back","biceps"], sec: ["forearms"], pattern: "vertical_pull", fatigue: "high", type: "bodyweight", sets: 3, rmin: 1, rmax: 999, amrap: true, avoid: ["elbow"], tip: "หงายมือ ได้ไบเซปเยอะกว่าพูลอัพ" },
   { name: "Neutral Grip Pull-up", th: "ดึงข้อมือหันเข้า", alias: "พูลอัพนิวทรัล", equip: ["pullup_bar","bodyweight"], pri: ["back"], sec: ["biceps","forearms"], pattern: "vertical_pull", fatigue: "high", type: "bodyweight", sets: 3, rmin: 1, rmax: 999, amrap: true, tip: "ฝ่ามือหันเข้าหากัน เป็นมิตรกับข้อไหล่ที่สุด" },
   { name: "Australian Row", th: "โรว์นอน (ดึงตัวใต้บาร์)", alias: "อินเวอร์เต็ดโรว์", equip: ["pullup_bar","bodyweight"], pri: ["back"], sec: ["biceps","rear_delts"], pattern: "horizontal_pull", fatigue: "moderate", type: "bodyweight", sets: 3, rmin: 10, rmax: 15, tip: "ท่าเริ่มต้นก่อนไปพูลอัพ ยิ่งตัวขนานพื้นยิ่งหนัก" },
   { name: "Straight Arm Pulldown", th: "ดึงแขนตรง", alias: "พูลดาวน์แขนตรง", equip: ["cable"], pri: ["back"], pattern: "isolation", fatigue: "low", type: "weight", sets: 3, rmin: 12, rmax: 15, tip: "แขนตรงตลอด เน้นแลทล้วน ไม่ใช้ไบเซป" },
   { name: "Dumbbell Pullover", th: "พูลโอเวอร์", alias: "ยกดัมเบลข้ามหัว", equip: ["dumbbell","bench"], pri: ["back"], sec: ["chest"], pattern: "isolation", fatigue: "low", type: "weight", sets: 3, rmin: 10, rmax: 15, avoid: ["shoulder"], tip: "ยืดซี่โครงและแลท ควบคุมช่วงลงหลังศีรษะ" },
+  { name: "Cable Pullover", th: "พูลโอเวอร์เคเบิล (แขนตรง)", alias: "สเตรทอาร์มพูลโอเวอร์ ดึงแขนตรงสาย", equip: ["cable"], pri: ["back"], pattern: "isolation", fatigue: "low", type: "weight", sets: 3, rmin: 12, rmax: 15, tip: "แขนตรงตลอด แรงตึงคงที่ทุกช่วง เน้นแลทล้วนไม่ใช้ไบเซป" },
   { name: "Barbell Shrug", th: "ชรักบาร์เบล (ยักไหล่)", alias: "ยักไหล่ ทราพีเซียส", equip: ["barbell"], pri: ["back"], sec: ["forearms"], pattern: "isolation", fatigue: "low", type: "weight", sets: 3, rmin: 12, rmax: 15, tip: "ยักตรงขึ้น ค้าง 1 วิ ไม่ต้องหมุนไหล่" },
   { name: "Dumbbell Shrug", th: "ชรักดัมเบล", alias: "ยักไหล่ดัมเบล", equip: ["dumbbell"], pri: ["back"], sec: ["forearms"], pattern: "isolation", fatigue: "low", type: "weight", sets: 3, rmin: 12, rmax: 20, tip: "ช่วงเคลื่อนไหวอิสระกว่าบาร์ ยักให้สุด" },
 
   // ══════════ ไหล่ ══════════
   { name: "Overhead Press", th: "โอเวอร์เฮดเพรส (ดันบ่า)", alias: "ดันบาร์เหนือหัว มิลิทารีเพรส", equip: ["barbell","rack"], pri: ["front_delts"], sec: ["triceps","side_delts","core"], pattern: "vertical_push", fatigue: "high", type: "weight", sets: 4, rmin: 5, rmax: 8, avoid: ["shoulder"], tip: "เกร็งก้นและท้อง ดันขึ้นตรงหัว หลังไม่แอ่น" },
-  { name: "Overhead Press (DB)", th: "ดันไหล่ดัมเบล", alias: "ดันดัมเบลเหนือหัว", equip: ["dumbbell"], pri: ["front_delts"], sec: ["triceps","side_delts"], pattern: "vertical_push", fatigue: "high", type: "weight", sets: 3, rmin: 6, rmax: 10, avoid: ["shoulder"], tip: "ช่วงเคลื่อนไหวอิสระกว่าบาร์ เหมาะกับคนไหล่ติด" },
+  { name: "Overhead Press (DB)", th: "ดันไหล่ดัมเบล", alias: "ดันดัมเบลเหนือหัว shoulder press dumbbell shoulder press seated shoulder press", equip: ["dumbbell"], pri: ["front_delts"], sec: ["triceps","side_delts"], pattern: "vertical_push", fatigue: "high", type: "weight", sets: 3, rmin: 6, rmax: 10, avoid: ["shoulder"], tip: "ช่วงเคลื่อนไหวอิสระกว่าบาร์ เหมาะกับคนไหล่ติด" },
   { name: "Arnold Press", th: "อาร์โนลด์เพรส", alias: "ดันไหล่หมุนข้อมือ", equip: ["dumbbell"], pri: ["front_delts","side_delts"], sec: ["triceps"], pattern: "vertical_push", fatigue: "moderate", type: "weight", sets: 3, rmin: 8, rmax: 12, avoid: ["shoulder"], tip: "หมุนข้อมือระหว่างดัน โดนไหล่ทั้งหน้าและกลาง" },
   { name: "Push Press", th: "พุชเพรส (ใช้ขาช่วย)", alias: "ดันบ่าใช้ขา", equip: ["barbell","rack"], pri: ["front_delts"], sec: ["triceps","quads"], pattern: "vertical_push", fatigue: "high", type: "weight", sets: 3, rmin: 5, rmax: 8, avoid: ["shoulder"], tip: "ย่อเข่าเล็กน้อยแล้วระเบิดขึ้น ใช้น้ำหนักมากกว่าเพรสปกติได้" },
   { name: "Lateral Raise", th: "กางข้าง (ไหล่กลาง)", alias: "ยกข้าง ไซด์เรส", equip: ["dumbbell"], pri: ["side_delts"], pattern: "isolation", fatigue: "low", type: "weight", sets: 4, rmin: 12, rmax: 20, tip: "ยกแค่ระดับไหล่ เอียงนิ้วก้อยขึ้นนิด ใช้น้ำหนักเบาแต่คุมให้นิ่ง" },
@@ -214,6 +216,62 @@ export function musclesOf(t: ExTemplate): { m: MuscleKey; w: number }[] {
   return [...t.pri.map((m) => ({ m, w: 1 })), ...(t.sec ?? []).map((m) => ({ m, w: 0.5 }))];
 }
 
+// ══════════ เทียบชื่อท่า ══════════
+//
+// ผู้ใช้พิมพ์ชื่อท่าไม่ตรงกับคลังเป็นเรื่องปกติมาก และภาษาฟิตเนสมีคำพ้องเยอะ:
+//   "Barbell Deadlift" / "Barbell Back Squat" — เติมชื่ออุปกรณ์ที่ชัดอยู่แล้ว
+//   "Weighted Dips" / "Cable Tricep Pushdown" — เติมคำขยาย
+//   "Single-Arm DB Row" — ใช้ตัวย่อ + ขีดกลาง
+// ถ้าเทียบแบบตรงตัวอย่างเดียว ท่าพวกนี้จะจับคู่คลังไม่ได้เลย แล้วระบบต้องไป "เดา"
+// กล้ามเนื้อ/ความล้า/tier ทั้งที่ข้อมูลจริงมีอยู่ในคลัง — วิเคราะห์เพี้ยนทั้งกระดาน
+
+// ตัวย่อ/คำพ้องที่เจอบ่อยในชื่อท่า
+const WORD_ALIAS: Record<string, string> = {
+  db: "dumbbell", dbs: "dumbbell", bb: "barbell", ez: "ezbar",
+  ohp: "overhead press", bw: "bodyweight",
+  // รูปพหูพจน์ -> เอกพจน์ (คลังใช้เอกพจน์ทั้งหมด)
+  dips: "dip", curls: "curl", rows: "row", presses: "press", press_es: "press",
+  raises: "raise", extensions: "extension", flyes: "fly", flies: "fly", flys: "fly",
+  pulldowns: "pulldown", pushdowns: "pushdown", squats: "squat", lunges: "lunge",
+  crunches: "crunch", planks: "plank", pullovers: "pullover", shrugs: "shrug",
+};
+
+// คำพ้องระดับวลี — ชื่อที่วงการเรียกต่างกันแต่เป็นลิฟต์เดียวกัน
+// ใส่เฉพาะที่เป็นท่าเดียวกันจริงๆ ไม่ใช่ท่าใกล้เคียง (ใส่มั่วจะจับคู่ผิดแล้ววิเคราะห์เพี้ยนหนักกว่าเดิม)
+const PHRASE_ALIAS: [RegExp, string][] = [
+  [/\bshoulder press\b/g, "overhead press"], // ดันไหล่ = ดันเหนือหัว
+  [/\bmilitary press\b/g, "overhead press"],
+  [/\bbarbell back squat\b/g, "barbell squat"], // back squat = squat ปกติ (ตรงข้าม front squat)
+];
+
+// แตกชื่อท่าเป็นชุดคำมาตรฐาน — ตัดวงเล็บ ขีดกลาง ตัวย่อ พหูพจน์ ออกให้หมด
+export function nameTokens(name: string): string[] {
+  let cleaned = name
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ") // ตัดหมายเหตุในวงเล็บ เช่น "Chin-up (มือหงาย แคบ)"
+    .replace(/[-_/,]/g, " ")
+    .replace(/[^\p{L}\p{N} ]/gu, " ");
+  for (const [re, to] of PHRASE_ALIAS) cleaned = cleaned.replace(re, to);
+  const out: string[] = [];
+  for (const raw of cleaned.split(/\s+/)) {
+    if (!raw) continue;
+    const mapped = WORD_ALIAS[raw] ?? raw;
+    for (const w of mapped.split(" ")) if (w) out.push(w);
+  }
+  return out;
+}
+
+const tokenKey = (name: string) => nameTokens(name).slice().sort().join(" ");
+
+// index สร้างครั้งเดียวตอนโหลด — findTemplate ถูกเรียกบ่อยมาก (ทุกท่า ทุกครั้งที่วิเคราะห์)
+const EXACT_INDEX = new Map<string, ExTemplate>();
+const TOKEN_INDEX = new Map<string, ExTemplate>();
+for (const t of EXERCISE_DB) {
+  EXACT_INDEX.set(t.name.trim().toLowerCase(), t);
+  const k = tokenKey(t.name);
+  if (!TOKEN_INDEX.has(k)) TOKEN_INDEX.set(k, t);
+}
+
 // คำที่ใช้ค้นได้ทั้งหมดของท่านั้น
 const searchFields = (t: ExTemplate) => ({
   en: t.name.toLowerCase(),
@@ -229,14 +287,24 @@ export function searchExercises(query: string, limit = 60): ExTemplate[] {
   const q = query.trim().toLowerCase();
   if (!q) return EXERCISE_DB.slice(0, limit);
 
+  // แยกคำด้วย เพราะการเทียบ substring ทั้งประโยคทำให้ค้น "Barbell Deadlift" ไม่เจอ "Deadlift" เลย
+  // (ผู้ใช้พิมพ์ละเอียดกว่าชื่อในคลังเป็นเรื่องปกติ)
+  const qTokens = nameTokens(q);
+
   const scored: { t: ExTemplate; score: number }[] = [];
   for (const t of EXERCISE_DB) {
     const f = searchFields(t);
     let score = 0;
-    if (f.muscle.includes(q) || f.equip.includes(q)) score = 4;
-    else if (f.en.startsWith(q) || f.th.startsWith(q)) score = 3;
-    else if (f.en.includes(q) || f.th.includes(q)) score = 2;
-    else if (f.alias.includes(q)) score = 1;
+    if (f.muscle.includes(q) || f.equip.includes(q)) score = 6;
+    else if (f.en.startsWith(q) || f.th.startsWith(q)) score = 5;
+    else if (f.en.includes(q) || f.th.includes(q)) score = 4;
+    else if (f.alias.includes(q)) score = 3;
+    else if (qTokens.length) {
+      // ให้คะแนนตามสัดส่วนคำที่ตรงกัน — ยิ่งตรงหลายคำยิ่งขึ้นก่อน
+      const tTokens = nameTokens(t.name);
+      const hit = qTokens.filter((w) => tTokens.includes(w)).length;
+      if (hit) score = 2 * (hit / Math.max(qTokens.length, tTokens.length));
+    }
     if (score) scored.push({ t, score });
   }
   return scored
@@ -247,12 +315,34 @@ export function searchExercises(query: string, limit = 60): ExTemplate[] {
 
 export function findTemplate(name: string): ExTemplate | undefined {
   const n = name.trim().toLowerCase();
-  const exact = EXERCISE_DB.find((t) => t.name.toLowerCase() === n);
+
+  // 1) ตรงตัวเป๊ะ — เร็วสุดและแม่นสุด
+  const exact = EXACT_INDEX.get(n);
   if (exact) return exact;
-  // ผู้ใช้มักต่อท้ายชื่อด้วยหมายเหตุในวงเล็บ (เช่น "Chin-up (มือหงาย แคบ)") — ไม่งั้นจะจับคู่คลังไม่ได้เลย
-  // แล้ว tier/fatigue/pattern หลุดไปใช้ค่าเดาแทนทั้งที่จริงๆ มีข้อมูลจริงอยู่ในคลัง
-  const stripped = n.replace(/\s*\([^)]*\)\s*$/, "").trim();
-  return stripped && stripped !== n ? EXERCISE_DB.find((t) => t.name.toLowerCase() === stripped) : undefined;
+
+  const qTokens = nameTokens(name);
+  if (!qTokens.length) return undefined;
+
+  // 2) ชุดคำเหมือนกันทั้งหมด (ต่างแค่ลำดับ/ขีดกลาง/ตัวย่อ/พหูพจน์)
+  //    เช่น "Chest-Supported Row" = "Chest Supported Row" · "Single-Arm DB Row" ชุดคำ != "Dumbbell Row" (มี single/arm เกิน) ไปข้อ 3
+  const sameSet = TOKEN_INDEX.get(qTokens.slice().sort().join(" "));
+  if (sameSet) return sameSet;
+
+  // 3) ชื่อในคลังเป็น "ส่วนย่อย" ของที่ผู้ใช้พิมพ์ — ผู้ใช้เขียนละเอียดกว่าคลัง
+  //    "Barbell Back Squat" ⊃ "Barbell Squat" · "Weighted Dip" ⊃ "Dip" · "Cable Tricep Pushdown" ⊃ "Tricep Pushdown"
+  //    เลือกตัวที่คำตรงกันมากที่สุด = เจาะจงที่สุด (ไม่งั้น "Incline Barbell Bench Press" จะไปแมตช์ "Bench Press" แทน "Incline Barbell Press")
+  const qSet = new Set(qTokens);
+  let best: ExTemplate | undefined;
+  let bestLen = 0;
+  for (const t of EXERCISE_DB) {
+    const tTokens = nameTokens(t.name);
+    if (tTokens.length <= bestLen) continue; // มีตัวเจาะจงกว่าอยู่แล้ว
+    if (tTokens.every((w) => qSet.has(w))) {
+      best = t;
+      bestLen = tTokens.length;
+    }
+  }
+  return best;
 }
 
 export const EXERCISE_COUNT = EXERCISE_DB.length;

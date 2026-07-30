@@ -7,6 +7,7 @@ import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
 import { DayEquipmentCard } from "./ProfileCard";
+import DayWindowCard from "./DayWindowCard";
 import { Kicker } from "./ui";
 import { ACCENTS, resolveAccent } from "../lib/accent";
 import { isPro } from "../lib/edition";
@@ -54,6 +55,8 @@ export default function ManageView() {
       <SavedProgramsCard />
 
       <DayEquipmentCard />
+
+      <DayWindowCard />
 
       <TrainingSettingsCard />
 
