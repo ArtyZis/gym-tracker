@@ -108,97 +108,85 @@ body::after {
 }
 
 /* ── แผงหน้าต่างระบบ ──
-   เทคนิค: ตัว element เป็น "ขอบ" (gradient) แล้ว ::before ที่ inset 1px เป็นพื้นจริง
-   ทั้งคู่ใช้ clip-path เดียวกัน จึงได้เส้นขอบเรืองแสง 1px ตามรูปมุมตัดพอดี
-   isolation + z-index:-1 ทำให้ ::before อยู่เหนือพื้นหลังของ element แต่ใต้เนื้อหา
-   จึงไม่ต้องแก้ markup ของ component ไหนเลย */
+   ลายเซ็นหลักคือ "วงเล็บมุม" (corner bracket) บนสี่เหลี่ยมคม ไม่ใช่มุมตัดเฉียง
+   เพราะมุมตัดต้องเลือกขนาดสัมพันธ์กับตัว element (13px บนการ์ดสูง 226px ดูพอดี
+   แต่บนปุ่มสูง 55px กลายเป็นเฉือนไป 24% ดูเหมือนอุบัติเหตุ)
+   วงเล็บมุมมีขนาดคงที่ ดูถูกต้องทุกขนาด และเป็นภาษาภาพที่จำได้ทันทีกว่า */
 .glass {
   position: relative;
-  isolation: isolate;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--acc) 26%, transparent);
   border-radius: 0;
-  clip-path: var(--cut-path);
-  background: linear-gradient(
-    148deg,
-    color-mix(in srgb, var(--acc) 62%, transparent),
-    color-mix(in srgb, var(--acc) 16%, transparent) 46%,
-    color-mix(in srgb, var(--acc-2) 30%, transparent)
-  );
+  background: linear-gradient(165deg, #0d1433f0, #05081493);
+  backdrop-filter: blur(18px) saturate(140%);
+  /* ห้ามใส่ glow แบบ 0 0 Npx สี accent ที่นี่ — บนสี่เหลี่ยมคมมันจะเป็นกรอบเรืองแสง
+     สี่เหลี่ยมรอบการ์ด (เดิม clip-path บังไว้จึงไม่เห็น) แสงต้องมาจากขอบกับวงเล็บมุมเท่านั้น */
   box-shadow:
     0 12px 34px #000000a6,
-    0 0 26px color-mix(in srgb, var(--acc) 13%, transparent);
+    inset 0 1px 0 #b9dcff14,
+    inset 0 0 24px -8px color-mix(in srgb, var(--acc) 16%, transparent);
 }
 
-.glass::before {
+/* วงเล็บมุมทั้งสี่ — 8 gradient (แนวนอน+แนวตั้งต่อมุม) วางที่มุมด้วย background-position */
+.glass::after,
+.brackets::after {
   content: "";
   position: absolute;
-  inset: 1px;
-  z-index: -1;
-  clip-path: var(--cut-path);
-  background: linear-gradient(165deg, #0d1330f2, #05081498);
-  backdrop-filter: blur(18px) saturate(140%);
+  /* inset: 0 ไม่ใช่ -1px — การ์ดหลายใบตั้ง overflow-hidden ไว้ ถ้าล้นออกไปวงเล็บจะถูกเฉือน */
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--acc), var(--acc)) 0 0 / 13px 1.5px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 0 0 / 1.5px 13px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 100% 0 / 13px 1.5px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 100% 0 / 1.5px 13px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 0 100% / 13px 1.5px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 0 100% / 1.5px 13px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 100% 100% / 13px 1.5px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 100% 100% / 1.5px 13px no-repeat;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--acc) 70%, transparent));
 }
 
 .glass-soft {
   position: relative;
-  isolation: isolate;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--acc) 17%, transparent);
   border-radius: 0;
-  clip-path: var(--cut-path-sm);
-  background: color-mix(in srgb, var(--acc) 22%, transparent);
-}
-
-.glass-soft::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  clip-path: var(--cut-path-sm);
-  background: #0a1024e0;
+  background: #0a1024cc;
   backdrop-filter: blur(10px);
 }
 
 .glass-inset {
   position: relative;
-  isolation: isolate;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--acc) 14%, transparent);
   border-radius: 0;
-  clip-path: var(--cut-path-sm);
-  background: color-mix(in srgb, var(--acc) 17%, transparent);
-}
-
-.glass-inset::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  clip-path: var(--cut-path-sm);
-  background: #050a14f5;
+  background: #050a14e6;
   box-shadow: inset 0 2px 8px #00000059;
 }
 
-/* ปิดพื้นของ ::before เมื่อต้องการให้ background ที่ตั้งเองทึบเต็มรูปทรง
-   (เช่นชิปวันที่เลือกอยู่ ที่ต้องเป็นสี accent เต็มใบ ไม่ใช่แค่ขอบ) */
-.fill::before {
+/* เอาไว้ยกเว้นวงเล็บมุมในการ์ดที่ซ้อนกันแน่น (ถ้าทุกใบมีวงเล็บจะรกจนอ่านไม่ออก) */
+.no-brackets::after {
   display: none;
 }
 
-/* รูปทรงมุมตัดสำหรับ element ที่ไม่ได้ใช้คลาส glass — ใช้แทน rounded-* ของ Tailwind */
-.cut {
-  border-radius: 0;
-  clip-path: var(--cut-path);
+/* คลาสเดิมจากตอนใช้เทคนิค clip-path — ตอนนี้ไม่ต้องทำอะไร แต่เก็บชื่อไว้ให้ markup ไม่ต้องแก้ */
+.fill {
+  border-color: transparent;
 }
 
+/* มุมตัดเล็กสำหรับปุ่ม/ชิป — ขนาดเล็กพอที่สัดส่วนยังดูดีบน element เตี้ยๆ */
+.cut,
 .cut-sm {
   border-radius: 0;
   clip-path: var(--cut-path-sm);
 }
 
+/* เน้นการ์ดที่กำลังโฟกัส — ใช้ขอบเข้มขึ้น + เรืองแสงเข้าข้างใน
+   ห้ามใช้ glow ออกนอกแบบ 0 0 22px เพราะบนสี่เหลี่ยมคมจะเป็นกรอบเรืองแสงสี่เหลี่ยม */
 .edge-glow {
+  border-color: color-mix(in srgb, var(--acc) 55%, transparent) !important;
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--acc) 28%, transparent),
-    0 0 22px color-mix(in srgb, var(--acc) 15%, transparent),
-    inset 0 1px #bee6ff1a;
+    0 12px 34px #000000a6,
+    inset 0 1px #bee6ff1a,
+    inset 0 0 30px -6px color-mix(in srgb, var(--acc) 30%, transparent);
 }
 
 .text-glow {
