@@ -5,12 +5,20 @@
 @tailwind utilities;
 
 :root {
-  --bg0: #04070d;
-  --bg1: #070d18;
-  /* สีธีม (accent) — ตั้งค่าผ่าน settings.accent (undefined = cyan เดิมของแบรนด์) */
-  --acc: #4fd8ff;
+  --bg0: #03050c;
+  --bg1: #070b1a;
+  /* สีธีม (accent) — ตั้งค่าผ่าน settings.accent (undefined = ม่วง monarch ของธีม SYSTEM) */
+  --acc: #8b6bff;
   /* คู่ gradient โทนน้ำเงิน — คงที่ไม่เปลี่ยนตาม accent (base identity ของแอป) */
-  --acc-2: #3d9bdc;
+  --acc-2: #3f8dff;
+
+  /* ── ธีม SYSTEM: มุมตัดเฉียงแบบหน้าต่างระบบในอนิเมะ ──
+     ตัดมุมบนซ้าย + ล่างขวา เป็นลายเซ็นของภาษาภาพนี้
+     ใช้ผ่านตัวแปรเพื่อให้ปรับความลึกของมุมได้ที่เดียวทั้งแอป */
+  --cut: 13px;
+  --cut-sm: 8px;
+  --cut-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  --cut-path-sm: polygon(var(--cut-sm) 0, 100% 0, 100% calc(100% - var(--cut-sm)), calc(100% - var(--cut-sm)) 100%, 0 100%, 0 var(--cut-sm));
   /* เฉดโปร่งใสของ accent ที่ใช้ซ้ำบ่อย (color-mix รองรับ iOS Safari 16.2+) */
   --acc-08: color-mix(in srgb, var(--acc) 8%, transparent);
   --acc-12: color-mix(in srgb, var(--acc) 12%, transparent);
@@ -48,8 +56,8 @@ body,
 
 body {
   background:
-    radial-gradient(90% 45% at 50% -6%, #3d7bff29, transparent 65%),
-    radial-gradient(70% 40% at 90% 108%, #4fd8ff14, transparent 60%),
+    radial-gradient(90% 45% at 50% -6%, color-mix(in srgb, var(--acc) 20%, transparent), transparent 65%),
+    radial-gradient(70% 40% at 90% 108%, color-mix(in srgb, var(--acc-2) 12%, transparent), transparent 60%),
     linear-gradient(180deg, var(--bg1), var(--bg0) 42%);
   color: var(--ink);
   overscroll-behavior-y: none;
@@ -57,6 +65,37 @@ body {
   margin: 0;
   font-family: "Noto Sans Thai", "Chakra Petch", sans-serif;
   font-size: 15px;
+}
+
+/* กริด + สแกนไลน์บางๆ ทับพื้นหลัง — ทำให้รู้สึกเป็น "จอระบบ" ไม่ใช่แค่พื้นมืด
+   fixed + pointer-events:none จึงไม่กระทบการเลื่อนหรือการกดใดๆ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--acc) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--acc) 7%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(78% 55% at 50% 0%, #000 0%, transparent 100%);
+  -webkit-mask-image: radial-gradient(78% 55% at 50% 0%, #000 0%, transparent 100%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(150, 190, 255, 0.028) 1px, transparent 1px);
+  background-size: 100% 3px;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 .font-disp {
@@ -68,27 +107,73 @@ body {
   font-family: "JetBrains Mono", monospace;
 }
 
+/* ── แผงหน้าต่างระบบ ──
+   เทคนิค: ตัว element เป็น "ขอบ" (gradient) แล้ว ::before ที่ inset 1px เป็นพื้นจริง
+   ทั้งคู่ใช้ clip-path เดียวกัน จึงได้เส้นขอบเรืองแสง 1px ตามรูปมุมตัดพอดี
+   isolation + z-index:-1 ทำให้ ::before อยู่เหนือพื้นหลังของ element แต่ใต้เนื้อหา
+   จึงไม่ต้องแก้ markup ของ component ไหนเลย */
 .glass {
-  background: linear-gradient(160deg, var(--glass-hi), var(--glass) 55%);
-  border: 1px solid var(--edge);
-  backdrop-filter: blur(18px) saturate(140%);
-  border-radius: 18px;
+  position: relative;
+  isolation: isolate;
+  border: none;
+  border-radius: 0;
+  clip-path: var(--cut-path);
+  background: linear-gradient(
+    148deg,
+    color-mix(in srgb, var(--acc) 62%, transparent),
+    color-mix(in srgb, var(--acc) 16%, transparent) 46%,
+    color-mix(in srgb, var(--acc-2) 30%, transparent)
+  );
   box-shadow:
-    inset 0 1px #bee6ff1a,
-    0 12px 34px #00000073;
+    0 12px 34px #000000a6,
+    0 0 26px color-mix(in srgb, var(--acc) 13%, transparent);
+}
+
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  clip-path: var(--cut-path);
+  background: linear-gradient(165deg, #0d1330f2, #05081498);
+  backdrop-filter: blur(18px) saturate(140%);
 }
 
 .glass-soft {
+  position: relative;
+  isolation: isolate;
+  border: none;
+  border-radius: 0;
+  clip-path: var(--cut-path-sm);
+  background: color-mix(in srgb, var(--acc) 22%, transparent);
+}
+
+.glass-soft::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  clip-path: var(--cut-path-sm);
+  background: #0a1024e0;
   backdrop-filter: blur(10px);
-  background: #78b4ff0b;
-  border: 1px solid #8ccdff1a;
-  border-radius: 14px;
 }
 
 .glass-inset {
-  background: #060c168c;
-  border: 1px solid #8ccdff1a;
-  border-radius: 12px;
+  position: relative;
+  isolation: isolate;
+  border: none;
+  border-radius: 0;
+  clip-path: var(--cut-path-sm);
+  background: color-mix(in srgb, var(--acc) 17%, transparent);
+}
+
+.glass-inset::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  clip-path: var(--cut-path-sm);
+  background: #050a14f5;
   box-shadow: inset 0 2px 8px #00000059;
 }
 
@@ -240,6 +325,139 @@ textarea:focus {
 
 .pr-pop {
   animation: 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.4) both pr-pop;
+}
+
+/* ══════════ ธีม SYSTEM — ลูกเล่นแบบหน้าต่างระบบในอนิเมะ ══════════ */
+
+/* หัวข้อแบบ [ SYSTEM ] — ขีดเรืองแสงลากยาวจากตัวอักษร */
+.sys-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--acc);
+}
+
+.sys-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--acc) 55%, transparent), transparent);
+}
+
+/* แถบพลังแบบแบ่งช่อง — อ่านค่าจากระยะไกลง่ายกว่าแถบต่อเนื่อง */
+.seg-bar {
+  display: flex;
+  gap: 2px;
+  height: 7px;
+}
+
+.seg-bar i {
+  flex: 1;
+  background: color-mix(in srgb, var(--acc) 15%, transparent);
+  transition: background 0.25s, box-shadow 0.25s;
+}
+
+.seg-bar i.on {
+  background: var(--acc);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--acc) 80%, transparent);
+}
+
+/* ── หน้าต่าง NEW PR ──
+   เต็มจอ ไม่ใช่ toast — การทำสถิติใหม่คือเหตุการณ์ที่คนอยากแคปหน้าจอเก็บไว้
+   toast เดิมหายไปใน 2.6 วินาทีก่อนจะทันหยิบมือถือขึ้นมาถ่ายด้วยซ้ำ */
+@keyframes sys-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.82) translateY(10px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.035) translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes sys-flash {
+  0% {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sys-rays {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) scale(0.7);
+  }
+  40% {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0;
+    transform: rotate(28deg) scale(1.5);
+  }
+}
+
+@keyframes sys-line {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sys-sweep {
+  0% {
+    transform: translateY(-120%);
+  }
+  to {
+    transform: translateY(320%);
+  }
+}
+
+.sys-win {
+  animation: 0.55s cubic-bezier(0.2, 0.9, 0.25, 1) both sys-in;
+}
+
+.sys-flash {
+  animation: 0.6s ease-out both sys-flash;
+}
+
+.sys-rays {
+  animation: 1.1s ease-out both sys-rays;
+}
+
+/* เนื้อหาไล่โผล่ทีละบรรทัด — จังหวะเดียวกับที่ระบบในอนิเมะพิมพ์ข้อความออกมา */
+.sys-stagger > * {
+  animation: 0.4s ease-out both sys-line;
+}
+.sys-stagger > *:nth-child(1) { animation-delay: 0.22s; }
+.sys-stagger > *:nth-child(2) { animation-delay: 0.32s; }
+.sys-stagger > *:nth-child(3) { animation-delay: 0.42s; }
+.sys-stagger > *:nth-child(4) { animation-delay: 0.52s; }
+.sys-stagger > *:nth-child(5) { animation-delay: 0.62s; }
+
+/* เส้นแสงกวาดลงบนแผง — ทำให้แผงดูเป็นโฮโลแกรมที่กำลังฉาย */
+.sys-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 34%;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--acc) 16%, transparent), transparent);
+  animation: 1.5s 0.3s ease-in-out both sys-sweep;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

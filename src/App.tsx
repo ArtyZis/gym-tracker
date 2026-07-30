@@ -14,6 +14,8 @@ import AnalyzerView from "./components/AnalyzerView";
 import ProgressView from "./components/ProgressView";
 import ManageView from "./components/ManageView";
 import RestTimer from "./components/RestTimer";
+import SystemNotice from "./components/SystemNotice";
+import type { SystemNoticeData } from "./components/SystemNotice";
 import type { RestTimerHandle } from "./components/RestTimer";
 
 type TabId = "today" | "program" | "analyze" | "progress" | "manage";
@@ -72,6 +74,7 @@ export default function App() {
   const [data, setData] = useState<Data>(() => store.load() ?? createDefault());
   const [tab, setTab] = useState<TabId>("today");
   const [toastState, setToastState] = useState<Toast | null>(null);
+  const [noticeState, setNoticeState] = useState<SystemNoticeData | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const rest = useRef<RestTimerHandle | null>(null);
   const storageOk = useMemo(() => store.works(), []);
@@ -110,6 +113,8 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToastState(null), glow ? 2600 : 1900);
   }, []);
 
+  const notice = useCallback((n: SystemNoticeData) => setNoticeState(n), []);
+
   const goTab = useCallback((t: TabId) => {
     setTab(t);
     window.scrollTo({ top: 0 });
@@ -118,7 +123,7 @@ export default function App() {
   const now = new Date();
 
   return (
-    <AppContext.Provider value={{ data, update, toast, rest, goTab }}>
+    <AppContext.Provider value={{ data, update, toast, notice, rest, goTab }}>
       <div className="mx-auto max-w-[520px] flex flex-col relative" style={{ minHeight: "100dvh" }}>
         <header
           className="px-4 pb-3 flex items-center justify-between gap-3"
@@ -186,6 +191,8 @@ export default function App() {
         </main>
 
         <RestTimer ref={rest} />
+
+        <SystemNotice notice={noticeState} onClose={() => setNoticeState(null)} />
 
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[520px] z-30 px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
           <div className="glass flex gap-0.5 p-[7px]" style={{ borderRadius: 22 }}>

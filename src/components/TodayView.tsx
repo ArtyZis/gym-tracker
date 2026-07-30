@@ -45,7 +45,7 @@ function todayVolume(data: Data, exIds: string[]): number {
 }
 
 export default function TodayView() {
-  const { data, update, toast, rest, goTab } = useApp();
+  const { data, update, toast, notice, rest, goTab } = useApp();
   const premium = isPremium(data);
   const [day, setDay] = useState(() => {
     const today = JS_DAYS[new Date().getDay()];
@@ -160,7 +160,31 @@ export default function TodayView() {
         haptics.tick();
         playTick();
       }
-      if (isPR) toast(`⚡ NEW PR — ${ex.name} ${draft.weight} ${ex.unit || "kg"}!`, true);
+      // PR = เหตุการณ์ที่คนอยากแคปหน้าจอเก็บไว้ ใช้หน้าต่างระบบเต็มจอแทน toast ที่หายเร็วเกิน
+      if (isPR)
+        notice({
+          kind: "pr",
+          title: "NEW PR",
+          lines: [
+            { label: ex.name, value: `${draft.weight} ${ex.unit || "kg"}` },
+            { label: "สถิติเดิม", value: `${best} ${ex.unit || "kg"}` },
+            { label: "เพิ่มขึ้น", value: `+${+(draft.weight - best).toFixed(2)} ${ex.unit || "kg"}`, good: true },
+            { label: "ทำได้", value: `${draft.reps} ครั้ง` },
+          ],
+        });
+      // เล่นครบทุกเซตของวัน — จบเควสต์ของวันนั้น
+      else if (lastSet && cntBefore + 1 >= ex.sets && doneSets + 1 >= totalSets)
+        notice({
+          kind: "complete",
+          title: "COMPLETE",
+          lines: [
+            { label: "วัน", value: label || DAY_TH[day] },
+            { label: "ท่าทั้งหมด", value: `${exs.length} ท่า` },
+            { label: "เซตที่ทำ", value: `${totalSets} เซต`, good: true },
+            ...(volume > 0 ? [{ label: "ยกรวม", value: `${volume.toLocaleString()} kg` }] : []),
+          ],
+          footer: "ครบทุกเซตตามตาราง — พักให้พอแล้วเจอกันวันฝึกถัดไป",
+        });
       // พักอัตโนมัติด้วยเวลาที่เหมาะกับท่านั้น (ไม่พักถ้าเป็นเซตสุดท้ายของท่า)
       if (data.settings.autoRest && !lastSet) rest.current?.start(restForExercise(data, ex, restSec), ex.name);
     }
