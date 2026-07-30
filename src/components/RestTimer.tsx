@@ -289,7 +289,7 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
             />
           </svg>
           <span
-            className="absolute inset-0 flex items-center justify-center font-mono2 text-[10px] font-bold"
+            className="absolute inset-0 flex items-center justify-center font-mono2 text-[10px] font-bold num-glow"
             style={{ color: "var(--cyan)" }}
           >
             {mins}:{String(remainingSec % 60).padStart(2, "0")}

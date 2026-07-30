@@ -31,7 +31,10 @@
   --ink: #eaf4ff;
   --mut: #7e93ac;
   --dim: #3e5068;
-  --good: #4ade9c;
+  /* สีความสำเร็จ — ธีม SYSTEM ใช้ฟ้าไซแอนไม่ใช่เขียว
+     เขียวมิ้นต์ตัดกับพื้นม่วง-น้ำเงินแล้วดูหลุดธีม (เหมือนสีจากแอปอื่นมาปะ)
+     ไซแอนเป็นโทนเย็นเหมือนกัน อยู่ร่วมกับม่วงได้ และยังอ่านเป็น "ผ่านแล้ว" ชัดเจน */
+  --good: #4fe3ff;
   --warn: #ffc15e;
   --bad: #ff6b6b;
   --glass: #6eaaff0e;
@@ -118,12 +121,12 @@ body::after {
   border-radius: 0;
   background: linear-gradient(165deg, #0d1433f0, #05081493);
   backdrop-filter: blur(18px) saturate(140%);
-  /* ห้ามใส่ glow แบบ 0 0 Npx สี accent ที่นี่ — บนสี่เหลี่ยมคมมันจะเป็นกรอบเรืองแสง
-     สี่เหลี่ยมรอบการ์ด (เดิม clip-path บังไว้จึงไม่เห็น) แสงต้องมาจากขอบกับวงเล็บมุมเท่านั้น */
+  /* ห้ามใส่ glow สี accent ที่นี่ ทั้งแบบ 0 0 Npx และ inset 0 0 Npx
+     เพราะกล่องเป็นสี่เหลี่ยมคม แสงจึงออกมาเป็นทรงสี่เหลี่ยมตามกล่อง (ทั้งด้านนอกและด้านใน)
+     แสงต้องมาจากขอบ วงเล็บมุม และ blob วงกลมที่วางเจาะจงเท่านั้น */
   box-shadow:
     0 12px 34px #000000a6,
-    inset 0 1px 0 #b9dcff14,
-    inset 0 0 24px -8px color-mix(in srgb, var(--acc) 16%, transparent);
+    inset 0 1px 0 #b9dcff14;
 }
 
 /* วงเล็บมุมทั้งสี่ — 8 gradient (แนวนอน+แนวตั้งต่อมุม) วางที่มุมด้วย background-position */
@@ -185,8 +188,7 @@ body::after {
   border-color: color-mix(in srgb, var(--acc) 55%, transparent) !important;
   box-shadow:
     0 12px 34px #000000a6,
-    inset 0 1px #bee6ff1a,
-    inset 0 0 30px -6px color-mix(in srgb, var(--acc) 30%, transparent);
+    inset 0 1px #bee6ff1a;
 }
 
 .text-glow {
@@ -337,6 +339,39 @@ textarea:focus {
 }
 
 /* ══════════ ธีม SYSTEM — ลูกเล่นแบบหน้าต่างระบบในอนิเมะ ══════════ */
+
+/* ตัวเลขใหญ่ (คะแนน/เวลาพัก/น้ำหนัก) เรืองแสงอ่อนๆ — ทำให้ดูเป็นค่าที่ระบบฉายออกมา
+   ไม่ใช่ตัวหนังสือธรรมดา ใช้ currentColor จึงเรืองตามสีของตัวเลขนั้นเสมอ */
+.num-glow {
+  text-shadow: 0 0 18px color-mix(in srgb, currentColor 55%, transparent);
+}
+
+/* แสงกวาดผ่านการ์ดตอนเปิดหน้า — จังหวะเดียวกับที่หน้าต่างระบบในอนิเมะฉายขึ้นมา
+   เล่นรอบเดียวแล้วจบ ไม่วนซ้ำ จึงไม่กวนตอนใช้งานจริง */
+@keyframes card-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  22% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(320%);
+  }
+}
+
+.rise > .glass::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 42%;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--acc) 13%, transparent), transparent);
+  animation: 1.4s 0.15s ease-in-out both card-scan;
+}
 
 /* หัวข้อแบบ [ SYSTEM ] — ขีดเรืองแสงลากยาวจากตัวอักษร */
 .sys-label {

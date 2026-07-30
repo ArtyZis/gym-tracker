@@ -225,7 +225,7 @@ export default function TodayView() {
             {allDone && (
               <span
                 className="font-mono2 text-[9px] px-2 py-[3px] shrink-0 cut-sm"
-                style={{ background: "rgba(55,201,143,.15)", color: "#6ff0c0", border: "1px solid rgba(111,240,192,.3)" }}
+                style={{ background: "var(--acc-18)", color: "var(--acc)", border: "1px solid color-mix(in srgb, var(--acc) 45%, transparent)" }}
               >
                 CLEAR ✓
               </span>
@@ -285,7 +285,7 @@ export default function TodayView() {
                       d.settings.restDefault = s;
                     });
                   }}
-                  className="font-mono2 text-[10.5px] py-[7px] flex-1 rounded-lg text-center transition-all"
+                  className="font-mono2 text-[10.5px] py-[7px] flex-1 cut-sm text-center transition-all"
                   style={
                     restSec === s
                       ? { color: "#031420", background: "linear-gradient(180deg, var(--acc), var(--acc-2))", fontWeight: 700, boxShadow: "0 0 12px -2px var(--acc-40)" }
@@ -333,7 +333,7 @@ export default function TodayView() {
               <span
                 className="w-[5px] h-[5px] rounded-full"
                 style={{
-                  background: selected ? "#03131C" : complete ? "var(--good)" : has ? "var(--cyan-dim)" : "var(--dim)",
+                  background: selected ? "#03131C" : complete ? "var(--acc)" : has ? "color-mix(in srgb, var(--acc) 45%, transparent)" : "var(--dim)",
                 }}
               />
             </button>
@@ -368,7 +368,11 @@ export default function TodayView() {
             className={`glass mb-2.5 overflow-hidden transition-all ${open ? "edge-glow" : ""}`}
             style={
               complete
-                ? { borderColor: "rgba(79,230,168,.4)", background: "linear-gradient(158deg, rgba(18,39,31,.8), rgba(11,21,34,.92))" }
+                ? {
+                    borderColor: "color-mix(in srgb, var(--acc) 38%, transparent)",
+                    background: "linear-gradient(158deg, color-mix(in srgb, var(--acc) 10%, #0b1524), #070c18f2)",
+                    boxShadow: "inset 3px 0 0 0 var(--acc), 0 12px 34px #000000a6",
+                  }
                 : undefined
             }
           >
@@ -380,18 +384,14 @@ export default function TodayView() {
                 {/* เลขลำดับท่า / ✓ เมื่อครบ — เลขบอกว่าอยู่ท่าที่เท่าไหร่ของวันโดยไม่ต้องนับเอง */}
                 <span
                   className="w-6 flex items-center justify-center text-[11px] font-mono2 font-bold shrink-0 transition-all"
-                  style={{ color: complete ? "var(--good)" : partial ? "var(--acc)" : "var(--dim)" }}
+                  style={{ color: complete ? "var(--acc)" : partial ? "var(--acc)" : "var(--dim)", textShadow: complete ? "0 0 8px color-mix(in srgb, var(--acc) 75%, transparent)" : undefined }}
                 >
                   {complete ? "✓" : partial ? cnt : String(exs.indexOf(ex) + 1).padStart(2, "0")}
                 </span>
                 <span className="flex-1 min-w-0">
                   <b
                     className="block text-[14.5px] font-semibold leading-snug"
-                    style={
-                      complete
-                        ? { color: "var(--mut)", textDecoration: "line-through", textDecorationColor: "color-mix(in srgb, var(--good) 55%, transparent)" }
-                        : undefined
-                    }
+                    style={complete ? { color: "var(--mut)" } : undefined}
                   >
                     {ex.name}
                   </b>
@@ -410,7 +410,7 @@ export default function TodayView() {
                       </span>
                     )}
                     {ex.extra && (
-                      <span className="font-mono2 text-[9.5px]" style={{ color: "var(--good)" }}>
+                      <span className="font-mono2 text-[9.5px]" style={{ color: "var(--acc-2)" }}>
                         · เพิ่มวันนี้
                       </span>
                     )}
@@ -421,7 +421,7 @@ export default function TodayView() {
               {/* ปุ่มเล็กเปลี่ยนท่า — เฉพาะวันนี้ */}
               {isToday && (
                 <button
-                  className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[12px] transition-all"
+                  className="w-8 h-8 cut-sm shrink-0 flex items-center justify-center text-[12px] transition-all"
                   style={{
                     background: ex.swapped || ex.extra ? "var(--acc-18)" : "var(--acc-08)",
                     border: `1px solid ${ex.swapped || ex.extra ? "var(--edge-hi)" : "color-mix(in srgb, var(--acc) 24%, transparent)"}`,
@@ -441,7 +441,7 @@ export default function TodayView() {
               {/* ท่าที่เพิ่งเพิ่มเข้าวันนี้ — เอาออกได้ในคลิกเดียว ไม่ต้องเข้าเมนูเปลี่ยนท่า */}
               {isToday && ex.extra && (
                 <button
-                  className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[12px]"
+                  className="w-8 h-8 cut-sm shrink-0 flex items-center justify-center text-[12px]"
                   style={{ background: "rgba(255,107,107,.10)", border: "1px solid rgba(255,107,107,.3)", color: "var(--bad)" }}
                   aria-label="เอาท่านี้ออกจากวันนี้"
                   onClick={() => {
@@ -548,7 +548,7 @@ export default function TodayView() {
                       {warmup.map((w, i) => (
                         <span
                           key={i}
-                          className="font-mono2 text-[11px] px-2.5 py-1 rounded-lg"
+                          className="font-mono2 text-[11px] px-2.5 py-1 cut-sm"
                           style={{
                             background: "var(--acc-12)",
                             border: "1px solid color-mix(in srgb, var(--acc) 24%, transparent)",
@@ -580,10 +580,10 @@ export default function TodayView() {
                       />
                       <button
                         onClick={() => toggleSet(ex, idx)}
-                        className="w-[40px] h-[38px] rounded-xl shrink-0 text-[14px] transition-all"
+                        className="w-[40px] h-[38px] cut-sm shrink-0 text-[14px] transition-all"
                         style={
                           checked
-                            ? { background: "linear-gradient(180deg,#6ff0c0,#37c98f)", color: "#04140C", border: "none", boxShadow: "0 4px 14px -4px rgba(79,230,168,.67)" }
+                            ? { background: "linear-gradient(180deg, var(--acc), var(--acc-2))", color: "#050a18", border: "none", boxShadow: "0 4px 14px -4px color-mix(in srgb, var(--acc) 65%, transparent)" }
                             : { background: "rgba(10,22,34,.9)", border: "1px solid var(--edge)", color: "var(--dim)" }
                         }
                       >
@@ -628,8 +628,8 @@ function ProgressRing({ pct, done, total, allDone }: { pct: number; done: number
       <svg width={box} height={box} viewBox={`0 0 ${box} ${box}`}>
         <defs>
           <linearGradient id="heroRing" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" style={{ stopColor: allDone ? "#6ff0c0" : "var(--acc)" }} />
-            <stop offset="100%" style={{ stopColor: allDone ? "#37c98f" : "var(--blue)" }} />
+            <stop offset="0%" style={{ stopColor: "var(--acc)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--acc-2)" }} />
           </linearGradient>
         </defs>
         <g style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}>
@@ -647,14 +647,14 @@ function ProgressRing({ pct, done, total, allDone }: { pct: number; done: number
             style={{
               transition: "stroke-dashoffset .6s cubic-bezier(.2,.7,.3,1)",
               filter: allDone
-                ? "drop-shadow(0 0 6px rgba(111,240,192,.47))"
+                ? "drop-shadow(0 0 7px color-mix(in srgb, var(--acc) 70%, transparent))"
                 : "drop-shadow(0 0 6px color-mix(in srgb, var(--acc) 47%, transparent))",
             }}
           />
         </g>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="font-mono2 text-[18px] font-bold" style={{ color: allDone ? "#6ff0c0" : "var(--ink)" }}>
+        <span className="font-mono2 text-[18px] font-bold num-glow" style={{ color: allDone ? "var(--acc)" : "var(--ink)" }}>
           {total ? done : "—"}
         </span>
         {total > 0 && (

@@ -50,7 +50,17 @@ export default function AnalyzerView() {
         />
         <div className="flex items-center gap-5 relative">
           <div className="relative w-[86px] h-[86px] shrink-0">
-            <svg width="86" height="86" viewBox="0 0 86 86" style={{ transform: "rotate(-90deg)" }}>
+            {/* วงกลมเรืองแสงหลังวงคะแนน — แสงต้องเป็นทรงกลมตามวงแหวน
+                ไม่ใช่ inset glow ของการ์ดที่ออกมาเป็นสี่เหลี่ยมตามกล่อง */}
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                inset: -22,
+                borderRadius: "50%",
+                background: `radial-gradient(circle, color-mix(in srgb, ${scoreColor} 32%, transparent) 0%, transparent 62%)`,
+              }}
+            />
+            <svg width="86" height="86" viewBox="0 0 86 86" style={{ transform: "rotate(-90deg)", position: "relative" }}>
               <circle cx="43" cy="43" r={34} stroke="rgba(120,180,255,.13)" strokeWidth="7" fill="none" />
               {/* วงจาง = เพดาน · วงเข้ม = ที่ทำได้จริง */}
               <circle
@@ -64,7 +74,7 @@ export default function AnalyzerView() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-disp font-bold text-[24px] leading-none" style={{ color: scoreColor }}>
+              <span className="font-disp font-bold text-[24px] leading-none num-glow" style={{ color: scoreColor }}>
                 {analysis.execution}
               </span>
               <span className="font-mono2 text-[8px] mt-0.5" style={{ color: "var(--dim)" }}>
@@ -262,7 +272,7 @@ export default function AnalyzerView() {
               .map((p) => (
                 <span
                   key={p.pattern}
-                  className="font-mono2 text-[10.5px] px-2.5 py-1.5 rounded-lg"
+                  className="font-mono2 text-[10.5px] px-2.5 py-1.5 cut-sm"
                   style={{ background: "var(--acc-08)", border: "1px solid var(--edge)", color: "var(--mut)" }}
                 >
                   {PATTERN_TH[p.pattern]} <b style={{ color: "var(--acc)" }}>{p.sets}</b>
