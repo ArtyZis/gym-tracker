@@ -44,20 +44,18 @@ export default function AnalyzerView() {
     <div className="rise">
       {/* ── คะแนน 2 ชั้น: ทำได้จริง vs เพดานที่ข้อจำกัดอนุญาต ── */}
       <div className="glass p-5 mb-3 relative overflow-hidden">
-        <div
-          className="absolute pointer-events-none"
-          style={{ top: -30, right: -20, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, var(--acc-18), transparent 70%)" }}
-        />
         <div className="flex items-center gap-5 relative">
           <div className="relative w-[86px] h-[86px] shrink-0">
-            {/* วงกลมเรืองแสงหลังวงคะแนน — แสงต้องเป็นทรงกลมตามวงแหวน
-                ไม่ใช่ inset glow ของการ์ดที่ออกมาเป็นสี่เหลี่ยมตามกล่อง */}
+            {/* วงกลมเรืองแสงหลังวงแหวนคะแนน
+                inset ต้องน้อยกว่า padding ของการ์ด (p-5 = 20px) เสมอ
+                เพราะการ์ดตั้ง overflow:hidden ไว้ ถ้าวงกลมล้นออกไปแม้แค่ 1px
+                ขอบจะโดนเฉือนแบน กลายเป็นสี่เหลี่ยมมนแทนที่จะเป็นวงกลม */}
             <div
               className="absolute pointer-events-none"
               style={{
-                inset: -22,
+                inset: -13,
                 borderRadius: "50%",
-                background: `radial-gradient(circle, color-mix(in srgb, ${scoreColor} 32%, transparent) 0%, transparent 62%)`,
+                background: `radial-gradient(circle, color-mix(in srgb, ${scoreColor} 30%, transparent) 0%, transparent 68%)`,
               }}
             />
             <svg width="86" height="86" viewBox="0 0 86 86" style={{ transform: "rotate(-90deg)", position: "relative" }}>

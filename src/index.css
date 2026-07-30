@@ -346,32 +346,10 @@ textarea:focus {
   text-shadow: 0 0 18px color-mix(in srgb, currentColor 55%, transparent);
 }
 
-/* แสงกวาดผ่านการ์ดตอนเปิดหน้า — จังหวะเดียวกับที่หน้าต่างระบบในอนิเมะฉายขึ้นมา
-   เล่นรอบเดียวแล้วจบ ไม่วนซ้ำ จึงไม่กวนตอนใช้งานจริง */
-@keyframes card-scan {
-  0% {
-    opacity: 0;
-    transform: translateY(-100%);
-  }
-  22% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(320%);
-  }
-}
-
-.rise > .glass::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 42%;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--acc) 13%, transparent), transparent);
-  animation: 1.4s 0.15s ease-in-out both card-scan;
-}
+/* เคยมีแสงกวาดผ่านการ์ดตอนเปิดหน้า — ถอดออกแล้ว
+   มันเล่นใหม่ทุกครั้งที่สลับแท็บหรือ re-render และเล่นพร้อมกันทุกใบ
+   เลยกลายเป็นแสงวิ่งผ่านตารัวๆ ทำให้ลายตาเวลาใช้งานจริง
+   ความเป็นหน้าต่างระบบมาจากวงเล็บมุมกับขอบเรืองแสงพอแล้ว ไม่ต้องมีของเคลื่อนไหวตลอด */
 
 /* หัวข้อแบบ [ SYSTEM ] — ขีดเรืองแสงลากยาวจากตัวอักษร */
 .sys-label {
