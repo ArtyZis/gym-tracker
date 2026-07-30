@@ -1,20 +1,19 @@
 import type { ReactNode } from "react";
 import { useApp } from "../AppContext";
 
-// หัวข้อย่อยสไตล์ redesign — แถบ accent ตั้ง + label mono uppercase, มีช่องขวาสำหรับข้อมูลเสริม
-// ใช้ซ้ำทุกสกรีน (Analyze/Progress/Manage) ให้หน้าตาสอดคล้องกัน
+// หัวข้อย่อยสไตล์หน้าต่างระบบ — label mono เว้นระยะ + เส้นเรืองแสงลากไปจนสุดแถว
+// ใช้ซ้ำทุกสกรีน (Analyze/Progress/Manage/Today) ให้หน้าตาสอดคล้องกัน
+// เส้นลากยาวทำหน้าที่แทนเส้นคั่น จึงไม่ต้องมี divider แยกอีกชั้น
 export function Kicker({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-2 min-w-0">
-        <span
-          className="w-[3px] h-3 rounded-sm shrink-0"
-          style={{ background: "linear-gradient(var(--acc), var(--blue))", boxShadow: "0 0 8px var(--acc-40)" }}
-        />
-        <span className="font-mono2 text-[9px] uppercase tracking-[.2em]" style={{ color: "#4b8bb0" }}>
-          {children}
-        </span>
-      </div>
+    <div className="flex items-center gap-2.5 mb-3 min-w-0">
+      <span className="font-mono2 text-[9px] uppercase tracking-[.24em] shrink-0" style={{ color: "var(--acc)" }}>
+        {children}
+      </span>
+      <span
+        className="flex-1 min-w-[10px]"
+        style={{ height: 1, background: "linear-gradient(90deg, color-mix(in srgb, var(--acc) 50%, transparent), transparent)" }}
+      />
       {right ?? null}
     </div>
   );

@@ -19,6 +19,7 @@ import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
 import { isPremium } from "../lib/premium";
 import { findTemplate } from "../lib/exerciseDB";
 import SessionClockBar from "./SessionClockBar";
+import { sessionClock } from "../lib/session";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
 function restForExercise(data: Data, ex: Exercise, fallback: number): number {
@@ -33,6 +34,16 @@ function formatRest(sec: number): string {
 interface Draft {
   weight: number;
   reps: number;
+}
+
+// จำนวนช่องของแถบพลัง — 10 ช่องอ่านเป็น % ในหัวได้ทันทีโดยไม่ต้องคิดเลข
+const SEG_COUNT = 10;
+
+// เซตxเรปแบบย่อสำหรับแถวท่าที่ยังไม่กาง — สั้นพอให้ชื่อท่าไม่ถูกบีบ
+function setNotation(ex: Exercise): string {
+  if (ex.amrap) return `${ex.sets}×AMRAP`;
+  if (ex.type === "time") return `${ex.sets}×${ex.rmin}-${ex.rmax}วิ`;
+  return `${ex.sets}×${ex.rmin === ex.rmax ? ex.rmin : `${ex.rmin}-${ex.rmax}`}`;
 }
 
 function todayVolume(data: Data, exIds: string[]): number {
@@ -82,6 +93,9 @@ export default function TodayView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, day],
   );
+
+  // นาฬิกาเซสชัน — ใช้โชว์เวลาที่มี/เวลาที่เหลือในหัวการ์ด
+  const clock = useMemo(() => sessionClock(data, day), [data, day]);
 
   function draftFor(ex: Exercise, idx: number): Draft {
     const key = ex.id + "_" + idx;
@@ -198,32 +212,54 @@ export default function TodayView() {
           className="absolute pointer-events-none"
           style={{ top: -40, right: -30, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, var(--acc-18), transparent 70%)" }}
         />
-        <div className="flex items-center gap-4 relative">
-          <ProgressRing pct={totalSets ? doneSets / totalSets : 0} done={doneSets} total={totalSets} allDone={allDone} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="font-disp font-bold text-[21px] leading-none">{exs.length ? label || DAY_TH[day] : "วันพัก"}</h2>
-              {allDone && (
-                <span
-                  className="font-mono2 text-[9px] px-2 py-[3px] rounded-full shrink-0"
-                  style={{ background: "rgba(55,201,143,.15)", color: "#6ff0c0", border: "1px solid rgba(111,240,192,.3)" }}
-                >
-                  ครบแล้ว ✓
-                </span>
-              )}
-            </div>
-            <p className="text-[12px] mt-1" style={{ color: "var(--mut)" }}>
-              {exs.length
-                ? `${DAY_TH[day]}${isToday ? " · วันนี้" : ""} · ${exs.length} ท่า${allDone ? "" : ` · เหลือ ${totalSets - doneSets} เซต`}`
-                : `${DAY_TH[day]}${isToday ? " · วันนี้" : ""} · พักฟื้นกล้ามเนื้อ`}
-            </p>
-            {exs.length > 0 && volume > 0 && (
-              <p className="font-mono2 text-[11.5px] mt-[7px] flex items-center gap-1.5" style={{ color: "var(--acc)" }}>
-                <span className="w-[5px] h-[5px] rounded-full" style={{ background: "var(--acc)", boxShadow: "0 0 6px var(--acc)" }} />
-                ยกไปแล้ว {volume.toLocaleString()} kg วันนี้
-              </p>
+        {/* หัวเควสต์ของวัน — ชื่อวันเป็นพระเอก แถบแบ่งช่องอ่านค่าจากระยะไกลง่ายกว่าวงแหวน */}
+        <div className="relative">
+          <div className="sys-label mb-2">
+            {exs.length ? "QUEST" : "REST DAY"} · {DAY_TH[day]}
+            {isToday ? " · วันนี้" : ""}
+          </div>
+          <div className="flex items-center gap-2">
+            <h2 className="font-disp font-bold text-[26px] leading-none tracking-wide text-glow">
+              {exs.length ? label || DAY_TH[day] : "วันพัก"}
+            </h2>
+            {allDone && (
+              <span
+                className="font-mono2 text-[9px] px-2 py-[3px] shrink-0 cut-sm"
+                style={{ background: "rgba(55,201,143,.15)", color: "#6ff0c0", border: "1px solid rgba(111,240,192,.3)" }}
+              >
+                CLEAR ✓
+              </span>
             )}
           </div>
+          <p className="text-[12px] mt-1.5" style={{ color: "var(--mut)" }}>
+            {exs.length
+              ? `${exs.length} ท่า · ${totalSets} เซต${clock ? ` · เวลาที่มี ${clock.capMin} นาที` : ""}`
+              : "พักฟื้นกล้ามเนื้อ"}
+          </p>
+
+          {exs.length > 0 && (
+            <>
+              <div className="seg-bar mt-3">
+                {Array.from({ length: SEG_COUNT }, (_, i) => (
+                  <i key={i} className={totalSets && i < Math.round((doneSets / totalSets) * SEG_COUNT) ? "on" : ""} />
+                ))}
+              </div>
+              <div className="flex justify-between font-mono2 text-[10.5px] mt-1.5" style={{ color: "var(--mut)" }}>
+                <span>
+                  {doneSets} / {totalSets} เซต
+                </span>
+                <span style={{ color: volume > 0 ? "var(--acc)" : undefined }}>
+                  {clock && clock.startedAt != null
+                    ? clock.remainMin >= 0
+                      ? `เหลือ ${clock.remainMin} นาที`
+                      : `เลยมา ${-clock.remainMin} นาที`
+                    : volume > 0
+                      ? `ยกไปแล้ว ${volume.toLocaleString()} kg`
+                      : ""}
+                </span>
+              </div>
+            </>
+          )}
         </div>
         {exs.length > 0 && (
           <div className="hairline mt-3.5 pt-3 flex items-center gap-2">
@@ -341,26 +377,27 @@ export default function TodayView() {
                 className="flex items-center gap-3 flex-1 min-w-0 text-left"
                 onClick={() => setOpenId(open ? null : ex.id)}
               >
+                {/* เลขลำดับท่า / ✓ เมื่อครบ — เลขบอกว่าอยู่ท่าที่เท่าไหร่ของวันโดยไม่ต้องนับเอง */}
                 <span
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-mono2 font-bold shrink-0 transition-all"
-                  style={
-                    complete
-                      ? { background: "linear-gradient(180deg,#6ff0c0,#37c98f)", color: "#04140C", boxShadow: "0 0 14px rgba(79,230,168,.47)" }
-                      : partial
-                        ? { border: "1.5px solid var(--acc)", color: "var(--acc)", background: "var(--acc-12)" }
-                        : { border: "1.5px solid var(--edge-hi)", color: "transparent" }
-                  }
+                  className="w-6 flex items-center justify-center text-[11px] font-mono2 font-bold shrink-0 transition-all"
+                  style={{ color: complete ? "var(--good)" : partial ? "var(--acc)" : "var(--dim)" }}
                 >
-                  {complete ? "✓" : partial ? cnt : ""}
+                  {complete ? "✓" : partial ? cnt : String(exs.indexOf(ex) + 1).padStart(2, "0")}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <b className="block text-[14.5px] font-semibold leading-snug">{ex.name}</b>
+                  <b
+                    className="block text-[14.5px] font-semibold leading-snug"
+                    style={
+                      complete
+                        ? { color: "var(--mut)", textDecoration: "line-through", textDecorationColor: "color-mix(in srgb, var(--good) 55%, transparent)" }
+                        : undefined
+                    }
+                  >
+                    {ex.name}
+                  </b>
                   <span className="flex items-center flex-wrap gap-1.5 mt-[5px]">
-                    <span className="font-mono2 text-[9.5px] px-[7px] py-[2px] rounded-md" style={{ background: "rgba(125,180,255,.08)", color: "#9fb6d0" }}>
-                      {ex.sets} เซต
-                    </span>
-                    <span className="font-mono2 text-[9.5px] px-[7px] py-[2px] rounded-md" style={{ background: "rgba(125,180,255,.08)", color: "#9fb6d0" }}>
-                      {repTargetText(ex)}
+                    <span className="font-mono2 text-[9.5px]" style={{ color: "var(--acc)" }}>
+                      {setNotation(ex)}
                     </span>
                     {ex.machine && (
                       <span className="font-mono2 text-[9.5px]" style={{ color: "var(--cyan-dim)" }}>

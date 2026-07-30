@@ -135,10 +135,41 @@ export default function AnalyzerView() {
         </PremiumLock>
       )}
 
+      {/* ── ATTRIBUTES — ตาราง 2 คอลัมน์ เห็นครบ 13 กลุ่มในตาเดียวก่อนลงรายละเอียด ── */}
+      {premium && (
+        <div className="glass p-4 mb-3">
+          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>เซต/สัปดาห์</span>}>
+            Attributes
+          </Kicker>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-[7px]">
+            {analysis.stats.map((s) => (
+              <div key={s.muscle} className="flex items-baseline justify-between gap-2 text-[12px]">
+                <span className="truncate" style={{ color: "var(--mut)" }}>
+                  {MUSCLE_TH[s.muscle]}
+                </span>
+                <span
+                  className="font-mono2 text-[12px] shrink-0"
+                  style={{
+                    color:
+                      s.status === "good"
+                        ? "var(--ink)"
+                        : s.status === "high"
+                          ? "var(--good)"
+                          : "var(--warn)",
+                  }}
+                >
+                  {s.sets.toFixed(1)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {premium && (
         <div className="glass p-4 mb-3">
           <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>เป้า {target.min}-{target.max}</span>}>
-            เซตต่อกล้ามเนื้อ / สัปดาห์
+            รายละเอียดต่อกล้ามเนื้อ
           </Kicker>
           {analysis.stats.map((s) => {
             const color =
