@@ -26,8 +26,6 @@ import { EXERCISE_DB, TIER_RANK, findTemplate, incFor, isMachineEx, musclesOf, t
 import type { DayType } from "./blueprint";
 import {
   DAY_TYPE_SHORT,
-  DAY_TYPE_TH,
-  MAX_TRAINING_DAYS,
   OFFERED_SPLITS,
   buildDayExercises,
   buildFullProgram,
@@ -342,7 +340,16 @@ export function analyzeProgram(data: Data): Analysis {
 
   // 3) ความถี่/ฟื้นตัว (20%)
   const consecutive = maxConsecutiveDays(new Set(train));
-  let recPenalty = recovery.length * 0.25 + Math.max(0, consecutive - 3) * 0.2;
+  // หักคะแนนจาก "กล้ามเนื้อกลุ่มเดิมโดนหนักถี่เกินไป" เท่านั้น — ไม่หักจากจำนวนวันติดกันแบบเหมารวมอีกแล้ว
+  //
+  // เหตุผล: ตาราง PPL×2 ที่ฝึก 6 วันติดพัก 1 วัน เป็นตารางมาตรฐานที่คนใช้กันจริงและถูกหลัก
+  // เพราะกล้ามเนื้อกลุ่มเดิมยังห่างกัน 48+ ชม. อยู่ กฎ "ติดกันเกิน 3 วัน = หัก" จึงหยาบเกินไป
+  // และทำให้ตารางที่ดีอยู่แล้วได้คะแนนต่ำจนดูเหมือนตารางแย่ (เคสจริง: ฝึก 6 วันได้ 69 คะแนน)
+  // ตัวที่จับปัญหาทางสรีรวิทยาจริงคือ recovery conflicts ด้านบนซึ่งตรวจแยกอยู่แล้ว
+  // หักแบบอิ่มตัว ไม่ให้ conflict จำนวนมากลบคะแนนหมวดนี้เป็นศูนย์
+  // ตารางที่ชนกันหลายจุด "แย่กว่า" ตารางที่ชนจุดเดียวก็จริง แต่ไม่ใช่ว่าไม่มีอะไรดีเลย
+  // การให้ 0 ทำให้ผู้ใช้เห็นคะแนนต่ำผิดจริงจนคิดว่าตารางตัวเองใช้ไม่ได้
+  let recPenalty = Math.min(0.75, recovery.length * 0.15);
   for (const r of recovery)
     issues.push(`${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${DAY_TH[r.a]}และ${DAY_TH[r.b]} ห่างแค่ ${r.gapHours} ชม. — ต้องการ ${MIN_RECOVERY_HOURS} ชม.`);
   if (consecutive > 3) issues.push(`ฝึกติดต่อกัน ${consecutive} วันไม่พัก`);
@@ -641,27 +648,7 @@ export interface Recommendation {
   toDay?: DayKey;
 }
 
-function bestEmptyDay(data: Data): DayKey | null {
-  const train = new Set(trainingDays(data));
-  // ห้ามดันให้ฝึกเกินเพดาน — ตารางที่ไม่มีวันพักพอ ฟื้นตัวไม่ทันและทำจริงไม่ไหว
-  if (train.size >= MAX_TRAINING_DAYS) return null;
-  const empty = DAYS.filter((d) => !train.has(d));
-  if (!empty.length) return null;
-  let best = empty[0];
-  let bestC = 99;
-  for (const d of empty) {
-    const next = new Set(train);
-    next.add(d);
-    const c = maxConsecutiveDays(next);
-    if (c < bestC) {
-      bestC = c;
-      best = d;
-    }
-  }
-  return best;
-}
-
-// กล้ามเนื้อแต่ละมัดควรไปอยู่วันประเภทไหนถ้าต้องเปิดวันใหม่ — ใช้ตอนตารางเดิมไม่มีวันที่ใส่เพิ่มได้เลย
+// กล้ามเนื้อแต่ละมัดควรไปอยู่วันประเภทไหน — ใช้ตัดสินว่าท่า "เข้าพวก" กับวันนั้นไหม
 // core/calves ตั้งใจไม่ใส่ไว้: สองมัดนี้เป็นท่าปิดท้ายที่ใส่ได้แทบทุกประเภทวัน (push/pull/legs/full)
 // ถ้า map ไว้ว่าเป็น "legs" แล้วมีท่า core/calves โผล่ในวัน Pull วันนั้นจะถูกนับว่า "เข้าพวกวันขา" ไปด้วย
 // ทำให้ท่าขา (เช่น Bulgarian Split Squat) แอบเข้าไปอยู่วัน Pull ได้ ทั้งที่ไม่เกี่ยวกันเลย
@@ -678,30 +665,6 @@ const MUSCLE_TO_TYPE: Partial<Record<MuscleKey, DayType>> = {
   hamstrings: "legs",
   glutes: "legs",
 };
-
-// วันว่างที่เปิดเป็น dayType นี้แล้วให้คะแนนดีที่สุด — ลองสร้างจริงทุกวันว่าง ไม่เดาว่าวันไหนดี
-// (วันว่างบางวันอาจอยู่ใกล้วันฝึกเดิมเกินไปจนกล้ามเนื้อชนกัน คะแนนเลยไม่ขึ้นหรือขึ้นน้อยกว่าวันอื่น)
-function bestDayForType(
-  data: Data,
-  dayType: DayType,
-  currentExecution: number,
-  exclude: Set<DayKey>,
-): { day: DayKey; built: Exercise[]; predicted: number; ceiling: number } | null {
-  const train = new Set(trainingDays(data));
-  if (train.size >= MAX_TRAINING_DAYS) return null;
-  let best: { day: DayKey; built: Exercise[]; predicted: number; ceiling: number } | null = null;
-  for (const day of DAYS) {
-    if (train.has(day) || exclude.has(day)) continue;
-    const built = buildDayExercises(data, day, dayType);
-    if (!built.length) continue;
-    // ผ่าน applyRecommendation ตัวเดียวกับตอนกดจริง (ไม่ใช่ shallow spread เอง) เพื่อให้พยากรณ์ตรงกับผลจริง 100%
-    const probeRec: Recommendation = { id: "", kind: "addDay", day, dayType, title: "", detail: "", reason: "", gain: 0, priority: "high" };
-    const { execution: predicted, ceiling } = predictedAnalysis(data, probeRec);
-    if (predicted < currentExecution) continue;
-    if (!best || ceiling > best.ceiling || (ceiling === best.ceiling && predicted > best.predicted)) best = { day, built, predicted, ceiling };
-  }
-  return best;
-}
 
 // เพิ่มเซตท่าที่มีอยู่แล้วอีก 1 เซตได้ไหมโดยไม่ชนเพดานวัน/กล้ามเนื้อ
 function canIncreaseSets(data: Data, ex: Exercise): boolean {
@@ -724,6 +687,13 @@ function canIncreaseSets(data: Data, ex: Exercise): boolean {
 // (ท่าที่เพิ่มอาจไปกระทบสมดุลแพทเทิร์นหรือลำดับท่า ทำให้คะแนนรวมไม่ขึ้นหรือลดลงก็ได้)
 function predictedScore(data: Data, rec: Recommendation): number {
   return predictedAnalysis(data, rec).execution;
+}
+
+// เพิ่มข้อสังเกตแบบไม่ซ้ำ — ใช้กับปัญหาที่ระบบเห็นแต่ "ไม่ควรลงมือแก้ให้เอง"
+// (เรื่องที่ต้องรื้อตาราง: ย้ายวัน แยกวัน สลับลำดับ — ระบบไม่รู้ตารางชีวิตจริงของผู้ใช้)
+function blockedInsight(analysis: Analysis, insight: BlockedInsight): void {
+  if (analysis.blockedInsights.some((b) => b.issue === insight.issue)) return;
+  analysis.blockedInsights.push(insight);
 }
 
 // เหมือน predictedScore แต่คืน ceiling มาด้วย — ใช้ตอนต้องเทียบ "เติมวันเดิม" กับ "เปิดวันใหม่"
@@ -820,96 +790,42 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
     return recs.sort((a, b) => b.gain - a.gain).slice(0, 3);
   }
 
-  // 1) วันที่อัดเกิน — แยกไปวันว่าง (แก้ได้ทันทีและกระทบคุณภาพทุกเซตในวันนั้น)
+  // 1) วันที่อัดเกินเพดาน — บอกให้รู้ แต่ไม่ย้ายท่าให้เอง
+  //
+  // เดิมเสนอเป็นปุ่ม "แยกวันไปวันว่าง" กดแล้วย้ายท่าทันที — เลิกทำแล้ว
+  // เพราะระบบไม่รู้ว่าผู้ใช้ว่างจริงวันไหน (วันว่างในตารางอาจเป็นวันที่เขาไปยิมไม่ได้เลย)
+  // การรื้อตารางให้โดยไม่รู้ข้อจำกัดชีวิตจริง ทำให้ตารางแย่กว่าเดิม ผู้ใช้ตัดสินใจเองดีกว่า
   for (const dl of analysis.dayLoads.filter((d) => d.overSets || d.overTime)) {
-    const to = bestEmptyDay(data);
-    if (!to) continue;
-    const candidateRec: Recommendation = {
-      id: mkId(),
-      kind: "splitDay",
-      fromDay: dl.day,
-      toDay: to,
-      title: `แยก${DAY_TH[dl.day]}ไปเพิ่มวันฝึก${DAY_TH[to]}`,
-      detail: `ย้ายท่าท้ายๆ ไป${DAY_TH[to]} แต่ละเซตจะได้แรงเต็มกว่า`,
-      reason: dl.overTime ? `${DAY_TH[dl.day]}ใช้เวลาราว ${dl.minutes} นาที (เพดาน ${getTimeCap(data)})` : `${DAY_TH[dl.day]}มี ${dl.sets} เซต (เพดาน ${getMaxSetsPerSession(data)})`,
-      gain: 10,
-      priority: "high",
-    };
-    const predicted = predictedScore(data, candidateRec);
-    if (predicted < analysis.execution) continue; // ย้ายแล้วแย่ลงจริง (เช่นวันที่ว่างอยู่ใกล้วันฝึกเดิมเกินไป) ข้ามไป — เสมอตัวยังยอมได้
-    candidateRec.gain = predicted - analysis.execution;
-    recs.push(candidateRec);
+    blockedInsight(analysis, {
+      issue: dl.overTime
+        ? `${DAY_TH[dl.day]}ใช้เวลาราว ${dl.minutes} นาที (เพดาน ${getTimeCap(data)})`
+        : `${DAY_TH[dl.day]}มี ${dl.sets} เซต (เพดาน ${getMaxSetsPerSession(data)})`,
+      whyCannotFix: "วันนี้แน่นเกินเพดานที่ตั้งไว้ — เซตท้ายๆ จะได้แรงไม่เต็ม",
+      realSolution: "ย้ายท่าท้ายไปวันที่คุณว่างจริง หรือลดเซตท่าที่ซ้ำซ้อนลง",
+    });
   }
 
-  // 1.6) ฝึกติดกันเกิน 3 วันไม่พัก หรือกล้ามเนื้อกลุ่มเดิมโดนหนักสองวันห่างกันไม่ถึง 48 ชม.
-  // — ลองสลับวันฝึกวันหนึ่งไปวันว่างที่ทำให้ระยะห่างดีขึ้น
-  // (เกิดได้ทั้งตอนเปิดวันใหม่ทีละวันแล้วบังเอิญไปตกวันที่ติดกับวันฝึกเดิม เช่น พุธ+พฤหัส+ศุกร์+เสาร์
-  //  หรือผู้ใช้จัดวันเองมาแบบนั้นตั้งแต่แรก เช่น หลังโดนหนักทั้งศุกร์และเสาร์)
-  if ((analysis.consecutive > 3 || analysis.recovery.length > 0) && recs.length < MAX_RECOMMENDATIONS) {
-    const train = trainingDays(data);
-    const empty = DAYS.filter((d) => !train.includes(d));
-    let bestReschedule: { rec: Recommendation; predicted: number; ceiling: number } | null = null;
-    for (const from of train) {
-      // ท่าที่ย้ายไปต้องเล่นได้จริงด้วยอุปกรณ์ของวันปลายทาง — ไม่งั้นได้ "ย้ายท่าเครื่องเคเบิลไปวันบ้าน" ที่เล่นจริงไม่ได้
-      const movingExs = exercisesForDay(data, from);
-      for (const to of empty) {
-        const equip = getDayEquip(data, to);
-        const feasible = movingExs.every((ex) => {
-          const tpl = findTemplate(ex.name);
-          return !tpl || canDoWithEquip(tpl.equip, equip);
-        });
-        if (!feasible) continue;
-        const candidateRec: Recommendation = {
-          id: mkId(),
-          kind: "restDay",
-          fromDay: from,
-          toDay: to,
-          title: `ย้ายวันฝึกจาก${DAY_TH[from]}ไป${DAY_TH[to]}`,
-          detail: `สลับวันฝึกให้ระยะห่างจากวันอื่นดีขึ้น ท่าเดิมทั้งหมดย้ายไปด้วย`,
-          reason: `ตอนนี้ฝึกติดต่อกัน ${analysis.consecutive} วันไม่พัก เสี่ยงล้าสะสม`,
-          gain: 0,
-          priority: "high",
-        };
-        const { execution: predicted, ceiling } = predictedAnalysis(data, candidateRec);
-        if (predicted < analysis.execution) continue;
-        if (!bestReschedule || ceiling > bestReschedule.ceiling || (ceiling === bestReschedule.ceiling && predicted > bestReschedule.predicted))
-          bestReschedule = { rec: candidateRec, predicted, ceiling };
-      }
-    }
-    if (bestReschedule) {
-      const chosen: { rec: Recommendation; predicted: number; ceiling: number } = bestReschedule;
-      chosen.rec.gain = chosen.predicted - analysis.execution;
-      recs.push(chosen.rec);
-    }
+  // 1.6) กล้ามเนื้อกลุ่มเดิมโดนหนักสองวันห่างกันไม่ถึง 48 ชม. — บอกให้รู้ ไม่ย้ายวันให้เอง
+  //
+  // เดิมเสนอเป็นปุ่ม "ย้ายวันฝึกจากศุกร์ไปพฤหัส" กดแล้วย้ายท่าทั้งวันทันที — เลิกทำแล้ว
+  // เพราะระบบไม่รู้ตารางงาน/เรียนของผู้ใช้ ย้ายไปวันที่เขาไปยิมไม่ได้ = ตารางใช้ไม่ได้เลย
+  // แย่กว่าปล่อยไว้เฉยๆ ตามเดิมเสียอีก
+  for (const r of analysis.recovery.slice(0, 2)) {
+    blockedInsight(analysis, {
+      issue: `${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${DAY_TH[r.a]}และ${DAY_TH[r.b]} ห่างกันแค่ ${r.gapHours} ชม.`,
+      whyCannotFix: `กล้ามเนื้อต้องการ ${MIN_RECOVERY_HOURS} ชม. ก่อนโดนหนักซ้ำ`,
+      realSolution: `ถ้าสองวันนี้เลี่ยงไม่ได้ ให้ลดเซต${MUSCLE_TH[r.muscle]}ในวันหนึ่งลง หรือสลับเป็นท่าเบากว่า`,
+    });
   }
 
-  // 1.65) ลำดับท่าในวันหนึ่งยังไม่เหมาะ (ท่าหนักควรมาก่อนท่าเจาะจง/core/น่องปิดท้าย)
-  // เกิดได้เวลาย้ายทั้งวันมารวมกัน (restDay) หรือเพิ่มท่าหลายรอบแล้วลำดับเพี้ยนสะสม
-  if (analysis.breakdown.order < 1 && recs.length < MAX_RECOMMENDATIONS) {
-    let bestReorder: { rec: Recommendation; predicted: number; ceiling: number } | null = null;
-    for (const day of trainingDays(data)) {
-      const candidateRec: Recommendation = {
-        id: mkId(),
-        kind: "reorder",
-        day,
-        title: `จัดลำดับท่าใหม่ให้${DAY_TH[day]}`,
-        detail: "เรียงท่าหนักไปเบา ท่าเจาะจง/core/น่องไว้ท้ายวัน ไม่เพิ่มหรือลดท่าใดๆ",
-        reason: `ลำดับท่าใน${DAY_TH[day]}ยังไม่เหมาะ`,
-        gain: 0,
-        priority: "medium",
-      };
-      const { execution: predicted, ceiling } = predictedAnalysis(data, candidateRec);
-      // ต้องดีขึ้นจริง (>) ไม่ใช่แค่เสมอตัว — ต่างจาก add/increaseSets ที่เสมอตัวยังเป็นก้าวจำเป็นไปสู่เกณฑ์ถัดไป
-      // การจัดลำดับใหม่ไม่มี "ก้าวกลาง" แบบนั้น ถ้าเสมอตัวคือ reorderDay จัดมาแบบนี้แหละ จัดซ้ำไปก็ได้ผลเท่าเดิม
-      // เสนอซ้ำไม่รู้จบ ต้องตัดสิทธิ์ตรงนี้
-      if (predicted <= analysis.execution) continue;
-      if (!bestReorder || predicted > bestReorder.predicted) bestReorder = { rec: candidateRec, predicted, ceiling };
-    }
-    if (bestReorder) {
-      const chosen: { rec: Recommendation; predicted: number; ceiling: number } = bestReorder;
-      chosen.rec.gain = chosen.predicted - analysis.execution;
-      recs.push(chosen.rec);
-    }
+  // 1.65) ลำดับท่ายังไม่เหมาะ — บอกเฉยๆ ไม่จัดใหม่ให้
+  // ผู้ใช้อาจเรียงตามลำดับที่เขาชอบเล่นจริงหรือตามคิวเครื่องในยิม ระบบไม่ควรไปสลับให้เอง
+  if (analysis.breakdown.order < 0.85) {
+    blockedInsight(analysis, {
+      issue: "ลำดับท่าในบางวันยังไม่เหมาะ",
+      whyCannotFix: "มีท่าหนักอยู่หลังท่าเจาะจง ทำให้ท่าหนักได้แรงไม่เต็ม",
+      realSolution: "เรียงท่าหนัก/compound ไว้ต้นวัน แล้วเก็บท่าเจาะจง ท้อง น่อง ไว้ปิดท้าย",
+    });
   }
 
   // 1.5) สมดุลแพทเทิร์น — กล้ามเนื้ออาจได้เซตรวมครบเป้าแล้ว แต่ "ชนิดท่า" เอียงไปทางเดียว
@@ -962,8 +878,6 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
       const majB = MAJOR_MUSCLES.includes(b.muscle) ? 1 : 0;
       return majB - majA || a.sets - b.sets;
     });
-
-  const proposedAddDay = new Set<DayKey>(); // กันเสนอ "เพิ่มวัน" ซ้ำวันเดิมจากหลายกล้ามเนื้อที่ขาดพร้อมกัน
 
   for (const s of gaps) {
     if (recs.length >= MAX_RECOMMENDATIONS) break;
@@ -1025,44 +939,27 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
       consider(candidateRec, predicted, ceiling);
     }
 
-    // (3) เปิดวันใหม่ — ต้องยังไม่ครบเพดานวันฝึก
-    if (trainingDays(data).length < MAX_TRAINING_DAYS) {
-      const dayType = MUSCLE_TO_TYPE[s.muscle] ?? "full";
-      const best = bestDayForType(data, dayType, analysis.execution, proposedAddDay);
-      if (best) {
-        const addDayRec: Recommendation = {
-          id: mkId(),
-          kind: "addDay",
-          day: best.day,
-          dayType,
-          title: `เพิ่มวัน${DAY_TYPE_TH[dayType]}ที่${DAY_TH[best.day]}`,
-          detail: `${best.built.length} ท่า ${best.built.reduce((a, e) => a + e.sets, 0)} เซต — ตารางเดิมไม่มีวันที่ใส่${MUSCLE_TH[s.muscle]}เพิ่มได้`,
-          reason: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min} — คาดว่าจะได้ ${best.predicted} คะแนน`,
-          gain: 0,
-          priority: "high",
-        };
-        consider(addDayRec, best.predicted, best.ceiling);
-      }
-    }
+    // ไม่มีตัวเลือก (3) "เปิดวันใหม่" อีกแล้ว — เดิมเสนอเป็นปุ่มกดสร้างวันฝึกใหม่ทั้งวัน
+    // แต่ระบบไม่รู้ว่าผู้ใช้ว่างไปยิมวันไหนจริง เพิ่มวันให้เองเสี่ยงได้ตารางที่ทำตามไม่ได้
+    // ถ้าตารางเดิมไม่มีที่ลง ให้บอกเป็นข้อสังเกตด้านล่างแทน ผู้ใช้เลือกเองว่าจะเพิ่มวันไหม
 
     let placed = false;
     if (bestOption) {
       const chosen = bestOption as { rec: Recommendation; predicted: number; ceiling: number };
       chosen.rec.gain = chosen.predicted - analysis.execution;
-      if (chosen.rec.kind === "addDay") proposedAddDay.add(chosen.rec.day!);
       recs.push(chosen.rec);
       placed = true;
     }
 
-    // ไม่มีท่าไหนผ่านตัวกรองเลย และเปิดวันใหม่ก็ไม่ได้แล้ว — ห้ามผ่อนกฎเพื่อให้มีอะไรแสดง ให้บอกต้นเหตุแทน
-    if (!placed && blockedReasons.length) {
+    // ไม่มีท่าไหนลงในตารางเดิมได้เลย — ห้ามผ่อนกฎเพื่อให้มีอะไรแสดง ให้บอกต้นเหตุแทน
+    if (!placed) {
       const top = blockedReasons[0];
       const already = analysis.blockedInsights.some((b) => b.issue.includes(MUSCLE_TH[s.muscle]));
       if (!already)
-        analysis.blockedInsights.push({
+        blockedInsight(analysis, {
           issue: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ (เป้า ${target.min}-${target.max})`,
-          whyCannotFix: top.reason ?? "ตารางปัจจุบันไม่มีที่ว่างที่เหมาะ",
-          realSolution: top.fix ?? "เพิ่มวันฝึก หรือปรับข้อจำกัดในโปรไฟล์",
+          whyCannotFix: top?.reason ?? "วันฝึกที่มีอยู่ไม่มีที่ว่างที่เหมาะกับกล้ามเนื้อกลุ่มนี้",
+          realSolution: top?.fix ?? `เพิ่มเซต${MUSCLE_TH[s.muscle]}ในวันที่คุณว่าง หรือแทนท่าที่ซ้ำซ้อนด้วยท่าของกลุ่มนี้`,
         });
     }
   }
@@ -1086,7 +983,10 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
       priority: "low",
     };
     const predicted = predictedScore(data, candidateRec);
-    if (predicted < analysis.execution) continue; // แค่ห้ามแย่ลง เสมอตัวยังยอมได้ — ลดของเกินคือก้าวที่จำเป็นแม้บางทีคะแนนรวมนิ่ง
+    // ต้องดีขึ้นจริง (>) ไม่ใช่แค่เสมอตัว
+    // เดิมยอมเสมอตัว ผลคือระบบเสนอ "ลดเซต" ไล่ทีละท่าเป็นสิบครั้งโดยคะแนนไม่ขยับ
+    // = ค่อยๆ แกะเซตออกจากตารางที่ผู้ใช้ตั้งใจจัดไว้ ซึ่งแย่กว่าปล่อยไว้เฉยๆ
+    if (predicted <= analysis.execution) continue;
     candidateRec.gain = predicted - analysis.execution;
     recs.push(candidateRec);
   }

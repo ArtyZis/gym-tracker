@@ -15,6 +15,7 @@ import {
   extraIdFor,
   normalizeData,
   JS_DAYS,
+  DAYS,
 } from "../src/lib/store.ts";
 import { analyzeProgram, buildRecommendations, applyRecommendation } from "../src/lib/analyzer.ts";
 
@@ -141,11 +142,18 @@ check("empty: no exercises", emptied.exercises.length, 0);
 check("empty: history cleared", Object.keys(emptied.history).length, 0);
 check("empty: archive cleared", Object.keys(emptied.historyArchive).length, 0);
 
-// --- analyzer recommendations converge to 100 ---
+// --- คำแนะนำต้องไม่ทำให้ตารางแย่ลง และต้องไม่ไปรื้อวันฝึกที่ผู้ใช้เลือกไว้ ---
+//
+// เดิมเทสนี้บังคับว่า "กดตามคำแนะนำต้องได้ 100 คะแนน" — เลิกใช้เกณฑ์นั้นแล้ว
+// เพราะการไล่คะแนนให้เต็มต้องรื้อตาราง (ย้ายวัน/เพิ่มวัน) ซึ่งระบบไม่รู้ว่าผู้ใช้ว่างวันไหนจริง
+// ตารางที่ผู้ใช้จัดเองมักดีอยู่แล้ว คำแนะนำที่รื้อให้จึงทำให้แย่กว่าเดิม
 function driveToMax(seed) {
   let prog = seed;
   let iter = 0;
   const trace = [];
+  const startScore = analyzeProgram(prog).score;
+  const dayOf = (p) => DAYS.filter((day) => p.exercises.some((e) => e.day === day)).join(",");
+  const startDays = dayOf(prog);
   while (iter < 60) {
     const a = analyzeProgram(prog);
     const recs = buildRecommendations(prog, a);
@@ -154,11 +162,12 @@ function driveToMax(seed) {
     applyRecommendation(prog, recs[0]);
     iter++;
   }
-  return { score: analyzeProgram(prog).score, iter, trace, prog };
+  return { score: analyzeProgram(prog).score, startScore, startDays, endDays: dayOf(prog), iter, trace, prog };
 }
 
 const fromDefault = driveToMax(normalizeData(createDefault()));
-check("converge: default program -> 100", fromDefault.score, 100);
+check("recs: โปรแกรมเริ่มต้น ไม่ทำให้คะแนนแย่ลง", fromDefault.score >= fromDefault.startScore, true);
+check("recs: โปรแกรมเริ่มต้น ไม่ย้าย/เพิ่มวันฝึกให้เอง", fromDefault.endDays, fromDefault.startDays);
 
 // โปรแกรมแย่ๆ: มีแต่อกวันเดียว 10 เซต ฝึกวันเดียว
 const bad = normalizeData({
@@ -168,11 +177,8 @@ const bad = normalizeData({
   settings: { autoRest: true, restDefault: 90, barWeight: 20 },
 });
 const fromBad = driveToMax(bad);
-if (fromBad.score < 100) {
-  console.log("bad-final issues:", JSON.stringify(analyzeProgram(fromBad.prog).issues));
-  console.log("bad-final exercises:", fromBad.prog.exercises.map((e) => `${e.name}@${e.day}x${e.sets}`).join(", "));
-}
-check("converge: bad program -> 100", fromBad.score, 100);
+check("recs: โปรแกรมแย่ๆ คะแนนดีขึ้นจากเดิม", fromBad.score > fromBad.startScore, true);
+check("recs: โปรแกรมแย่ๆ ก็ยังไม่ย้าย/เพิ่มวันฝึกให้เอง", fromBad.endDays, fromBad.startDays);
 
 // โปรแกรมฝึก 6 วันติด (consecutive penalty) -> ต้องแนะนำแทรกวันพักจน 100
 const consec = normalizeData({

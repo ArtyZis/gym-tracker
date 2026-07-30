@@ -22,7 +22,8 @@ function runScenario(label, seed) {
   d.exercises = seed;
 
   const start = analyzeProgram(d);
-  console.log(`เริ่มต้น: ${start.execution}/${start.ceiling}`);
+  const startDays = DAYS.filter((day) => exercisesForDay(d, day).length > 0);
+  console.log(`เริ่มต้น: ${start.execution}/${start.ceiling} · ฝึก ${startDays.length} วัน`);
 
   const history = [start.execution];
   let step = 0;
@@ -55,9 +56,13 @@ function runScenario(label, seed) {
     console.log("  issues:", final.issues);
     console.log("  blockedInsights:", final.blockedInsights);
   }
-  ok(`${label}: ถึง ceiling (${final.ceiling}) จริง`, final.execution >= final.ceiling, `ได้ ${final.execution}/${final.ceiling}`);
-  ok(`${label}: ceiling คือ 100 (ไม่ติดข้อจำกัดถาวร)`, final.ceiling === 100, `ceiling=${final.ceiling}`);
-  ok(`${label}: ไม่เกิน 5 วัน/สัปดาห์`, trained.length <= 5, `ได้ ${trained.length} วัน`);
+  // เกณฑ์ใหม่: ไม่บังคับให้ถึง 100 อีกแล้ว
+  // ปรัชญาเปลี่ยนเป็น "ตารางที่ผู้ใช้จัดเองก็ดีอยู่แล้ว คำแนะนำต้องไม่ไปรื้อจนเพี้ยน"
+  // สิ่งที่ต้องรับประกันคือ: คำแนะนำต้องไม่ทำให้แย่ลง และต้องไม่ไปยุ่งกับวันฝึกที่ผู้ใช้เลือกไว้
+  ok(`${label}: คะแนนดีขึ้นจากเดิม`, final.execution >= start.execution, `${start.execution} -> ${final.execution}`);
+  ok(`${label}: ไม่แย่ลงระหว่างทาง (ทุกก้าวคะแนนไม่ตก)`, history.every((h, i) => i === 0 || h >= history[i - 1]), history.join(" -> "));
+  ok(`${label}: ไม่เพิ่ม/ย้ายวันฝึกให้เอง`, trained.every((d) => startDays.includes(d)) && trained.length === startDays.length,
+     `เริ่ม [${startDays.join(",")}] จบ [${trained.join(",")}]`);
   ok(`${label}: ไม่ค้าง (จบภายใน 40 ครั้ง)`, step <= 40);
 }
 
