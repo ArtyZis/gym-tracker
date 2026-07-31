@@ -129,7 +129,9 @@ body::after {
     inset 0 1px 0 #b9dcff14;
 }
 
-/* วงเล็บมุมทั้งสี่ — 8 gradient (แนวนอน+แนวตั้งต่อมุม) วางที่มุมด้วย background-position */
+/* วงเล็บมุม — ใส่แค่ 2 มุมทแยง (บนซ้าย + ล่างขวา) ไม่ใช่ครบสี่มุม
+   ครบสี่มุมทุกใบทำให้หน้าจอที่มีการ์ดซ้อนกันหลายใบดูรก จนวงเล็บกลายเป็น noise
+   สองมุมทแยงอ่านเป็น "ตั้งใจออกแบบ" และทำให้สายตาไล่จากบนซ้ายลงล่างขวาตามการอ่าน */
 .glass::after,
 .brackets::after {
   content: "";
@@ -138,15 +140,38 @@ body::after {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(var(--acc), var(--acc)) 0 0 / 13px 1.5px no-repeat,
-    linear-gradient(var(--acc), var(--acc)) 0 0 / 1.5px 13px no-repeat,
-    linear-gradient(var(--acc), var(--acc)) 100% 0 / 13px 1.5px no-repeat,
-    linear-gradient(var(--acc), var(--acc)) 100% 0 / 1.5px 13px no-repeat,
-    linear-gradient(var(--acc), var(--acc)) 0 100% / 13px 1.5px no-repeat,
-    linear-gradient(var(--acc), var(--acc)) 0 100% / 1.5px 13px no-repeat,
-    linear-gradient(var(--acc), var(--acc)) 100% 100% / 13px 1.5px no-repeat,
-    linear-gradient(var(--acc), var(--acc)) 100% 100% / 1.5px 13px no-repeat;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--acc) 70%, transparent));
+    linear-gradient(var(--acc), var(--acc)) 0 0 / 14px 2px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 0 0 / 2px 14px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 100% 100% / 14px 2px no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 100% 100% / 2px 14px no-repeat;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--acc) 80%, transparent));
+}
+
+/* ── แถบหัวหน้าต่าง ──
+   หัวข้ออยู่ในแถบสีจางเต็มความกว้างการ์ด มีเส้นคั่นใต้ — จุดที่ทำให้ "เป็นหน้าต่างระบบ" ชัดที่สุด
+   ต้องดันขอบออกด้วย margin ติดลบเท่ากับ padding ของการ์ด
+   การ์ดส่วนใหญ่ใช้ p-4 (16px) จึงตั้ง default ไว้ที่ 16px
+   ใบที่ padding ต่างออกไปให้ตั้ง --card-pad เองที่ตัวการ์ด */
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin: calc(var(--card-pad, 16px) * -1) calc(var(--card-pad, 16px) * -1) 12px;
+  padding: 8px var(--card-pad, 16px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 15%, transparent), transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--acc) 20%, transparent);
+}
+
+/* หัวลูกศรนำหน้าหัวข้อ — แทนเพชรเดิม ชี้ทิศทางการอ่านชัดกว่า */
+.panel-head .mark {
+  width: 0;
+  height: 0;
+  flex: none;
+  border-left: 5px solid var(--acc);
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  filter: drop-shadow(0 0 4px var(--acc));
 }
 
 .glass-soft {

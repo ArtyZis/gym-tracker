@@ -248,7 +248,6 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
   if (!visible) return null;
 
   const mins = Math.floor(remainingSec / 60);
-  const circ = 2 * Math.PI * 17;
   const pct = totalSec ? Math.min(1, remainingSec / totalSec) : 0;
 
   return (
@@ -262,62 +261,60 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className="glass edge-glow flex items-center gap-2 pl-1.5 pr-2 py-2 rise pointer-events-auto max-w-full touch-none"
-        style={{ transform: `translate(${pos.dx}px, ${pos.dy}px)`, cursor: "grab" }}
+        className="glass edge-glow rise pointer-events-auto touch-none w-full max-w-[300px]"
+        style={{ transform: `translate(${pos.dx}px, ${pos.dy}px)`, cursor: "grab", "--card-pad": "11px" } as React.CSSProperties}
       >
-        {/* handle ลาก */}
-        <div className="flex flex-col gap-[3px] px-1.5 shrink-0" style={{ cursor: "grab" }} aria-label="ลากเพื่อย้าย">
-          <span className="w-[3px] h-[3px] rounded-full" style={{ background: "var(--dim)" }} />
-          <span className="w-[3px] h-[3px] rounded-full" style={{ background: "var(--dim)" }} />
-          <span className="w-[3px] h-[3px] rounded-full" style={{ background: "var(--dim)" }} />
-        </div>
-
-        <div className="relative w-[42px] h-[42px] shrink-0">
-          <svg width="42" height="42" viewBox="0 0 44 44" style={{ transform: "rotate(-90deg)" }}>
-            <circle cx="22" cy="22" r={17} stroke="rgba(120,180,255,.15)" strokeWidth="3.5" fill="none" />
-            <circle
-              cx="22"
-              cy="22"
-              r={17}
-              stroke="var(--cyan)"
-              strokeWidth="3.5"
-              fill="none"
-              strokeLinecap="round"
-              strokeDasharray={circ}
-              strokeDashoffset={circ * (1 - pct)}
-              style={{ transition: "stroke-dashoffset .3s linear", filter: "drop-shadow(0 0 5px color-mix(in srgb, var(--acc) 60%, transparent))" }}
-            />
-          </svg>
-          <span
-            className="absolute inset-0 flex items-center justify-center font-mono2 text-[10px] font-bold num-glow"
-            style={{ color: "var(--cyan)" }}
+        {/* แถบหัว = ที่จับสำหรับลากด้วย (ลากได้ทั้งใบอยู่แล้ว แต่หัวเป็นจุดที่นิ้วหาเจอง่ายสุด) */}
+        <div className="panel-head" style={{ marginBottom: 0 }}>
+          <span className="mark" />
+          <span className="font-mono2 text-[8.5px] uppercase tracking-[.28em] shrink-0" style={{ color: "#c9d6ff" }}>
+            Rest Timer
+          </span>
+          <span className="flex-1 min-w-[6px]" />
+          {label && (
+            <span className="font-mono2 text-[8.5px] max-w-[110px] truncate" style={{ color: "var(--dim)" }}>
+              {label}
+            </span>
+          )}
+          <button
+            className="ml-1.5 shrink-0 text-[13px] leading-none"
+            style={{ color: "var(--dim)", background: "none", border: "none", padding: "0 2px" }}
+            onClick={close}
+            aria-label="ปิด"
           >
-            {mins}:{String(remainingSec % 60).padStart(2, "0")}
-          </span>
+            ✕
+          </button>
         </div>
 
-        {label && (
-          <span className="font-mono2 text-[9.5px] max-w-[62px] truncate shrink" style={{ color: "var(--mut)" }}>
-            {label}
-          </span>
-        )}
+        <div className="px-3 pt-2.5 pb-3">
+          <div className="text-center">
+            <div className="font-mono2 text-[7.5px] tracking-[.3em]" style={{ color: "var(--dim)" }}>
+              REMAINING
+            </div>
+            <div className="font-mono2 font-bold text-[34px] leading-none mt-1 num-glow" style={{ color: "var(--ink)" }}>
+              {mins}:{String(remainingSec % 60).padStart(2, "0")}
+            </div>
+          </div>
 
-        <button className="btn-gh !py-2 !px-2 !text-[11px] font-mono2 shrink-0" onClick={subThirty}>
-          −30
-        </button>
-        <button className="btn-gh !py-2 !px-2 !text-[11px] font-mono2 shrink-0" onClick={addThirty}>
-          +30
-        </button>
-        <button className="btn-gh !py-2 !px-2.5 !text-[11px] font-mono2 shrink-0" onClick={togglePause}>
-          {running ? "❚❚" : "▶"}
-        </button>
-        <button
-          className="w-9 h-9 rounded-xl shrink-0 text-[14px] flex items-center justify-center"
-          style={{ color: "var(--mut)", background: "rgba(6,12,22,.5)", border: "1px solid var(--edge)" }}
-          onClick={close}
-        >
-          ✕
-        </button>
+          {/* แถบแบ่งช่อง 10 ช่อง — อ่านเป็น % ได้ทันทีโดยไม่ต้องคิดเลข */}
+          <div className="seg-bar mt-2.5">
+            {Array.from({ length: 10 }, (_, i) => (
+              <i key={i} className={i < Math.round(pct * 10) ? "on" : ""} />
+            ))}
+          </div>
+
+          <div className="flex gap-1.5 mt-2.5">
+            <button className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2" onClick={subThirty}>
+              −30
+            </button>
+            <button className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2" onClick={togglePause}>
+              {running ? "หยุด" : "ไปต่อ"}
+            </button>
+            <button className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2" onClick={addThirty}>
+              +30
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

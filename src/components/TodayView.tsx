@@ -342,22 +342,37 @@ export default function TodayView() {
         })}
       </div>
 
+      {/* วันพัก = โหมดสแตนด์บาย — กรอบประให้ดูเป็นสถานะที่ตั้งใจ
+          ไม่ใช่การ์ดเปล่าที่ดูเหมือนโหลดไม่ขึ้น */}
       {exs.length === 0 && (
-        <div className="glass text-center" style={{ padding: 26 }}>
-          <div className="text-[34px] mb-2">🌙</div>
-          <div className="font-disp font-semibold text-[16px]" style={{ color: "var(--ink)" }}>
-            วันนี้พัก
+        <div
+          className="text-center"
+          style={{
+            padding: "26px 18px",
+            border: "1px dashed color-mix(in srgb, var(--acc) 26%, transparent)",
+            background: "#070b1899",
+          }}
+        >
+          <div className="font-mono2 text-[9px] tracking-[.3em]" style={{ color: "var(--acc)" }}>
+            STANDBY
           </div>
-          <p className="text-[12.5px] mt-1.5 leading-relaxed" style={{ color: "var(--mut)" }}>
-            ให้กล้ามเนื้อได้ฟื้นตัว — เลือกวันอื่นด้านบนเพื่อดูตาราง
+          <div className="font-disp font-bold text-[19px] mt-2 tracking-wide" style={{ color: "var(--ink)" }}>
+            {slotName(data, day)} — พัก
+          </div>
+          <p className="text-[11.5px] mt-2 leading-relaxed" style={{ color: "var(--mut)" }}>
+            ฟื้นตัว · กินให้ถึงเป้า · นอนให้พอ
+          </p>
+          <p className="text-[10.5px] mt-1 leading-relaxed" style={{ color: "var(--dim)" }}>
+            เลือกวันอื่นด้านบนเพื่อดูตาราง
           </p>
         </div>
       )}
 
+      {/* ท่าที่กำลังเล่น = ท่าแรกที่ยังทำไม่ครบ — เน้นไว้ให้รู้ทันทีว่าอยู่ตรงไหน ไม่ต้องไล่หา */}
       {exs.map((ex) => {
         const cnt = doneCount(ex.id);
+        const isCurrent = !allDone && exs.find((e) => doneCount(e.id) < e.sets)?.id === ex.id;
         const complete = cnt >= ex.sets;
-        const partial = cnt > 0 && !complete;
         const open = openId === ex.id;
         const target = suggestTarget(data, ex);
         const firstWeight = draftFor(ex, 0).weight;
@@ -370,11 +385,17 @@ export default function TodayView() {
             style={
               complete
                 ? {
-                    borderColor: "color-mix(in srgb, var(--acc) 38%, transparent)",
-                    background: "linear-gradient(158deg, color-mix(in srgb, var(--acc) 10%, #0b1524), #070c18f2)",
-                    boxShadow: "inset 3px 0 0 0 var(--acc), 0 12px 34px #000000a6",
+                    borderColor: "color-mix(in srgb, var(--good) 30%, transparent)",
+                    background: "linear-gradient(158deg, color-mix(in srgb, var(--good) 7%, #0b1524), #070c18f2)",
+                    boxShadow: "inset 3px 0 0 0 var(--good), 0 12px 34px #000000a6",
                   }
-                : undefined
+                : isCurrent
+                  ? {
+                      borderColor: "color-mix(in srgb, var(--acc) 45%, transparent)",
+                      background: "linear-gradient(100deg, color-mix(in srgb, var(--acc) 13%, #0b1633), #070c18f2 62%)",
+                      boxShadow: "inset 3px 0 0 0 var(--acc), 0 12px 34px #000000a6",
+                    }
+                  : undefined
             }
           >
             <div className="w-full flex items-center gap-2 px-4 py-3.5">
@@ -385,9 +406,16 @@ export default function TodayView() {
                 {/* เลขลำดับท่า / ✓ เมื่อครบ — เลขบอกว่าอยู่ท่าที่เท่าไหร่ของวันโดยไม่ต้องนับเอง */}
                 <span
                   className="w-6 flex items-center justify-center text-[11px] font-mono2 font-bold shrink-0 transition-all"
-                  style={{ color: complete ? "var(--acc)" : partial ? "var(--acc)" : "var(--dim)", textShadow: complete ? "0 0 8px color-mix(in srgb, var(--acc) 75%, transparent)" : undefined }}
+                  style={{
+                    color: complete ? "var(--good)" : isCurrent ? "var(--acc)" : "var(--dim)",
+                    textShadow: complete
+                      ? "0 0 8px color-mix(in srgb, var(--good) 75%, transparent)"
+                      : isCurrent
+                        ? "0 0 8px color-mix(in srgb, var(--acc) 70%, transparent)"
+                        : undefined,
+                  }}
                 >
-                  {complete ? "✓" : partial ? cnt : String(exs.indexOf(ex) + 1).padStart(2, "0")}
+                  {complete ? "✓" : String(exs.indexOf(ex) + 1).padStart(2, "0")}
                 </span>
                 <span className="flex-1 min-w-0">
                   <b
@@ -399,6 +427,22 @@ export default function TodayView() {
                   <span className="flex items-center flex-wrap gap-1.5 mt-[5px]">
                     <span className="font-mono2 text-[9.5px]" style={{ color: "var(--acc)" }}>
                       {setNotation(ex)}
+                    </span>
+                    {/* จุดบอกเซต — เห็นว่าทำไปกี่เซตโดยไม่ต้องกางการ์ด ข้อมูลที่อยากรู้ที่สุดตอนอยู่ในยิม */}
+                    <span className="flex gap-[3px] items-center">
+                      {Array.from({ length: ex.sets }, (_, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            width: 6,
+                            height: 6,
+                            transform: "rotate(45deg)",
+                            background: i < cnt ? "var(--good)" : "#ffffff1f",
+                            boxShadow: i < cnt ? "0 0 6px color-mix(in srgb, var(--good) 80%, transparent)" : undefined,
+                            transition: "background .2s",
+                          }}
+                        />
+                      ))}
                     </span>
                     {ex.machine && (
                       <span className="font-mono2 text-[9.5px]" style={{ color: "var(--cyan-dim)" }}>

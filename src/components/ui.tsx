@@ -4,28 +4,16 @@ import { useApp } from "../AppContext";
 // หัวข้อย่อยสไตล์หน้าต่างระบบ — label mono เว้นระยะ + เส้นเรืองแสงลากไปจนสุดแถว
 // ใช้ซ้ำทุกสกรีน (Analyze/Progress/Manage/Today) ให้หน้าตาสอดคล้องกัน
 // เส้นลากยาวทำหน้าที่แทนเส้นคั่น จึงไม่ต้องมี divider แยกอีกชั้น
+// เรนเดอร์เป็น "แถบหัวหน้าต่าง" เต็มความกว้างการ์ด (ดันขอบออกด้วย margin ติดลบใน .panel-head)
+// การ์ดที่ padding ไม่ใช่ 16px ต้องตั้ง --card-pad เองที่ตัวการ์ด ไม่งั้นแถบจะไม่ชนขอบพอดี
 export function Kicker({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 mb-3 min-w-0">
-      {/* เพชรเรืองแสงนำหน้าหัวข้อ — เครื่องหมายประจำหัวข้อในหน้าต่างระบบ */}
-      <span
-        className="shrink-0"
-        style={{
-          width: 6,
-          height: 6,
-          background: "var(--acc)",
-          transform: "rotate(45deg)",
-          boxShadow: "0 0 7px var(--acc)",
-        }}
-      />
-      <span className="font-mono2 text-[9px] uppercase tracking-[.24em] shrink-0" style={{ color: "var(--acc)" }}>
+    <div className="panel-head">
+      <span className="mark" />
+      <span className="font-mono2 text-[8.5px] uppercase tracking-[.28em] shrink-0" style={{ color: "#c9d6ff" }}>
         {children}
       </span>
-      {/* เส้นคู่ — เส้นบนเรืองแสง เส้นล่างจาง ให้ความรู้สึกเป็นกรอบโฮโลแกรมสองชั้น */}
-      <span className="flex-1 min-w-[10px] flex flex-col gap-[2px]">
-        <span style={{ height: 1, background: "linear-gradient(90deg, color-mix(in srgb, var(--acc) 55%, transparent), transparent)" }} />
-        <span style={{ height: 1, background: "linear-gradient(90deg, color-mix(in srgb, var(--acc) 20%, transparent), transparent 60%)" }} />
-      </span>
+      <span className="flex-1 min-w-[6px]" />
       {right ?? null}
     </div>
   );

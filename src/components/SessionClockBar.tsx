@@ -35,7 +35,7 @@ export default function SessionClockBar({ day, isToday }: { day: DayKey; isToday
   const cuts = c.tight ? suggestCuts(data, day, c.neededMin - c.remainMin) : [];
 
   return (
-    <div className="glass p-3 mb-3">
+    <div className="glass p-3 mb-3" style={{ "--card-pad": "12px" } as React.CSSProperties}>
       <div className="flex items-baseline justify-between gap-2 mb-2">
         <span className="font-mono2 text-[9px] uppercase tracking-[.16em]" style={{ color: "var(--mut)" }}>
           เวลาในเซสชัน
