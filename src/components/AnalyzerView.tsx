@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { Recommendation } from "../lib/analyzer";
 import {
@@ -17,6 +17,7 @@ import { isPremium } from "../lib/premium";
 
 export default function AnalyzerView() {
   const { data, update, toast, goTab } = useApp();
+  const [showDetail, setShowDetail] = useState(false);
 
   const analysis = useMemo(() => analyzeProgram(data), [data]);
   const recommendations = useMemo(() => buildRecommendations(data, analysis), [data, analysis]);
@@ -38,6 +39,23 @@ export default function AnalyzerView() {
       : analysis.execution >= 50
         ? "var(--warn)"
         : "var(--bad)";
+  // สิ่งที่ตารางนี้ทำได้ดีอยู่แล้ว — อ่านจากผลวิเคราะห์ชุดเดียวกับที่ใช้หาจุดอ่อน
+  // ไม่ได้แต่งคำชมลอยๆ ทุกข้อมีเกณฑ์รองรับจริง
+  const strengths = useMemo(() => {
+    const out: string[] = [];
+    const onTarget = analysis.stats.filter((s) => s.status === "good");
+    if (onTarget.length >= 3)
+      out.push(`${onTarget.length} กลุ่มกล้ามเนื้อได้ปริมาณอยู่ในเป้าแล้ว (${onTarget.slice(0, 4).map((s) => MUSCLE_TH[s.muscle]).join(" · ")}${onTarget.length > 4 ? " ฯลฯ" : ""})`);
+    if (analysis.recovery.length === 0 && analysis.dayLoads.length > 1)
+      out.push("ไม่มีกล้ามเนื้อมัดไหนโดนหนักซ้ำเร็วเกินไป — ระยะฟื้นตัวจัดมาดีแล้ว");
+    if (analysis.breakdown.patterns >= 1) out.push("สมดุลดัน/ดึง และท่าบานพับสะโพกครบตามหลัก");
+    else if (analysis.breakdown.patterns >= 0.75) out.push("สมดุลรูปแบบการเคลื่อนไหวเกือบครบ ขาดแค่จุดเดียว");
+    if (analysis.dayLoads.length && analysis.dayLoads.every((d) => !d.overSets && !d.overTime))
+      out.push("ไม่มีวันไหนอัดเกินจนคุณภาพเซตท้ายตก");
+    if (analysis.breakdown.order >= 0.95) out.push("ลำดับท่าถูกหลัก — ท่าหนักมาก่อน ท่าเจาะจงปิดท้าย");
+    return out;
+  }, [analysis]);
+
   const circ = 2 * Math.PI * 34;
 
   return (
@@ -96,6 +114,24 @@ export default function AnalyzerView() {
           ระดับ: {EXPERIENCE_TH[getExperience(data)]} · เป้า {target.min}-{target.max} เซต · {timeCap} นาที/ครั้ง — แก้ได้
         </button>
       </div>
+
+      {/* ── จุดแข็งของตาราง ──
+          แสดงก่อนทุกอย่าง เพราะคนที่มีตารางของตัวเองอยู่แล้วเปิดหน้านี้มาแล้วเจอแต่
+          "ขาดนั่นขาดนี่" จะเลิกเชื่อทั้งหน้า ทั้งที่ส่วนใหญ่ของตารางเขาถูกต้องอยู่แล้ว
+          บอกสิ่งที่ทำได้ดีก่อน แล้วค่อยพูดถึงส่วนที่เหลือ */}
+      {premium && strengths.length > 0 && (
+        <div className="glass p-4 mb-3">
+          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--good)" }}>ผ่านเกณฑ์</span>}>
+            จุดแข็งของตาราง
+          </Kicker>
+          {strengths.map((t, i) => (
+            <div key={i} className="flex items-start gap-2 py-[3px] text-[12px]">
+              <span className="shrink-0 mt-[6px]" style={{ width: 5, height: 5, background: "var(--good)", transform: "rotate(45deg)", boxShadow: "0 0 6px var(--good)" }} />
+              <span style={{ color: "var(--ink)" }}>{t}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── ปัญหาที่แก้ด้วยตารางนี้ไม่ได้ (แสดงก่อนคำแนะนำ เพราะเป็นต้นเหตุจริง) ── */}
       {premium && analysis.blockedInsights.length > 0 && (
@@ -176,7 +212,19 @@ export default function AnalyzerView() {
         </div>
       )}
 
+      {/* ── รายละเอียดเชิงลึก — ยุบไว้ ──
+          คนที่มีตารางของตัวเองอยู่แล้วไม่ได้เปิดหน้านี้มาเพื่อโดนไล่ตรวจทีละหมวด
+          ค่าพวกนี้มีประโยชน์ตอน "อยากรู้จริงๆ" เท่านั้น จึงให้กดเปิดเอง ไม่ยัดใส่หน้าแรก */}
       {premium && (
+        <button
+          className="btn-gh w-full !py-2.5 !text-[12px] mb-3"
+          onClick={() => setShowDetail((v) => !v)}
+        >
+          {showDetail ? "ซ่อนรายละเอียดเชิงลึก" : "ดูรายละเอียดเชิงลึก (ปริมาณ · ภาระต่อวัน · สมดุลท่า)"}
+        </button>
+      )}
+
+      {premium && showDetail && (
         <div className="glass p-4 mb-3">
           <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>เป้า {target.min}-{target.max}</span>}>
             รายละเอียดต่อกล้ามเนื้อ
@@ -216,7 +264,7 @@ export default function AnalyzerView() {
       )}
 
       {/* ── ภาระแต่ละวัน ── */}
-      {premium && analysis.dayLoads.length > 0 && (
+      {premium && showDetail && analysis.dayLoads.length > 0 && (
         <div className="glass p-4 mb-3">
           <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>เพดาน {maxSets} เซต / {timeCap} นาที</span>}>
             ภาระแต่ละวันฝึก
@@ -260,7 +308,7 @@ export default function AnalyzerView() {
       )}
 
       {/* ── สมดุลรูปแบบการเคลื่อนไหว ── */}
-      {premium && analysis.patterns.length > 0 && (
+      {premium && showDetail && analysis.patterns.length > 0 && (
         <div className="glass p-4 mb-3">
           <Kicker>สมดุลรูปแบบการเคลื่อนไหว</Kicker>
           <p className="text-[11px] -mt-1 mb-2.5" style={{ color: "var(--mut)" }}>
@@ -283,7 +331,7 @@ export default function AnalyzerView() {
       )}
 
       {/* ── จุดที่ตรวจพบ ── */}
-      {premium && analysis.issues.length > 0 && (
+      {premium && showDetail && analysis.issues.length > 0 && (
         <div className="glass p-4 mb-3">
           <Kicker>จุดที่ตรวจพบ</Kicker>
           {analysis.issues.slice(0, 8).map((issue, i) => (
@@ -298,8 +346,8 @@ export default function AnalyzerView() {
       {/* ── คำแนะนำที่ผ่านตัวกรองแล้วเท่านั้น ── */}
       {premium && recommendations.length > 0 && (
         <div className="glass p-4">
-          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>ผ่านตัวกรองแล้ว</span>}>
-            คำแนะนำที่ทำได้จริง
+          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>ไม่ทำก็ได้</span>}>
+            ถ้าอยากปรับเพิ่ม
           </Kicker>
           <p className="text-[11px] -mt-1 mb-2" style={{ color: "var(--dim)" }}>
             ตรวจอุปกรณ์ · เวลา · เพดานเซต · ระยะฟื้นตัว ครบทุกข้อแล้ว

@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { haptics } from "../lib/haptics";
 import { playRestDone, unlockAudio } from "../lib/sound";
+import { Icon } from "./ui";
 
 export interface RestTimerHandle {
   start(sec: number, label?: string): void;
@@ -261,11 +262,11 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className="glass edge-glow rise pointer-events-auto touch-none w-full max-w-[300px]"
-        style={{ transform: `translate(${pos.dx}px, ${pos.dy}px)`, cursor: "grab", "--card-pad": "11px" } as React.CSSProperties}
+        className="glass edge-glow no-brackets rise pointer-events-auto touch-none w-full max-w-[300px]"
+        style={{ transform: `translate(${pos.dx}px, ${pos.dy}px)`, cursor: "grab" }}
       >
         {/* แถบหัว = ที่จับสำหรับลากด้วย (ลากได้ทั้งใบอยู่แล้ว แต่หัวเป็นจุดที่นิ้วหาเจอง่ายสุด) */}
-        <div className="panel-head" style={{ marginBottom: 0 }}>
+        <div className="panel-head flush">
           <span className="mark" />
           <span className="font-mono2 text-[8.5px] uppercase tracking-[.28em] shrink-0" style={{ color: "#c9d6ff" }}>
             Rest Timer
@@ -277,12 +278,12 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
             </span>
           )}
           <button
-            className="ml-1.5 shrink-0 text-[13px] leading-none"
-            style={{ color: "var(--dim)", background: "none", border: "none", padding: "0 2px" }}
+            className="ml-1.5 shrink-0 flex items-center"
+            style={{ color: "var(--dim)", background: "none", border: "none", padding: "2px 2px" }}
             onClick={close}
-            aria-label="ปิด"
+            aria-label="ปิดตัวจับเวลา"
           >
-            ✕
+            <Icon name="close" size={11} />
           </button>
         </div>
 
@@ -307,7 +308,11 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
             <button className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2" onClick={subThirty}>
               −30
             </button>
-            <button className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2" onClick={togglePause}>
+            <button
+              className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2 flex items-center justify-center gap-1.5"
+              onClick={togglePause}
+            >
+              <Icon name={running ? "pause" : "play"} size={10} />
               {running ? "หยุด" : "ไปต่อ"}
             </button>
             <button className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2" onClick={addThirty}>

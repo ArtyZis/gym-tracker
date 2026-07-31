@@ -13,13 +13,12 @@ import {
   todayStr,
 } from "../lib/store";
 import ExercisePicker from "./ExercisePicker";
+import { Icon } from "./ui";
 import { plateText, restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progression";
 import { haptics } from "../lib/haptics";
 import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
 import { isPremium } from "../lib/premium";
 import { findTemplate } from "../lib/exerciseDB";
-import SessionClockBar from "./SessionClockBar";
-import { sessionClock } from "../lib/session";
 import { activeDays, isLoop, slotName, slotShort, todaySlot } from "../lib/loop";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
@@ -95,8 +94,6 @@ export default function TodayView() {
     [data, day],
   );
 
-  // นาฬิกาเซสชัน — ใช้โชว์เวลาที่มี/เวลาที่เหลือในหัวการ์ด
-  const clock = useMemo(() => sessionClock(data, day), [data, day]);
 
   function draftFor(ex: Exercise, idx: number): Draft {
     const key = ex.id + "_" + idx;
@@ -234,7 +231,7 @@ export default function TodayView() {
           </div>
           <p className="text-[12px] mt-1.5" style={{ color: "var(--mut)" }}>
             {exs.length
-              ? `${exs.length} ท่า · ${totalSets} เซต${clock ? ` · เวลาที่มี ${clock.capMin} นาที` : ""}`
+              ? `${exs.length} ท่า · ${totalSets} เซต`
               : "พักฟื้นกล้ามเนื้อ"}
           </p>
 
@@ -250,13 +247,7 @@ export default function TodayView() {
                   {doneSets} / {totalSets} เซต
                 </span>
                 <span style={{ color: volume > 0 ? "var(--acc)" : undefined }}>
-                  {clock && clock.startedAt != null
-                    ? clock.remainMin >= 0
-                      ? `เหลือ ${clock.remainMin} นาที`
-                      : `เลยมา ${-clock.remainMin} นาที`
-                    : volume > 0
-                      ? `ยกไปแล้ว ${volume.toLocaleString()} kg`
-                      : ""}
+                  {volume > 0 ? `ยกไปแล้ว ${volume.toLocaleString()} kg` : ""}
                 </span>
               </div>
             </>
@@ -297,14 +288,16 @@ export default function TodayView() {
                 </button>
               ))}
             </div>
-            <button className="btn-cy !py-2.5 !px-3.5 !text-[11px] font-mono2 shrink-0" onClick={() => rest.current?.start(restSec)}>
-              ▶
+            <button
+              className="btn-cy !py-2.5 !px-4 shrink-0 flex items-center justify-center"
+              onClick={() => rest.current?.start(restSec)}
+              aria-label="เริ่มจับเวลาพัก"
+            >
+              <Icon name="play" size={11} />
             </button>
           </div>
         )}
       </div>
-
-      <SessionClockBar day={day} isToday={isToday} />
 
       <div className="flex gap-1.5 mb-3">
         {activeDays(data).map((d) => {

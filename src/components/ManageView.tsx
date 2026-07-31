@@ -551,9 +551,6 @@ function TrainingSettingsCard() {
   const soundOn = data.settings.soundEnabled !== false;
   const smartOn = data.settings.smartRest !== false;
   const tierS = data.settings.tierSOnly === true;
-  // ค่าเริ่มต้นปิด — เดิมเปิดอัตโนมัติถ้าตั้งช่องเวลารายวันไว้ แต่ถอดฟีเจอร์นั้นออกแล้ว
-  // เปิดเองได้ตรงนี้ จะใช้เพดานเวลาต่อครั้งจากตั้งค่าการฝึกแทน
-  const clockOn = data.settings.sessionClock === true;
   return (
     <div className="glass p-4 mb-3">
       <Kicker>ตั้งค่าการฝึก</Kicker>
@@ -588,17 +585,6 @@ function TrainingSettingsCard() {
             d.settings.tierSOnly = !tierS;
           });
           toast(tierS ? "กลับไปเสนอทุกท่า" : "เน้นท่า tier S แล้ว");
-        }}
-      />
-      <ToggleRow
-        label="นาฬิกาเซสชัน"
-        desc="แถบบอกเวลาที่ใช้ไป/เหลือในแท็บวันนี้ และเตือนเมื่อเวลาไม่พอเล่นให้ครบ (ต้องตั้งเวลาเข้ายิมรายวันก่อน)"
-        on={clockOn}
-        onToggle={() => {
-          update((d) => {
-            d.settings.sessionClock = !clockOn;
-          });
-          toast(clockOn ? "ปิดนาฬิกาเซสชัน" : "เปิดนาฬิกาเซสชัน");
         }}
       />
     </div>

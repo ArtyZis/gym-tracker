@@ -19,6 +19,31 @@ export function Kicker({ children, right }: { children: ReactNode; right?: React
   );
 }
 
+// ── ไอคอน SVG ──
+// ห้ามใช้อักขระอย่าง ▶ ✕ ❚❚ เป็นปุ่ม — iOS เรนเดอร์เป็นอิโมจิสี ทำให้หลุดธีมทันที
+// (บนวินโดวส์/แอนดรอยด์ออกมาเป็นตัวอักษรปกติ เลยไม่เห็นปัญหาตอนพัฒนา)
+export function Icon({ name, size = 12 }: { name: "play" | "pause" | "close"; size?: number }) {
+  const common = { width: size, height: size, viewBox: "0 0 12 12", "aria-hidden": true } as const;
+  if (name === "play")
+    return (
+      <svg {...common}>
+        <path d="M2.5 1.5 10 6l-7.5 4.5z" fill="currentColor" />
+      </svg>
+    );
+  if (name === "pause")
+    return (
+      <svg {...common}>
+        <rect x="2.5" y="1.5" width="2.6" height="9" fill="currentColor" />
+        <rect x="6.9" y="1.5" width="2.6" height="9" fill="currentColor" />
+      </svg>
+    );
+  return (
+    <svg {...common}>
+      <path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // ครอบเนื้อหาที่ต้องจ่ายเงิน — เบลอของจริงไว้ข้างหลังแทนที่จะซ่อน
 // ให้เห็นว่ามีของอยู่จริง (คนตัดสินใจจ่ายจากการเห็นว่าขาดอะไร ไม่ใช่จากคำโฆษณา)
 export function PremiumLock({ label, children }: { label: string; children: ReactNode }) {

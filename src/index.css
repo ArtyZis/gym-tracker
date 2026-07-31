@@ -163,6 +163,13 @@ body::after {
   border-bottom: 1px solid color-mix(in srgb, var(--acc) 20%, transparent);
 }
 
+/* สำหรับการ์ดที่ "ไม่มี padding" (เนื้อหาข้างในจัด padding เอง เช่นตัวจับเวลา)
+   ต้องไม่ดันขอบด้วย margin ติดลบ ไม่งั้นแถบหัวจะล้นออกนอกกรอบไปทับเนื้อหา */
+.panel-head.flush {
+  margin: 0;
+  padding: 8px 12px;
+}
+
 /* หัวลูกศรนำหน้าหัวข้อ — แทนเพชรเดิม ชี้ทิศทางการอ่านชัดกว่า */
 .panel-head .mark {
   width: 0;
