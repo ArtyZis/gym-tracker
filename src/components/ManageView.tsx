@@ -81,8 +81,13 @@ export default function ManageView() {
         )}
         {draft && (
           <div className="glass-inset p-3.5 mt-1">
-            {/* ค้นจากคลังท่าแล้วกรอกฟอร์มให้ทั้งชุด — ไม่ต้องมานั่งเดาว่าท่านี้ควรกี่เซตกี่เรป */}
-            {!editingId && <ExerciseSearchField onPick={(patch) => setDraft({ ...draft, ...patch })} />}
+            {/* ค้นจากคลังท่าแล้วกรอกฟอร์มให้ทั้งชุด — ไม่ต้องมานั่งเดาว่าท่านี้ควรกี่เซตกี่เรป
+                ตอนแก้ไขก็ใช้ได้เหมือนตอนเพิ่ม (เดิมซ่อนไว้) เพราะการ "เปลี่ยนเป็นท่าอื่น"
+                เป็นสิ่งที่ทำบ่อยกว่าการแก้ตัวเลขของท่าเดิมเสียอีก
+                แต่คงวันกับ id เดิมไว้ ไม่งั้นท่าเด้งไปวันอื่นและประวัติหลุด */}
+            <ExerciseSearchField
+              onPick={(patch) => setDraft({ ...draft, ...patch, day: draft.day, id: draft.id, order: draft.order })}
+            />
 
             <FieldLabel>ชื่อท่า</FieldLabel>
             <input
@@ -542,6 +547,12 @@ export default function ManageView() {
           ลบทั้งหมดให้ว่างเปล่า
         </button>
       </div>
+
+      {/* เวอร์ชันที่กำลังใช้อยู่ — PWA อาจค้างเวอร์ชันเก่าไว้โดยผู้ใช้ไม่รู้ตัว
+          มีตัวเลขให้ดูจะได้ตรวจได้ว่าที่เห็นตรงกับที่เพิ่ง deploy ไปไหม */}
+      <p className="text-center font-mono2 text-[9px] mt-4 mb-1" style={{ color: "var(--dim)" }}>
+        GYM TRACKER v{__APP_VERSION__} · build {__BUILD_DATE__}
+      </p>
     </div>
   );
 }

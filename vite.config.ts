@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import pkg from "./package.json";
 
 // build 2 รุ่นจากซอร์สชุดเดียว:
 //   npm run build      -> รุ่นส่วนตัว (ARTYZ) ออกที่ dist/
@@ -14,6 +15,12 @@ export default defineConfig(({ mode }) => {
     // ถ้าใช้ "/" แบบเดิม เปิดบน GitHub Pages จะจอขาวเพราะหา assets ไม่เจอ
     base: "./",
     build: { outDir: pro ? "dist-pro" : "dist" },
+    // เวอร์ชันจาก package.json + วันที่ build — ใช้บอกว่าเครื่องนี้กำลังใช้ตัวไหนอยู่
+    // สำคัญกับ PWA เพราะ Service Worker อาจค้างเวอร์ชันเก่าไว้โดยผู้ใช้ไม่รู้ตัว
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+      __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    },
     plugins: [
       react(),
       VitePWA({

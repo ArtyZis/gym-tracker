@@ -8,6 +8,7 @@ import StreakCard from "./StreakCard";
 import BodyCompCard from "./BodyCompCard";
 import { Kicker } from "./ui";
 import { isPremium } from "../lib/premium";
+import SessionHistoryCard from "./SessionHistoryCard";
 
 // อัตราส่วนน้ำหนักที่ยกได้ต่อน้ำหนักตัว: [เริ่มต้น, กลาง, สูง]
 const STRENGTH_STANDARDS: Record<string, { ratios: [number, number, number] }> = {
@@ -74,6 +75,8 @@ export default function ProgressView() {
 
   return (
     <div className="rise">
+      <SessionHistoryCard />
+
       <StreakCard />
 
       <div className="glass p-4 mb-3">

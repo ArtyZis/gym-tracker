@@ -165,6 +165,9 @@ export interface Data {
   nutritionLog?: NutritionDay[];
   // ภาระแรกของวัน ("HH:MM" เช่นเข้าเรียน 08:00) — ใช้คำนวณเวลาที่ควรเข้านอนคืนก่อนหน้า
   dayFirstCommitment?: Partial<Record<DayKey, string>>;
+  // โน้ตประจำวัน — key = วันที่ (YYYY-MM-DD) ผูกกับวันจริงไม่ใช่ช่องวัน
+  // จึงย้อนดูได้ถูกต้องทั้งโหมดสัปดาห์และโหมดรอบ และไม่เพี้ยนเวลาย้าย/สลับวัน
+  dayNotes?: Record<string, string>;
   // ตารางแบบรอบ (loop) — หมุนเวียนเป็นรอบแทนที่จะผูกกับวันในสัปดาห์
   // len = ความยาวรอบ (2-7 วัน) · anchor = วันที่ (YYYY-MM-DD) ที่เป็น "วันที่ 1" ของรอบ
   // ไม่มี = โหมดสัปดาห์ปกติ (ค่าเดิมของระบบ) ดูรายละเอียดที่ lib/loop.ts
@@ -268,6 +271,99 @@ const STORAGE_KEY = "gymtracker_v1";
 // plain object จริง ไม่ใช่ array/null (typeof null === "object" ต้องกันด้วย)
 const isObj = (v: any): v is Record<string, any> => !!v && typeof v === "object" && !Array.isArray(v);
 
+// ══════════ ตัวตรวจรายการย่อย ══════════
+//
+// normalizeData เดิมตรวจแค่ "ก้อนใหญ่" (exercises เป็น array ไหม) แต่ไม่ตรวจของข้างใน
+// ซึ่งเปิดช่องให้ payload ที่จงใจทำพังเล่นงานได้จริง — ทดสอบแล้วเจอ:
+//   exercises: [null]        -> อ่าน .day ของ null แล้ว crash ทั้งแอป
+//   swaps: "PWNED"           -> Object.entries(undefined) แล้ว crash
+//   sets: 1e9                -> เรนเดอร์จุดบอกเซตพันล้านจุด เบราว์เซอร์ค้าง (DoS)
+//   sets: "9"                -> บวกแบบสตริงได้ "09" ตัวเลขทั้งหน้าเพี้ยน
+//   dayLabels.mon: {}        -> React โยน "Objects are not valid as a React child"
+//
+// ทางเข้าของข้อมูลนอกระบบมี 2 ทาง: localStorage (เสียเองหรือถูกแก้) และโค้ดย้ายข้อมูล
+// ที่ผู้ใช้รับมาจากคนอื่น ทางหลังคือทางที่คนอื่นส่ง payload มาให้เราได้โดยตรง
+//
+// หลัก: ทิ้งเฉพาะ "รายการที่พัง" ไม่ทิ้งทั้งก้อน — ข้อมูลที่ถูกต้องต้องรอดเสมอ
+
+const MAX_EXERCISES = 500; // มากกว่านี้ไม่ใช่การใช้งานจริง แต่ทำให้ทุกหน้าช้า
+const MAX_NAME_LEN = 200;
+const MAX_SETS = 50;
+const MAX_REPS = 9999;
+
+const num = (v: any, lo: number, hi: number, dflt: number): number =>
+  typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
+
+const str = (v: any, max = MAX_NAME_LEN): string => (typeof v === "string" ? v.slice(0, max) : "");
+
+const VALID_TYPES: ExType[] = ["weight", "bodyweight", "time"];
+
+// คืน null ถ้าซ่อมไม่ได้ (ผู้เรียกต้องกรองทิ้ง)
+function cleanExercise(e: any): Exercise | null {
+  if (!isObj(e)) return null;
+  const id = str(e.id, 120);
+  const name = str(e.name);
+  if (!id || !name) return null; // ไม่มี id = จับคู่ประวัติไม่ได้ · ไม่มีชื่อ = แสดงผลไม่ได้
+  if (!DAYS.includes(e.day)) return null;
+  const out: Exercise = {
+    id,
+    name,
+    day: e.day,
+    type: VALID_TYPES.includes(e.type) ? e.type : "weight",
+    sets: Math.round(num(e.sets, 1, MAX_SETS, 3)),
+    rmin: Math.round(num(e.rmin, 0, MAX_REPS, 8)),
+    rmax: Math.round(num(e.rmax, 0, MAX_REPS, 12)),
+  };
+  if (e.inc !== undefined) out.inc = num(e.inc, 0.01, 1000, 2.5);
+  if (e.unit !== undefined) out.unit = str(e.unit, 20);
+  if (e.amrap !== undefined) out.amrap = !!e.amrap;
+  if (e.order !== undefined) out.order = num(e.order, -1e6, 1e6, 0);
+  if (e.restSec !== undefined) out.restSec = Math.round(num(e.restSec, 0, 3600, 90));
+  if (e.machine !== undefined) out.machine = !!e.machine;
+  if (e.barKg !== undefined) out.barKg = num(e.barKg, 0, 500, 20);
+  if (e.seededTarget !== undefined) out.seededTarget = num(e.seededTarget, 0, 100000, 0);
+  return out;
+}
+
+const cleanExercises = (arr: any): Exercise[] =>
+  (Array.isArray(arr) ? arr : []).slice(0, MAX_EXERCISES).map(cleanExercise).filter((x): x is Exercise => x !== null);
+
+function cleanSetLog(s: any): SetLog | null {
+  if (s === null || s === undefined) return null; // เซตที่ยังไม่ติ๊ก — ค่าปกติ ไม่ใช่ของพัง
+  if (!isObj(s)) return null;
+  const out: SetLog = {};
+  if (s.weight !== undefined) out.weight = num(s.weight, 0, 100000, 0);
+  if (s.reps !== undefined) out.reps = Math.round(num(s.reps, 0, MAX_REPS, 0));
+  if (s.duration !== undefined) out.duration = Math.round(num(s.duration, 0, 86400, 0));
+  if (s.at !== undefined) out.at = num(s.at, 0, 4e12, 0);
+  return out;
+}
+
+const cleanSessions = (arr: any): SessionLog[] =>
+  (Array.isArray(arr) ? arr : [])
+    .filter((s: any) => isObj(s) && typeof s.date === "string" && Array.isArray(s.sets))
+    .map((s: any) => ({ date: s.date.slice(0, 32), sets: s.sets.slice(0, MAX_SETS).map(cleanSetLog) }));
+
+// ชื่อวันต้องเป็นสตริงเสมอ — ถ้าเป็น object แล้วเอาไปวางใน JSX React จะโยนทิ้งทั้งหน้า
+function cleanDayLabels(m: any): Record<DayKey, string> {
+  const out = { ...DEFAULT_DAY_LABELS };
+  if (!isObj(m)) return out;
+  for (const k of DAYS) if (typeof m[k] === "string") out[k] = m[k].slice(0, 60);
+  return out;
+}
+
+function cleanHistoryMap(m: any): Record<string, SessionLog[]> {
+  if (!isObj(m)) return {};
+  const out: Record<string, SessionLog[]> = {};
+  for (const k of Object.keys(m)) {
+    // กัน prototype pollution ผ่านคีย์ที่ตั้งชื่อพิเศษ (JSON.parse ไม่ตั้ง proto ให้ แต่ Object.assign ทำได้)
+    if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+    const sessions = cleanSessions(m[k]);
+    if (sessions.length) out[k] = sessions;
+  }
+  return out;
+}
+
 // เติมค่า default + ตรวจ "ชนิด" ของทุกฟิลด์ — จุดเดียวที่ข้อมูลนอกระบบ (localStorage + โค้ดกู้คืน) ผ่านเข้ามา
 // ต้องแกร่งพอกัน payload ที่จงใจทำ shape พัง (เช่น exercises เป็น string) ไม่ให้แอป crash/ข้อมูลเสีย
 // ห้ามทำให้ข้อมูลเดิมที่ถูกต้องหาย
@@ -277,14 +373,47 @@ export function normalizeData(d: any): Data | null {
   if (!isObj(d.settings)) d.settings = { autoRest: true, restDefault: 90, barWeight: 20 };
   if (typeof d.settings.restDefault !== "number") d.settings.restDefault = 90;
   if (typeof d.settings.barWeight !== "number") d.settings.barWeight = 20;
-  // containers ต้องตรงชนิด ไม่งั้น .filter/.map/Object.values จะพังตอน render
-  if (!isObj(d.history)) d.history = {};
-  else for (const k of Object.keys(d.history)) if (!Array.isArray(d.history[k])) delete d.history[k];
-  if (!Array.isArray(d.bodyweight)) d.bodyweight = [];
-  if (!Array.isArray(d.bodyScans)) d.bodyScans = [];
-  if (!Array.isArray(d.savedPrograms)) d.savedPrograms = [];
-  if (!isObj(d.historyArchive)) d.historyArchive = {};
-  if (!isObj(d.dayLabels)) d.dayLabels = { ...DEFAULT_DAY_LABELS };
+  d.settings.restDefault = num(d.settings.restDefault, 5, 3600, 90);
+  d.settings.barWeight = num(d.settings.barWeight, 0, 500, 20);
+  if (d.settings.accent !== undefined && typeof d.settings.accent !== "string") d.settings.accent = undefined;
+
+  // ตรวจ "ของข้างใน" ไม่ใช่แค่ชนิดของก้อน — ดูเหตุผลที่ cleanExercise
+  d.exercises = cleanExercises(d.exercises);
+  d.history = cleanHistoryMap(d.history);
+  d.historyArchive = cleanHistoryMap(d.historyArchive);
+
+  d.bodyweight = (Array.isArray(d.bodyweight) ? d.bodyweight : [])
+    .filter((e: any) => isObj(e) && typeof e.date === "string" && typeof e.kg === "number" && Number.isFinite(e.kg))
+    .map((e: any) => ({ date: e.date.slice(0, 32), kg: num(e.kg, 0, 1000, 0) }));
+
+  d.bodyScans = (Array.isArray(d.bodyScans) ? d.bodyScans : [])
+    .filter((e: any) => isObj(e) && typeof e.date === "string")
+    .map((e: any) => {
+      const o: BodyScan = { date: e.date.slice(0, 32) };
+      if (typeof e.weightKg === "number") o.weightKg = num(e.weightKg, 0, 1000, 0);
+      if (typeof e.fatPct === "number") o.fatPct = num(e.fatPct, 0, 100, 0);
+      if (typeof e.muscleKg === "number") o.muscleKg = num(e.muscleKg, 0, 1000, 0);
+      return o;
+    });
+
+  d.savedPrograms = (Array.isArray(d.savedPrograms) ? d.savedPrograms : [])
+    .filter((p: any) => isObj(p) && typeof p.id === "string")
+    .slice(0, 100)
+    .map((p: any) => ({
+      id: str(p.id, 120),
+      name: str(p.name) || "โปรแกรม",
+      savedAt: str(p.savedAt, 40),
+      exercises: cleanExercises(p.exercises),
+      dayLabels: cleanDayLabels(p.dayLabels),
+    }));
+
+  d.dayLabels = cleanDayLabels(d.dayLabels);
+
+  // swaps ต้องเป็น object ที่มี map เป็น object จริง ไม่งั้น activeSwapMap จะพังตอนอ่าน
+  if (d.swaps !== undefined) {
+    if (!isObj(d.swaps) || typeof d.swaps.date !== "string" || !isObj(d.swaps.map)) d.swaps = undefined;
+    else if (d.swaps.extras !== undefined && !Array.isArray(d.swaps.extras)) d.swaps.extras = undefined;
+  }
   // ฟิลด์ใหม่ที่เพิ่มทีหลัง — ชนิดผิดให้ทิ้งไป ระบบจะกลับไปใช้ค่า default เอง
   if (d.profile !== undefined && !isObj(d.profile)) d.profile = undefined;
   if (d.profile && !Array.isArray(d.profile.injuries)) d.profile.injuries = undefined;
@@ -307,6 +436,16 @@ export function normalizeData(d: any): Data | null {
   if (d.dayFirstCommitment !== undefined && !isObj(d.dayFirstCommitment)) d.dayFirstCommitment = undefined;
   else if (d.dayFirstCommitment)
     for (const k of Object.keys(d.dayFirstCommitment)) if (typeof d.dayFirstCommitment[k] !== "string") delete d.dayFirstCommitment[k];
+  // โน้ตรายวัน — คีย์ต้องเป็นวันที่ ค่าต้องเป็นสตริง (จำกัดความยาวกัน payload ยักษ์)
+  if (!isObj(d.dayNotes)) d.dayNotes = undefined;
+  else {
+    const notes: Record<string, string> = {};
+    for (const k of Object.keys(d.dayNotes)) {
+      if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+      if (typeof d.dayNotes[k] === "string" && d.dayNotes[k].trim()) notes[k.slice(0, 32)] = d.dayNotes[k].slice(0, 2000);
+    }
+    d.dayNotes = Object.keys(notes).length ? notes : undefined;
+  }
   // ตารางแบบรอบ — ค่าพัง/ช่วงผิดถือว่าไม่ได้เปิดใช้ กลับไปโหมดสัปดาห์ปกติ (ปลอดภัยกว่าเดา)
   if (d.loop !== undefined) {
     const ok =

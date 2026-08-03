@@ -14,6 +14,7 @@ import {
 } from "../lib/store";
 import ExercisePicker from "./ExercisePicker";
 import { Icon } from "./ui";
+import DayNote from "./DayNote";
 import { plateText, restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progression";
 import { haptics } from "../lib/haptics";
 import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
@@ -360,6 +361,8 @@ export default function TodayView() {
           </p>
         </div>
       )}
+
+      {isToday && exs.length > 0 && <DayNote />}
 
       {/* ท่าที่กำลังเล่น = ท่าแรกที่ยังทำไม่ครบ — เน้นไว้ให้รู้ทันทีว่าอยู่ตรงไหน ไม่ต้องไล่หา */}
       {exs.map((ex) => {
