@@ -22,7 +22,7 @@ export function Kicker({ children, right }: { children: ReactNode; right?: React
 // ── ไอคอน SVG ──
 // ห้ามใช้อักขระอย่าง ▶ ✕ ❚❚ เป็นปุ่ม — iOS เรนเดอร์เป็นอิโมจิสี ทำให้หลุดธีมทันที
 // (บนวินโดวส์/แอนดรอยด์ออกมาเป็นตัวอักษรปกติ เลยไม่เห็นปัญหาตอนพัฒนา)
-export function Icon({ name, size = 12 }: { name: "play" | "pause" | "close"; size?: number }) {
+export function Icon({ name, size = 12 }: { name: "play" | "pause" | "close" | "trash"; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 12 12", "aria-hidden": true } as const;
   if (name === "play")
     return (
@@ -35,6 +35,19 @@ export function Icon({ name, size = 12 }: { name: "play" | "pause" | "close"; si
       <svg {...common}>
         <rect x="2.5" y="1.5" width="2.6" height="9" fill="currentColor" />
         <rect x="6.9" y="1.5" width="2.6" height="9" fill="currentColor" />
+      </svg>
+    );
+  if (name === "trash")
+    return (
+      <svg {...common}>
+        <path
+          d="M2.5 3.2h7M5 3.2V2h2v1.2M3.4 3.2l.5 6.4h4.2l.5-6.4M5.2 5v3M6.8 5v3"
+          stroke="currentColor"
+          strokeWidth="1.1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
       </svg>
     );
   return (

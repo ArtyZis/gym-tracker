@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../AppContext";
 import { todayStr } from "../lib/store";
+import { Icon } from "./ui";
 
 const SAVE_DELAY_MS = 400;
 
@@ -51,10 +52,18 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
     if (text.trim().slice(0, 2000) !== saved) write(text);
   };
 
+  const remove = () => {
+    window.clearTimeout(timer.current);
+    setText("");
+    setOpen(false);
+    if (saved) write("");
+  };
+
+  // ปิดช่องแล้วโน้ตยังอยู่ — ปุ่มจะเปลี่ยนเป็น "ดู/แก้โน้ต" ให้รู้ว่ามีของอยู่
   if (!open)
     return (
       <button className="btn-gh w-full !py-2.5 !text-[12px] mb-2.5" onClick={() => setOpen(true)}>
-        + เพิ่มโน้ตของวันนี้
+        {saved ? "ดู / แก้โน้ตของวันนี้" : "+ เพิ่มโน้ตของวันนี้"}
       </button>
     );
 
@@ -69,6 +78,31 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
         <span className="font-mono2 text-[8.5px]" style={{ color: "var(--dim)" }}>
           {text.length}/2000
         </span>
+        {/* ลบโน้ตของวันนี้ทิ้ง — ถามยืนยันก่อนเพราะกู้กลับไม่ได้ */}
+        {saved && (
+          <button
+            className="ml-2 shrink-0 flex items-center"
+            style={{ color: "var(--bad)", background: "none", border: "none", padding: "2px" }}
+            aria-label="ลบโน้ตของวันนี้"
+            onClick={() => {
+              if (confirm("ลบโน้ตของวันนี้? กู้กลับไม่ได้")) remove();
+            }}
+          >
+            <Icon name="trash" size={12} />
+          </button>
+        )}
+        {/* ปิดช่องพิมพ์ — โน้ตที่บันทึกไว้ยังอยู่ */}
+        <button
+          className="ml-1.5 shrink-0 flex items-center"
+          style={{ color: "var(--dim)", background: "none", border: "none", padding: "2px" }}
+          aria-label="ปิดช่องพิมพ์โน้ต"
+          onClick={() => {
+            commit();
+            setOpen(false);
+          }}
+        >
+          <Icon name="close" size={11} />
+        </button>
       </div>
       <textarea
         className="w-full px-3 py-2.5 text-[13px] leading-relaxed"
@@ -80,7 +114,7 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
         onBlur={commit}
       />
       <p className="text-[10.5px] mt-1.5 leading-relaxed" style={{ color: "var(--dim)" }}>
-        บันทึกอัตโนมัติระหว่างพิมพ์ · ย้อนดูได้ที่แท็บก้าวหน้า
+        บันทึกอัตโนมัติระหว่างพิมพ์ · ปิดช่องได้โดยโน้ตไม่หาย · ย้อนดูได้ที่แท็บก้าวหน้า
       </p>
     </div>
   );

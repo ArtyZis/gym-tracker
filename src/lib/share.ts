@@ -218,3 +218,162 @@ export async function shareWeeklyCard(data: Data): Promise<"shared" | "downloade
     return "failed";
   }
 }
+
+// ══════════ การ์ดสถิติสูงสุด + แรงค์ ══════════
+//
+// ต่างจากการ์ดสรุปสัปดาห์: อันนั้นบอก "สัปดาห์นี้ทำอะไรไป" อันนี้บอก "ตอนนี้แข็งแรงแค่ไหน"
+// จึงเหมาะกับการแชร์อวดกันข้ามคน เพราะเทียบกันได้จริงด้วยอัตราส่วนต่อน้ำหนักตัว
+
+import type { BestLift, RankResult } from "./rank";
+import { RANK_COLOR, RANK_TH, bestLifts, computeRank } from "./rank";
+
+export function drawRankCard(data: Data): HTMLCanvasElement {
+  const W = 1080;
+  const H = 1350;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+
+  const res: RankResult = computeRank(data);
+  const lifts: BestLift[] = bestLifts(data).slice(0, 8);
+  const acc = res.rank ? RANK_COLOR[res.rank] : "#8b6bff";
+
+  // พื้นหลัง
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0a1030");
+  bg.addColorStop(0.55, "#05081a");
+  bg.addColorStop(1, "#03050c");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // กริดจางๆ ให้เข้าธีมหน้าต่างระบบ
+  ctx.strokeStyle = "rgba(139,107,255,.07)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+  for (let y = 0; y < H; y += 60) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  // เรืองแสงหลังตัวแรงค์
+  const glow = ctx.createRadialGradient(W / 2, 400, 20, W / 2, 400, 340);
+  glow.addColorStop(0, acc + "55");
+  glow.addColorStop(1, "transparent");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 60, W, 700);
+
+  ctx.textAlign = "center";
+
+  ctx.fillStyle = "#8fa4d4";
+  ctx.font = "500 26px 'JetBrains Mono', monospace";
+  ctx.fillText("S T R E N G T H   R A N K", W / 2, 150);
+
+  // ตัวอักษรแรงค์
+  ctx.fillStyle = acc;
+  ctx.shadowColor = acc;
+  ctx.shadowBlur = 60;
+  ctx.font = "bold 300px 'Chakra Petch', sans-serif";
+  ctx.fillText(res.rank ?? "?", W / 2, 500);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = "#e7edfb";
+  ctx.font = "600 40px 'Chakra Petch', sans-serif";
+  ctx.fillText(res.rank ? RANK_TH[res.rank] : "ข้อมูลยังไม่พอ", W / 2, 570);
+
+  if (res.bodyweight)
+    { ctx.fillStyle = "#6d7fa8";
+      ctx.font = "400 24px 'JetBrains Mono', monospace";
+      ctx.fillText(`เทียบน้ำหนักตัว ${res.bodyweight} kg`, W / 2, 612); }
+
+  // เส้นคั่น
+  const line = ctx.createLinearGradient(120, 0, W - 120, 0);
+  line.addColorStop(0, "transparent");
+  line.addColorStop(0.5, acc);
+  line.addColorStop(1, "transparent");
+  ctx.fillStyle = line;
+  ctx.fillRect(120, 660, W - 240, 2);
+
+  // ท่าหลัก + อัตราส่วน
+  ctx.textAlign = "left";
+  let y = 730;
+  if (res.lifts.length) {
+    ctx.fillStyle = "#8fa4d4";
+    ctx.font = "500 22px 'JetBrains Mono', monospace";
+    ctx.fillText("ท่าหลัก (1RM ประเมิน / น้ำหนักตัว)", 90, y);
+    y += 46;
+    for (const l of res.lifts) {
+      ctx.fillStyle = "#dbe4f7";
+      ctx.font = "500 32px 'Chakra Petch', sans-serif";
+      ctx.fillText(l.label, 90, y);
+      ctx.textAlign = "right";
+      ctx.fillStyle = RANK_COLOR[l.rank];
+      ctx.font = "600 30px 'JetBrains Mono', monospace";
+      ctx.fillText(`${l.oneRM} kg · ${l.ratio}x · ${l.rank}`, W - 90, y);
+      ctx.textAlign = "left";
+      y += 50;
+    }
+    y += 16;
+  }
+
+  // สถิติสูงสุดรายท่า
+  ctx.fillStyle = "#8fa4d4";
+  ctx.font = "500 22px 'JetBrains Mono', monospace";
+  ctx.fillText("สถิติสูงสุดที่เคยทำ", 90, y);
+  y += 46;
+  for (const l of lifts.slice(0, 7)) {
+    ctx.fillStyle = "#c3cfe6";
+    ctx.font = "400 29px 'Chakra Petch', sans-serif";
+    const name = l.name.length > 26 ? l.name.slice(0, 25) + "…" : l.name;
+    ctx.fillText(name, 90, y);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#8b6bff";
+    ctx.font = "500 27px 'JetBrains Mono', monospace";
+    ctx.fillText(`${l.weight} ${l.unit} × ${l.reps} · ${l.sets} เซต`, W - 90, y);
+    ctx.textAlign = "left";
+    y += 44;
+  }
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#4a5a7d";
+  ctx.font = "400 20px 'JetBrains Mono', monospace";
+  ctx.fillText("แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงทั่วไป", W / 2, H - 110);
+  ctx.fillStyle = "#6d7fa8";
+  ctx.font = "600 26px 'Chakra Petch', sans-serif";
+  ctx.fillText("GYM TRACKER BY ARTYZ", W / 2, H - 62);
+
+  return canvas;
+}
+
+export async function shareRankCard(data: Data): Promise<"shared" | "downloaded" | "failed"> {
+  const canvas = drawRankCard(data);
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
+  if (!blob) return "failed";
+  const file = new File([blob], "gym-rank.png", { type: "image/png" });
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: "สถิติและแรงค์ Gym Tracker" });
+      return "shared";
+    }
+  } catch (e: any) {
+    if (e?.name === "AbortError") return "shared";
+  }
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "gym-rank.png";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    return "downloaded";
+  } catch {
+    return "failed";
+  }
+}

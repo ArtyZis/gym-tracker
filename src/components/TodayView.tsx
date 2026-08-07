@@ -129,12 +129,27 @@ export default function TodayView() {
     return best;
   }
 
+  // น้ำหนักสูงสุดที่ทำได้วันนี้ของท่านี้ (รวมเซตที่กำลังจะติ๊ก)
+  function todayBestWeight(exId: string, incoming: number): number {
+    let best = incoming;
+    const s = todaySession(exId);
+    if (s) for (const st of s.sets) if (st?.weight && st.weight > best) best = st.weight;
+    return best;
+  }
+
   function toggleSet(ex: Exercise, idx: number, override?: Draft) {
     const draft = override ?? draftFor(ex, idx);
     const already = !!todaySession(ex.id)?.sets[idx];
     const cntBefore = doneCount(ex.id);
     const best = bestPriorWeight(ex.id);
-    const isPR = !already && ex.type === "weight" && draft.weight > best && best > 0;
+    // PR ขึ้นครั้งเดียวต่อท่า และเฉพาะตอน "ทำครบทุกเซตแล้ว" เท่านั้น
+    //
+    // เดิมเช็คแค่ว่าน้ำหนักเซตนี้ชนะสถิติเดิมไหม ซึ่ง bestPriorWeight ไม่นับของวันนี้
+    // เซตที่ 2, 3, 4 ที่น้ำหนักเท่ากันจึงชนะสถิติเดิมอยู่ดี -> หน้าต่าง PR เด้งซ้ำทุกเซต
+    // และเด้งตั้งแต่เซตแรกทั้งที่ยังไม่รู้ว่าจะทำครบไหม
+    // ยกหนักขึ้นได้เซตเดียวแล้วหมดแรงไม่ควรนับเป็นสถิติใหม่
+    const lastSetOfEx = !already && cntBefore + 1 >= ex.sets;
+    const isPR = lastSetOfEx && ex.type === "weight" && best > 0 && todayBestWeight(ex.id, draft.weight) > best;
 
     update((d) => {
       if (!d.history[ex.id]) d.history[ex.id] = [];
@@ -174,17 +189,19 @@ export default function TodayView() {
         playTick();
       }
       // PR = เหตุการณ์ที่คนอยากแคปหน้าจอเก็บไว้ ใช้หน้าต่างระบบเต็มจอแทน toast ที่หายเร็วเกิน
-      if (isPR)
+      if (isPR) {
+        const top = todayBestWeight(ex.id, draft.weight);
         notice({
           kind: "pr",
           title: "NEW PR",
           lines: [
-            { label: ex.name, value: `${draft.weight} ${ex.unit || "kg"}` },
+            { label: ex.name, value: `${top} ${ex.unit || "kg"}` },
             { label: "สถิติเดิม", value: `${best} ${ex.unit || "kg"}` },
-            { label: "เพิ่มขึ้น", value: `+${+(draft.weight - best).toFixed(2)} ${ex.unit || "kg"}`, good: true },
-            { label: "ทำได้", value: `${draft.reps} ครั้ง` },
+            { label: "เพิ่มขึ้น", value: `+${+(top - best).toFixed(2)} ${ex.unit || "kg"}`, good: true },
+            { label: "ทำครบ", value: `${ex.sets} เซต`, good: true },
           ],
         });
+      }
       // เล่นครบทุกเซตของวัน — จบเควสต์ของวันนั้น
       else if (lastSet && cntBefore + 1 >= ex.sets && doneSets + 1 >= totalSets)
         notice({
