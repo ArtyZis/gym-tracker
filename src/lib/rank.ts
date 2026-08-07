@@ -25,13 +25,26 @@ export const RANK_TH: Record<Rank, string> = {
 };
 
 export const RANK_COLOR: Record<Rank, string> = {
-  E: "#6b7a99",
-  D: "#4fd8ff",
-  C: "#4fe3ff",
-  B: "#8b6bff",
+  E: "#7c8aa8",
+  D: "#3fd0a8",
+  C: "#4fd8ff",
+  B: "#7b8cff",
   A: "#c46bff",
-  S: "#ffb454",
+  S: "#ffc14d",
 };
+
+// สีคู่สำหรับไล่เฉดบนตราแรงค์ — ทำให้โลหะดูมีมิติ ไม่แบน
+export const RANK_COLOR2: Record<Rank, string> = {
+  E: "#4a5670",
+  D: "#1f9a86",
+  C: "#2f8fd6",
+  B: "#4b4fd0",
+  A: "#7b3fd6",
+  S: "#ff8a2b",
+};
+
+// จำนวนดาวใต้ตรา — บอกระดับแบบที่เกมใช้กัน อ่านเร็วกว่าตัวอักษรอย่างเดียว
+export const RANK_STARS: Record<Rank, number> = { E: 0, D: 1, C: 2, B: 3, A: 4, S: 5 };
 
 // ท่าหลักที่ใช้ตัดสินแรงค์ + เกณฑ์อัตราส่วน 1RM ต่อน้ำหนักตัว สำหรับ [D, C, B, A, S]
 // ต่ำกว่าเกณฑ์ D ทั้งหมด = E

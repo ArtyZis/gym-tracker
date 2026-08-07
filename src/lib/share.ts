@@ -2,6 +2,17 @@
 
 import type { Data, SetLog } from "./store";
 import { computeStreak } from "./streak";
+import { resolveAccent } from "./accent";
+
+
+// ผสมสองสี hex — ใช้ทำพื้นหลังการ์ดให้อมสีธีมโดยไม่สว่างจนตัวหนังสืออ่านไม่ออก
+function mixHex(a: string, b: string, t: number): string {
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [r1, g1, b1] = p(a);
+  const [r2, g2, b2] = p(b);
+  const m = (x: number, y: number) => Math.round(x * t + y * (1 - t));
+  return "#" + [m(r1, r2), m(g1, g2), m(b1, b2)].map((v) => v.toString(16).padStart(2, "0")).join("");
+}
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -69,7 +80,7 @@ export function weeklyStats(data: Data): WeeklyStats {
 const thDate = (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 
-export function drawWeeklyCard(stats: WeeklyStats): HTMLCanvasElement {
+export function drawWeeklyCard(stats: WeeklyStats, accent = "#4fd8ff"): HTMLCanvasElement {
   const W = 1080;
   const H = 1350;
   const canvas = document.createElement("canvas");
@@ -97,7 +108,7 @@ export function drawWeeklyCard(stats: WeeklyStats): HTMLCanvasElement {
 
   // header
   ctx.textAlign = "left";
-  ctx.fillStyle = "#1F6F8A";
+  ctx.fillStyle = accent;
   ctx.font = `600 30px ${mono}`;
   ctx.fillText("H Y P E R T R O P H Y   S Y S T E M", 80, 120);
   ctx.fillStyle = "#EAF4FF";
@@ -120,7 +131,7 @@ export function drawWeeklyCard(stats: WeeklyStats): HTMLCanvasElement {
   ctx.setLineDash([]);
 
   // volume ใหญ่
-  ctx.fillStyle = "#4FD8FF";
+  ctx.fillStyle = accent;
   ctx.shadowColor = "rgba(79,216,255,.65)";
   ctx.shadowBlur = 40;
   ctx.font = `700 170px ${disp}`;
@@ -147,7 +158,7 @@ export function drawWeeklyCard(stats: WeeklyStats): HTMLCanvasElement {
     ctx.roundRect(x, y, bw, 210, 26);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = "#4FD8FF";
+    ctx.fillStyle = accent;
     ctx.font = `700 86px ${disp}`;
     ctx.textAlign = "center";
     ctx.fillText(b.value, x + bw / 2, y + 118);
@@ -159,7 +170,7 @@ export function drawWeeklyCard(stats: WeeklyStats): HTMLCanvasElement {
 
   // PR ใหม่
   let y = 1010;
-  ctx.fillStyle = "#1F6F8A";
+  ctx.fillStyle = accent;
   ctx.font = `600 28px ${mono}`;
   ctx.fillText("NEW PR", 80, y);
   y += 62;
@@ -171,7 +182,7 @@ export function drawWeeklyCard(stats: WeeklyStats): HTMLCanvasElement {
       ctx.fillStyle = "#EAF4FF";
       ctx.font = `600 40px ${thai}`;
       ctx.fillText(pr.name, 140, y);
-      ctx.fillStyle = "#4FD8FF";
+      ctx.fillStyle = accent;
       ctx.font = `700 40px ${mono}`;
       ctx.textAlign = "right";
       ctx.fillText(`${pr.weight} ${pr.unit}`, W - 80, y);
@@ -194,7 +205,7 @@ export function drawWeeklyCard(stats: WeeklyStats): HTMLCanvasElement {
 
 export async function shareWeeklyCard(data: Data): Promise<"shared" | "downloaded" | "failed"> {
   const stats = weeklyStats(data);
-  const canvas = drawWeeklyCard(stats);
+  const canvas = drawWeeklyCard(stats, resolveAccent(data.settings.accent));
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
   if (!blob) return "failed";
   const file = new File([blob], "gym-week.png", { type: "image/png" });
@@ -224,8 +235,128 @@ export async function shareWeeklyCard(data: Data): Promise<"shared" | "downloade
 // ต่างจากการ์ดสรุปสัปดาห์: อันนั้นบอก "สัปดาห์นี้ทำอะไรไป" อันนี้บอก "ตอนนี้แข็งแรงแค่ไหน"
 // จึงเหมาะกับการแชร์อวดกันข้ามคน เพราะเทียบกันได้จริงด้วยอัตราส่วนต่อน้ำหนักตัว
 
-import type { BestLift, RankResult } from "./rank";
-import { RANK_COLOR, RANK_TH, bestLifts, computeRank } from "./rank";
+import type { BestLift, Rank, RankResult } from "./rank";
+import { RANKS } from "./rank";
+import { RANK_COLOR, RANK_COLOR2, RANK_STARS, RANK_TH, bestLifts, computeRank } from "./rank";
+
+
+// วาดตราแรงค์บน canvas — ต้องให้ออกมาเหมือน RankEmblem.tsx เพราะเป็นตราเดียวกัน
+// (SVG ใช้ในแอป · canvas ใช้ในรูปแชร์ — ถ้าไม่เหมือนกันคนจะงงว่าทำไมตราคนละแบบ)
+function drawEmblem(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, rank: Rank | null) {
+  const r = rank ?? "E";
+  const idx = RANKS.indexOf(r);
+  const c1 = rank ? RANK_COLOR[r] : "#4a5670";
+  const c2 = rank ? RANK_COLOR2[r] : "#2a3247";
+  const stars = rank ? RANK_STARS[r] : 0;
+
+  const hex = (radius: number) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = ((60 * i - 90) * Math.PI) / 180;
+      const x = cx + radius * Math.cos(a);
+      const y = cy + radius * Math.sin(a);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.closePath();
+  };
+
+  const edge = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+  edge.addColorStop(0, c1);
+  edge.addColorStop(1, c2);
+
+  // ปีก — B ขึ้นไป
+  if (idx >= 3) {
+    ctx.save();
+    ctx.fillStyle = edge;
+    ctx.shadowColor = c1;
+    ctx.shadowBlur = 24;
+    for (const s of [-1, 1]) {
+      ctx.save();
+      ctx.translate(cx + s * (R + 14), cy);
+      ctx.scale(s * (R / 44), R / 44);
+      ctx.beginPath();
+      ctx.moveTo(0, -16); ctx.lineTo(26, -9); ctx.lineTo(15, -3);
+      ctx.lineTo(30, 3); ctx.lineTo(13, 6); ctx.lineTo(22, 14); ctx.lineTo(0, 15);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // มงกุฎ — S เท่านั้น
+  if (idx >= 5) {
+    ctx.save();
+    ctx.fillStyle = edge;
+    ctx.shadowColor = c1;
+    ctx.shadowBlur = 26;
+    const k = R / 44;
+    ctx.beginPath();
+    ctx.moveTo(cx - 20 * k, cy - R - 6 * k);
+    ctx.lineTo(cx - 12 * k, cy - R - 22 * k);
+    ctx.lineTo(cx - 4 * k, cy - R - 10 * k);
+    ctx.lineTo(cx, cy - R - 27 * k);
+    ctx.lineTo(cx + 4 * k, cy - R - 10 * k);
+    ctx.lineTo(cx + 12 * k, cy - R - 22 * k);
+    ctx.lineTo(cx + 20 * k, cy - R - 6 * k);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ขอบนอก + แผ่นใน
+  ctx.save();
+  ctx.shadowColor = c1;
+  ctx.shadowBlur = 44;
+  ctx.fillStyle = edge;
+  hex(R);
+  ctx.fill();
+  ctx.restore();
+
+  const plate = ctx.createLinearGradient(cx, cy - R, cx + R * 0.4, cy + R);
+  plate.addColorStop(0, "#131a33");
+  plate.addColorStop(0.55, "#0a0f24");
+  plate.addColorStop(1, "#050814");
+  ctx.fillStyle = plate;
+  hex(R - R * 0.1);
+  ctx.fill();
+
+  ctx.strokeStyle = c1;
+  ctx.globalAlpha = 0.42;
+  ctx.lineWidth = Math.max(1, R / 44);
+  hex(R - R * 0.2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // ตัวอักษร
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#fff";
+  ctx.shadowColor = c1;
+  ctx.shadowBlur = 34;
+  ctx.font = `bold ${Math.round(R * 1.05)}px 'Chakra Petch', sans-serif`;
+  ctx.fillText(rank ?? "?", cx, cy + R * 0.02);
+  ctx.restore();
+
+  // ดาว
+  const sy = cy + R + R * 0.36;
+  for (let i = 0; i < 5; i++) {
+    const on = i < stars;
+    const x = cx + (i - 2) * (R * 0.3);
+    ctx.save();
+    ctx.translate(x, sy);
+    ctx.scale(R / 44, R / 44);
+    ctx.fillStyle = on ? c1 : "#1b2338";
+    if (on) { ctx.shadowColor = c1; ctx.shadowBlur = 12; }
+    ctx.beginPath();
+    const pts = [[0,-5.4],[1.6,-1.7],[5.5,-1.7],[2.4,0.8],[3.6,4.6],[0,2.3],[-3.6,4.6],[-2.4,0.8],[-5.5,-1.7],[-1.6,-1.7]];
+    pts.forEach(([px, py], j) => (j ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
 
 export function drawRankCard(data: Data): HTMLCanvasElement {
   const W = 1080;
@@ -237,18 +368,22 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
 
   const res: RankResult = computeRank(data);
   const lifts: BestLift[] = bestLifts(data).slice(0, 8);
-  const acc = res.rank ? RANK_COLOR[res.rank] : "#8b6bff";
+  // สีธีมของผู้ใช้ — การ์ดที่แชร์ควรเป็นสีเดียวกับแอปที่เขาใช้อยู่ ไม่ใช่สีตายตัว
+  // แต่ "ตราแรงค์" ยังใช้สีตามระดับเสมอ เพราะสีคือข้อมูล (E เทา ... S ทอง)
+  // ถ้าย้อมตราด้วยสีธีมด้วย ทุกแรงค์จะหน้าตาเหมือนกันจนดูไม่ออกว่าใครอยู่ระดับไหน
+  const theme = resolveAccent(data.settings.accent);
+  const acc = theme;
 
   // พื้นหลัง
   const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#0a1030");
+  bg.addColorStop(0, mixHex(theme, "#05081a", 0.22));
   bg.addColorStop(0.55, "#05081a");
   bg.addColorStop(1, "#03050c");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
   // กริดจางๆ ให้เข้าธีมหน้าต่างระบบ
-  ctx.strokeStyle = "rgba(139,107,255,.07)";
+  ctx.strokeStyle = theme + "14";
   ctx.lineWidth = 1;
   for (let x = 0; x < W; x += 60) {
     ctx.beginPath();
@@ -276,22 +411,18 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   ctx.font = "500 26px 'JetBrains Mono', monospace";
   ctx.fillText("S T R E N G T H   R A N K", W / 2, 150);
 
-  // ตัวอักษรแรงค์
-  ctx.fillStyle = acc;
-  ctx.shadowColor = acc;
-  ctx.shadowBlur = 60;
-  ctx.font = "bold 300px 'Chakra Petch', sans-serif";
-  ctx.fillText(res.rank ?? "?", W / 2, 500);
-  ctx.shadowBlur = 0;
+  // ตราแรงค์แบบเกม (หกเหลี่ยมโลหะ + ปีก + มงกุฎ) — ชุดเดียวกับที่แสดงในแอป
+  drawEmblem(ctx, W / 2, 390, 150, res.rank);
 
   ctx.fillStyle = "#e7edfb";
-  ctx.font = "600 40px 'Chakra Petch', sans-serif";
-  ctx.fillText(res.rank ? RANK_TH[res.rank] : "ข้อมูลยังไม่พอ", W / 2, 570);
+  ctx.font = "600 42px 'Chakra Petch', sans-serif";
+  ctx.fillText(res.rank ? RANK_TH[res.rank] : "ข้อมูลยังไม่พอ", W / 2, 620);
 
-  if (res.bodyweight)
-    { ctx.fillStyle = "#6d7fa8";
-      ctx.font = "400 24px 'JetBrains Mono', monospace";
-      ctx.fillText(`เทียบน้ำหนักตัว ${res.bodyweight} kg`, W / 2, 612); }
+  if (res.bodyweight) {
+    ctx.fillStyle = "#6d7fa8";
+    ctx.font = "400 24px 'JetBrains Mono', monospace";
+    ctx.fillText(`เทียบน้ำหนักตัว ${res.bodyweight} kg`, W / 2, 660);
+  }
 
   // เส้นคั่น
   const line = ctx.createLinearGradient(120, 0, W - 120, 0);
@@ -299,11 +430,11 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   line.addColorStop(0.5, acc);
   line.addColorStop(1, "transparent");
   ctx.fillStyle = line;
-  ctx.fillRect(120, 660, W - 240, 2);
+  ctx.fillRect(120, 700, W - 240, 2);
 
   // ท่าหลัก + อัตราส่วน
   ctx.textAlign = "left";
-  let y = 730;
+  let y = 764;
   if (res.lifts.length) {
     ctx.fillStyle = "#8fa4d4";
     ctx.font = "500 22px 'JetBrains Mono', monospace";
@@ -334,7 +465,7 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
     const name = l.name.length > 26 ? l.name.slice(0, 25) + "…" : l.name;
     ctx.fillText(name, 90, y);
     ctx.textAlign = "right";
-    ctx.fillStyle = "#8b6bff";
+    ctx.fillStyle = theme;
     ctx.font = "500 27px 'JetBrains Mono', monospace";
     ctx.fillText(`${l.weight} ${l.unit} × ${l.reps} · ${l.sets} เซต`, W - 90, y);
     ctx.textAlign = "left";

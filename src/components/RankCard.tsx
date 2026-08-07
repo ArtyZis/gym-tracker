@@ -8,6 +8,7 @@ import { useApp } from "../AppContext";
 import { RANKS, RANK_COLOR, RANK_TH, bestLifts, computeRank } from "../lib/rank";
 import { shareRankCard } from "../lib/share";
 import { Kicker } from "./ui";
+import RankEmblem from "./RankEmblem";
 
 const SHOW = 6;
 
@@ -19,8 +20,6 @@ export default function RankCard() {
   const [busy, setBusy] = useState(false);
 
   if (!lifts.length) return null;
-
-  const acc = res.rank ? RANK_COLOR[res.rank] : "var(--dim)";
 
   const share = async () => {
     setBusy(true);
@@ -35,24 +34,9 @@ export default function RankCard() {
         แรงค์ความแข็งแรง
       </Kicker>
 
-      <div className="flex items-center gap-4 mb-3">
-        <div className="relative shrink-0" style={{ width: 74, height: 74 }}>
-          <div
-            className="absolute pointer-events-none"
-            style={{ inset: -10, borderRadius: "50%", background: `radial-gradient(circle, color-mix(in srgb, ${acc} 30%, transparent) 0%, transparent 68%)` }}
-          />
-          <div
-            className="relative flex items-center justify-center h-full font-disp font-bold num-glow"
-            style={{
-              fontSize: 44,
-              color: acc,
-              border: `1px solid color-mix(in srgb, ${acc} 45%, transparent)`,
-              clipPath: "var(--cut-path-sm)",
-              background: "#070c18cc",
-            }}
-          >
-            {res.rank ?? "?"}
-          </div>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="shrink-0">
+          <RankEmblem rank={res.rank} size={104} />
         </div>
         <div className="min-w-0 flex-1">
           {res.rank ? (
