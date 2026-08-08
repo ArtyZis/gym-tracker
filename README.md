@@ -9,7 +9,7 @@ src/
   lib/store.ts        data model + localStorage (key: gymtracker_v1) — migration ปลอดภัย ข้อมูลเก่าไม่หาย
   lib/progression.ts  เป้าน้ำหนัก / warm-up ramp / plate calc
   lib/analyzer.ts     วิเคราะห์สมดุลกล้ามเนื้อ rule-based
-  lib/streak.ts       สตรีค + heatmap (วันพักตามโปรแกรมไม่ตัดสตรีค)
+  lib/streak.ts       สตรีค + heatmap (นับเฉพาะวันฝึกจริง · วันพักไม่บวกไม่ตัด · ชดเชยครบลบล้างวันที่พลาด)
   lib/forecast.ts     พยากรณ์ PR (linear regression จาก 4+ เซสชันล่าสุด)
   lib/share.ts        การ์ดสรุปสัปดาห์ (canvas 1080×1350) → Web Share / ดาวน์โหลด png
   lib/haptics.ts      รูปแบบสั่นตามเหตุการณ์ (ติ๊กเซต/ครบท่า/PR/พักครบ)

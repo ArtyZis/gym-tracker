@@ -1,7 +1,15 @@
-// Streak: นับวันฝึกต่อเนื่อง — วันพัก (weekday ที่ไม่มีท่าในโปรแกรม) ไม่ตัด streak
+// Streak: นับ "วันฝึกที่ทำได้ตามตาราง ติดต่อกันโดยไม่พลาด"
+//
+// กติกา 3 ข้อ (ผู้ใช้กำหนดเอง):
+//   1. วันฝึกตามตาราง + ฝึกแล้ว        -> +1
+//   2. วันพัก (ไม่มีท่าในตารางวันนั้น)  -> ไม่นับเพิ่ม แต่ไม่ตัด (โปร่งใส ข้ามไปเฉยๆ)
+//   3. วันฝึกตามตาราง + ไม่ได้ฝึก      -> ตัดสตรีค เว้นแต่ไปชดเชยครบทีหลัง
+//
+// ข้อ 2 เคยเป็น "วันพักนับเป็นวันต่อเนื่องด้วย" แล้วผู้ใช้เปลี่ยนใจ เพราะสตรีคที่เดินหน้า
+// เองตอนนอนอยู่บ้านมันไม่ได้วัดอะไร — ตัวเลขต้องแปลว่า "ฝึกไปกี่วันโดยไม่พลาด"
 
 import type { Data, DayKey } from "./store";
-import { JS_DAYS, exercisesForDay } from "./store";
+import { JS_DAYS, exercisesForDay, makeupSlots } from "./store";
 import { isLoop, slotForDate } from "./loop";
 
 function dateKey(d: Date): string {
@@ -39,11 +47,31 @@ function scheduledSetsPerDay(data: Data, slotOf: (d: Date) => DayKey): Map<strin
       if (!n) continue;
       const t = Date.parse(s.date + "T00:00:00");
       if (!Number.isFinite(t)) continue;
-      if (slotOf(new Date(t)) !== exDay) continue; // ติ๊กข้ามวัน — ไม่นับ
+      // ท่าต้องเป็นของวันนั้นจริง หรือเป็นวันที่ดึงมาชดเชยในวันนั้น — ไม่งั้นคือติ๊กข้ามวัน
+      if (slotOf(new Date(t)) !== exDay && !makeupSlots(data, s.date).includes(exDay)) continue;
       map.set(s.date, (map.get(s.date) || 0) + n);
     }
   }
   return map;
+}
+
+// วันที่ชดเชย "ครบทุกท่า" ของช่องวันนั้น — ได้ 1 เครดิตไว้ลบล้างวันที่พลาดของช่องเดียวกัน
+//
+// ต้องครบทุกท่าจริงๆ ไม่ใช่แค่แตะไปบ้าง ไม่งั้นเล่นท่าเดียวก็ลบล้างวันที่ขาดทั้งวันได้
+// เครดิตนึงลบล้างได้วันเดียว และต้องเกิดหลังวันที่พลาดเท่านั้น
+function makeupCredits(data: Data): { slot: DayKey; date: string }[] {
+  const out: { slot: DayKey; date: string }[] = [];
+  for (const [date, slots] of Object.entries(data.makeup ?? {}))
+    for (const slot of slots) {
+      const exs = exercisesForDay(data, slot);
+      if (!exs.length) continue;
+      const full = exs.every((ex) => {
+        const s = (data.history[ex.id] || []).find((h) => h.date === date);
+        return s ? s.sets.filter(Boolean).length >= ex.sets : false;
+      });
+      if (full) out.push({ slot, date });
+    }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export interface StreakInfo {
@@ -60,43 +88,54 @@ export function computeStreak(data: Data): StreakInfo {
   const scheduled = (d: Date) => exercisesForDay(data, slotOf(d)).length > 0;
   const trained = scheduledSetsPerDay(data, slotOf);
 
-  // กติกาการนับ (ต่อ 1 วัน):
-  //   วันฝึกและฝึกแล้ว   -> นับ
-  //   วันพักตามโปรแกรม   -> นับด้วย เพราะการพักคือส่วนหนึ่งของโปรแกรม
-  //                        คนที่ทำตามโปรแกรมครบไม่ควรโดนหยุดนับเพราะโปรแกรมสั่งให้พัก
-  //   วันฝึกแต่ยังไม่ฝึก -> ตัดสตรีค (ยกเว้นวันนี้ที่ยังไม่จบวัน — ข้ามไปเฉยๆ ไม่นับไม่ตัด)
-  //
-  // **ต้องหยุดที่วันฝึกครั้งแรกเสมอ** ไม่งั้นกฎ "วันพักนับด้วย" จะไล่นับวันพัก
-  // ย้อนไปก่อนที่ผู้ใช้จะเคยฝึกครั้งแรกด้วย สตรีคพองเกินจริงหลายเท่า
-  // (เคสจริง: ฝึกวันเดียวเมื่อ 2 วันก่อน ได้สตรีค 9 ทั้งที่ควรเป็น 3)
   const dates = [...trained.keys()].sort();
   const firstMs = dates.length ? Date.parse(dates[0] + "T00:00:00") : null;
 
+  // ผลของแต่ละวัน: นับเพิ่ม / ข้ามไปเฉยๆ / ตัดสตรีค
+  // credits ถูก "ใช้ไป" เมื่อลบล้างวันที่พลาดแล้ว จึงต้องส่ง array ที่แก้ได้เข้ามา
+  const verdict = (cursor: Date, credits: { slot: DayKey; date: string }[]): "count" | "skip" | "break" => {
+    const key = dateKey(cursor);
+    if ((trained.get(key) || 0) > 0) return "count";
+    if (!scheduled(cursor) && !makeupSlots(data, key).length) return "skip"; // วันพัก
+    // วันฝึกแต่ไม่ได้ฝึก — รอดได้ถ้ามีวันชดเชยครบของช่องวันนี้ "หลังจาก" วันนี้
+    const slot = slotOf(cursor);
+    const idx = credits.findIndex((c) => c.slot === slot && c.date > key);
+    if (idx >= 0) {
+      credits.splice(idx, 1);
+      return "skip";
+    }
+    return "break";
+  };
+
+  // สตรีคปัจจุบัน — เดินถอยหลังจากวันนี้
+  // **ต้องหยุดที่วันฝึกครั้งแรกเสมอ** ไม่งั้นจะไล่ข้ามวันพักย้อนไปก่อนที่ผู้ใช้จะเคยฝึก
   let current = 0;
   if (firstMs != null) {
+    const credits = makeupCredits(data);
     const cursor = new Date();
     for (let i = 0; i < 730; i++) {
       const day = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()).getTime();
       if (day < firstMs) break;
-      const didTrain = (trained.get(dateKey(cursor)) || 0) > 0;
-      if (didTrain || !scheduled(cursor)) current++;
-      else if (i > 0) break; // วันฝึกที่ผ่านมาแล้วแต่ไม่ได้ฝึก = ขาด
+      const v = verdict(cursor, credits);
+      if (v === "count") current++;
+      else if (v === "break" && i > 0) break; // วันนี้ยังไม่จบวัน จึงยังไม่ถือว่าขาด
       cursor.setDate(cursor.getDate() - 1);
     }
   }
 
-  // best: สแกนตั้งแต่วันฝึกครั้งแรกถึงวันนี้ด้วยกติกาเดียวกัน
+  // best: สแกนไปข้างหน้าตั้งแต่วันฝึกครั้งแรกด้วยกติกาเดียวกัน
   let best = current;
   if (dates.length) {
+    const credits = makeupCredits(data);
     let run = 0;
     const d = new Date(dates[0] + "T00:00:00");
     const end = new Date();
     while (d <= end) {
-      const didTrain = (trained.get(dateKey(d)) || 0) > 0;
-      if (didTrain || !scheduled(d)) {
+      const v = verdict(d, credits);
+      if (v === "count") {
         run++;
         if (run > best) best = run;
-      } else {
+      } else if (v === "break") {
         run = 0;
       }
       d.setDate(d.getDate() + 1);

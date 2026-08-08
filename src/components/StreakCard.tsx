@@ -69,8 +69,8 @@ export default function StreakCard() {
           <div>
             สัปดาห์นี้ฝึกแล้ว <b style={{ color: "var(--cyan)" }}>{streak.trainedThisWeek}</b> วัน
           </div>
-          <div className="font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
-            วันพักตามโปรแกรมไม่ตัดสตรีค
+          <div className="text-[10px] mt-1 leading-relaxed" style={{ color: "var(--dim)" }}>
+            นับเฉพาะวันที่ฝึกจริง · วันพักไม่บวกแต่ไม่ตัด · พลาดวันฝึกแล้วชดเชยครบทีหลัง ถือว่าไม่ขาด
           </div>
         </div>
       </div>

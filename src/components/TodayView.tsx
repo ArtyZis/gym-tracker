@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
-import type { Data, EffectiveExercise, Exercise } from "../lib/store";
+import type { Data, DayKey, EffectiveExercise, Exercise } from "../lib/store";
 import {
   DAYS,
   DAY_TH,
   DAY_TH_SHORT,
   JS_DAYS,
+  addMakeup,
   effectiveExercisesForDay,
   exercisesForDay,
+  makeupSlots,
   removeExtra,
+  removeMakeup,
   repTargetText,
   todayStr,
 } from "../lib/store";
@@ -59,20 +62,23 @@ function todayVolume(data: Data, exIds: string[]): number {
 export default function TodayView() {
   const { data, update, toast, notice, rest, goTab } = useApp();
   const premium = isPremium(data);
-  const [day, setDay] = useState(() => {
-    const today = todaySlot(data);
-    return exercisesForDay(data, today).length ? today : (activeDays(data).find((d) => exercisesForDay(data, d).length) ?? today);
-  });
+  // เปิดมาต้องอยู่ที่ "วันนี้" เสมอ แม้เป็นวันพัก
+  //
+  // เดิมวันพักจะเด้งไปวันฝึกวันแรกที่เจอ ซึ่งหลอกตา (ดูเหมือนตารางของวันนี้แต่ไม่ใช่)
+  // และทำให้ปุ่มชดเชยหายไปด้วย เพราะปุ่มนั้นขึ้นเฉพาะตอนดูวันนี้ —
+  // วันว่างคือวันที่คนอยากชดเชยที่สุด การเด้งออกไปจึงปิดทางที่ต้องใช้จริง
+  const [day, setDay] = useState(() => todaySlot(data));
   const [openId, setOpenId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [restSec, setRestSec] = useState(data.settings.restDefault ?? 90);
   const [swapFor, setSwapFor] = useState<string | null>(null); // id ท่าที่กำลังเลือกเปลี่ยน
   const [addingExtra, setAddingExtra] = useState(false); // กำลังเพิ่มท่าเข้าวันนี้
+  const [pickMakeup, setPickMakeup] = useState(false); // กำลังเลือกวันที่จะดึงมาชดเชย
 
   // วันนี้ใช้ท่าที่ผ่านการสลับชั่วคราวแล้ว (วันอื่นเป็นท่าตามโปรแกรม)
-  const exs = effectiveExercisesForDay(data, day);
-  const label = data.dayLabels[day];
   const isToday = day === todaySlot(data);
+  const exs = effectiveExercisesForDay(data, day, isToday);
+  const label = data.dayLabels[day];
 
   const todaySession = (exId: string) => (data.history[exId] || []).find((s) => s.date === todayStr());
   const doneCount = (exId: string) => {
@@ -80,6 +86,19 @@ export default function TodayView() {
     return s ? s.sets.filter(Boolean).length : 0;
   };
   const isDone = (ex: Exercise) => doneCount(ex.id) >= ex.sets;
+
+  // วันที่ดึงมาชดเชยวันนี้ · วันที่ยังดึงมาได้ (ทุกวันที่มีท่า ยกเว้นวันของตัวเองและที่ดึงมาแล้ว)
+  const mkSlots = makeupSlots(data);
+  const makeupCandidates = DAYS.filter(
+    (s) => s !== todaySlot(data) && exercisesForDay(data, s).length > 0 && !mkSlots.includes(s),
+  );
+  // ชดเชย "ครบ" = ทำครบทุกท่าของวันนั้น — ตรงกับเงื่อนไขที่สตรีคใช้กู้วันที่ขาด
+  const mkDone = (s: DayKey) => {
+    const list = exercisesForDay(data, s);
+    return list.length > 0 && list.every(isDone);
+  };
+  // คนจำวันเป็น "วันขา" ไม่ใช่ "พฤหัส" — ถ้าตั้งชื่อวันไว้ให้ใช้ชื่อนั้นก่อน
+  const dayTitle = (s: DayKey) => data.dayLabels[s]?.trim() || slotName(data, s);
 
   const totalSets = exs.reduce((a, e) => a + e.sets, 0);
   const doneSets = exs.reduce((a, e) => a + Math.min(doneCount(e.id), e.sets), 0);
@@ -374,7 +393,7 @@ export default function TodayView() {
             ฟื้นตัว · กินให้ถึงเป้า · นอนให้พอ
           </p>
           <p className="text-[10.5px] mt-1 leading-relaxed" style={{ color: "var(--dim)" }}>
-            เลือกวันอื่นด้านบนเพื่อดูตาราง
+            เลือกวันอื่นด้านบนเพื่อดูตาราง · ข้ามวันไหนไปก็ดึงมาชดเชยวันนี้ได้ด้านล่าง
           </p>
         </div>
       )}
@@ -470,6 +489,11 @@ export default function TodayView() {
                     {ex.extra && (
                       <span className="font-mono2 text-[9.5px]" style={{ color: "var(--acc-2)" }}>
                         · เพิ่มวันนี้
+                      </span>
+                    )}
+                    {ex.makeupOf && (
+                      <span className="font-mono2 text-[9.5px]" style={{ color: "var(--warn)" }}>
+                        · ชดเชย {dayTitle(ex.makeupOf)}
                       </span>
                     )}
                   </span>
@@ -655,6 +679,91 @@ export default function TodayView() {
           </div>
         );
       })}
+
+      {/* ชดเชยวันที่ข้าม — ดึง "ทั้งตาราง" ของวันอื่นมาเล่นวันนี้
+          ต่างจากการเพิ่มท่าทีละท่าตรงที่ระบบรู้ว่ากำลังชดเชยวันไหนอยู่
+          พอเล่นครบทุกท่าของวันนั้น สตรีคที่ขาดเพราะข้ามวันนั้นจะกลับมาต่อ */}
+      {isToday && (
+        <div className="mb-2.5">
+          {mkSlots.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {mkSlots.map((s) => {
+                const done = mkDone(s);
+                return (
+                  <button
+                    key={s}
+                    className="font-mono2 text-[10.5px] px-2.5 py-1.5 flex items-center gap-1.5"
+                    style={{
+                      color: done ? "var(--good)" : "var(--warn)",
+                      background: done ? "color-mix(in srgb, var(--good) 12%, transparent)" : "rgba(255,176,64,.10)",
+                      border: `1px solid ${done ? "color-mix(in srgb, var(--good) 38%, transparent)" : "rgba(255,176,64,.3)"}`,
+                      clipPath: "var(--cut-path-sm)",
+                    }}
+                    onClick={() => {
+                      update((d) => removeMakeup(d, s));
+                      toast(`เอาการชดเชย${dayTitle(s)}ออกแล้ว`);
+                    }}
+                    aria-label={`เอาการชดเชย${dayTitle(s)}ออก`}
+                  >
+                    ชดเชย {dayTitle(s)} {done ? "· ครบแล้ว" : ""}
+                    <Icon name="close" size={9} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {pickMakeup ? (
+            <div className="glass-inset p-2.5">
+              <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-2" style={{ color: "var(--mut)" }}>
+                ดึงตารางวันไหนมาเล่น
+              </div>
+              {makeupCandidates.length === 0 ? (
+                <p className="text-[11px] leading-relaxed" style={{ color: "var(--dim)" }}>
+                  ไม่มีวันอื่นให้ดึงมาแล้ว
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {makeupCandidates.map((s) => (
+                    <button
+                      key={s}
+                      className="font-mono2 text-[11px] px-2.5 py-1.5"
+                      style={{
+                        color: "var(--acc)",
+                        background: "var(--acc-08)",
+                        border: "1px solid color-mix(in srgb, var(--acc) 28%, transparent)",
+                        clipPath: "var(--cut-path-sm)",
+                      }}
+                      onClick={() => {
+                        update((d) => addMakeup(d, s));
+                        setPickMakeup(false);
+                        setDay(todaySlot(data)); // ท่าที่ชดเชยโผล่ในวันนี้ ไม่ใช่วันที่กำลังดูอยู่
+                        toast(`ดึงตาราง${dayTitle(s)}มาชดเชยแล้ว`);
+                      }}
+                    >
+                      {dayTitle(s)} · {exercisesForDay(data, s).length} ท่า
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button className="btn-gh w-full !py-1.5 !text-[11px] mt-2" onClick={() => setPickMakeup(false)}>
+                ปิด
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn-gh w-full !py-2.5 !text-[12px]"
+              onClick={() => {
+                setPickMakeup(true);
+                setAddingExtra(false);
+                setSwapFor(null);
+              }}
+            >
+              + ชดเชยวันที่ข้าม (ดึงตารางวันอื่นมา)
+            </button>
+          )}
+        </div>
+      )}
 
       {/* เพิ่มท่าเข้าวันนี้ชั่วคราว — เช่น ดึงท่าขาจากวันขามาเล่นเพิ่ม */}
       {isToday &&

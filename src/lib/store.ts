@@ -172,6 +172,11 @@ export interface Data {
   // len = ความยาวรอบ (2-7 วัน) · anchor = วันที่ (YYYY-MM-DD) ที่เป็น "วันที่ 1" ของรอบ
   // ไม่มี = โหมดสัปดาห์ปกติ (ค่าเดิมของระบบ) ดูรายละเอียดที่ lib/loop.ts
   loop?: { len: number; anchor: string };
+  // วันชดเชย — key = วันที่จริง (YYYY-MM-DD), value = ช่องวันที่ดึงตารางมาเล่นชดเชยในวันนั้น
+  //
+  // ทำไมเก็บถาวรไม่ล้างรายวันแบบ swaps: สตรีคต้องย้อนดูได้ว่าวันที่พลาดไปนั้น
+  // ถูกชดเชยทีหลังแล้วหรือยัง ถ้าล้างทิ้งตอนเที่ยงคืน หลักฐานการชดเชยก็หายไปด้วย
+  makeup?: Record<string, DayKey[]>;
 }
 
 export const DAYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -290,6 +295,7 @@ const MAX_EXERCISES = 500; // มากกว่านี้ไม่ใช่�
 const MAX_NAME_LEN = 200;
 const MAX_SETS = 50;
 const MAX_REPS = 9999;
+const MAX_MAKEUP_DAYS = 800; // เกินสองปี — สตรีคย้อนดูแค่ 730 วัน เก็บมากกว่านี้ไม่มีใครใช้
 
 const num = (v: any, lo: number, hi: number, dflt: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
@@ -457,6 +463,19 @@ export function normalizeData(d: any): Data | null {
       Number.isFinite(Date.parse(d.loop.anchor));
     if (!ok) d.loop = undefined;
   }
+  // วันชดเชย — คีย์ต้องเป็นวันที่ ค่าต้องเป็นรายการช่องวันที่รู้จักเท่านั้น
+  // ปล่อยค่ามั่วผ่านไปได้จะทำให้สตริงแปลกๆ กลายเป็น "วันที่ชดเชยแล้ว" แล้วสตรีคเพี้ยน
+  if (!isObj(d.makeup)) d.makeup = undefined;
+  else {
+    const mk: Record<string, DayKey[]> = {};
+    for (const k of Object.keys(d.makeup).slice(0, MAX_MAKEUP_DAYS)) {
+      if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+      const slots = (Array.isArray(d.makeup[k]) ? d.makeup[k] : []).filter((s: any) => DAYS.includes(s));
+      if (slots.length) mk[k] = [...new Set(slots)] as DayKey[];
+    }
+    d.makeup = Object.keys(mk).length ? mk : undefined;
+  }
   if (d.profile && !isObj(d.profile.nutrition)) d.profile.nutrition = undefined;
   if (d.profile?.nutrition && (typeof d.profile.nutrition.kcal !== "number" || typeof d.profile.nutrition.protein !== "number"))
     d.profile.nutrition = undefined;
@@ -574,7 +593,27 @@ export function activeSwapMap(data: Data): Record<string, SwapTarget> {
   return data.swaps && data.swaps.date === todayStr() ? data.swaps.map : {};
 }
 
-export type EffectiveExercise = Exercise & { origId: string; swapped: boolean; extra?: boolean };
+export type EffectiveExercise = Exercise & { origId: string; swapped: boolean; extra?: boolean; makeupOf?: DayKey };
+
+// ── วันชดเชย ──
+//
+// ดึง "ตารางทั้งวัน" ของช่องวันอื่นมาเล่นในวันนี้ ต่างจาก extras ที่เพิ่มทีละท่าแบบไม่ผูกกับวันไหน
+// ต้องรู้ว่าท่าที่เล่นเป็นของวันไหน สตรีคถึงจะบอกได้ว่าวันที่พลาดไปถูกชดเชยครบหรือยัง
+export const makeupSlots = (data: Data, date = todayStr()): DayKey[] => data.makeup?.[date] ?? [];
+
+export function addMakeup(d: Data, slot: DayKey, date = todayStr()) {
+  if (!d.makeup) d.makeup = {};
+  const cur = d.makeup[date] ?? [];
+  if (cur.includes(slot)) return;
+  d.makeup[date] = [...cur, slot];
+}
+
+export function removeMakeup(d: Data, slot: DayKey, date = todayStr()) {
+  if (!d.makeup?.[date]) return;
+  const left = d.makeup[date].filter((s) => s !== slot);
+  if (left.length) d.makeup[date] = left;
+  else delete d.makeup[date];
+}
 
 // id ของท่าที่เพิ่มเข้ามาเล่นวันนี้ (แยกบันทึกจากท่าในโปรแกรม)
 export const extraIdFor = (name: string) => "x~" + normName(name).replace(/\s+/g, "_");
@@ -584,8 +623,11 @@ export function activeExtras(data: Data): SwapTarget[] {
 }
 
 // ท่าที่ใช้จริงในวันนั้น — วันนี้จะผ่านการสลับ/เพิ่มชั่วคราว, วันอื่นเป็นท่าตามโปรแกรม
-export function effectiveExercisesForDay(data: Data, day: DayKey): EffectiveExercise[] {
-  const isToday = day === JS_DAYS[new Date().getDay()];
+// isTodaySlot: ผู้เรียกที่รู้ว่า "ช่องของวันนี้" คือช่องไหนต้องบอกมา
+// เพราะโหมดรอบ วันนี้ไม่ได้ผูกกับ weekday — ถ้าปล่อยให้เดาเองจาก JS_DAYS
+// ท่าที่สลับ/เพิ่ม/ดึงมาชดเชยจะไม่โผล่เลยสำหรับคนที่ใช้ตารางแบบรอบ
+export function effectiveExercisesForDay(data: Data, day: DayKey, isTodaySlot?: boolean): EffectiveExercise[] {
+  const isToday = isTodaySlot ?? day === JS_DAYS[new Date().getDay()];
   const map = isToday ? activeSwapMap(data) : {};
   const list: EffectiveExercise[] = exercisesForDay(data, day).map((ex) => {
     const t = map[ex.id];
@@ -614,6 +656,15 @@ export function effectiveExercisesForDay(data: Data, day: DayKey): EffectiveExer
         swapped: false,
         extra: true,
       });
+    });
+
+    // ท่าจากวันที่ดึงมาชดเชย — ใช้ id จริงของท่านั้น ไม่สร้าง id ใหม่
+    // บันทึกจึงไปลงประวัติของท่านั้นตามปกติ (สถิติ/PR/แรงค์ยังทำงานเหมือนเล่นในวันของมันเอง)
+    makeupSlots(data).forEach((slot, si) => {
+      if (slot === day) return; // วันเดียวกับที่กำลังดูอยู่แล้ว ไม่ต้องซ้ำ
+      exercisesForDay(data, slot).forEach((ex, i) =>
+        list.push({ ...ex, origId: ex.id, swapped: false, makeupOf: slot, order: 2000 + si * 100 + i }),
+      );
     });
   }
   return list;
