@@ -7,17 +7,33 @@ export const DEFAULT_ACCENT = "#8b6bff";
 export interface AccentOption {
   color: string;
   label: string;
+  /** สตรีคสูงสุดที่ต้องเคยทำได้ถึงจะเลือกสีนี้ได้ · 0 = เปิดตั้งแต่แรก */
+  unlockStreak: number;
 }
 
 // เรียงตามโทนที่เข้ากับพื้นดำอมน้ำเงินของธีม SYSTEM
+//
+// สีตั้งแต่ฟ้าขึ้นไปต้องปลดล็อกด้วยสตรีค — เป็นรางวัลของคนที่ฝึกต่อเนื่องจริง
+// เลือกล็อก "สี" เพราะเป็นของประดับล้วน ไม่ใช่ของที่ต้องใช้ทำงาน
+// (ล็อกของจำเป็นคนเลิกใช้ ล็อกของอวดคนอยากได้ — คนละผลลัพธ์กันคนละขั้ว)
 export const ACCENTS: AccentOption[] = [
-  { color: "#8b6bff", label: "ม่วง" },
-  { color: "#3f8dff", label: "น้ำเงิน" },
-  { color: "#4fd8ff", label: "ฟ้า" },
-  { color: "#5fe6b0", label: "เขียว" },
-  { color: "#ffb454", label: "อำพัน" },
-  { color: "#ff5c7a", label: "แดง" },
+  { color: "#8b6bff", label: "ม่วง", unlockStreak: 0 },
+  { color: "#3f8dff", label: "น้ำเงิน", unlockStreak: 0 },
+  { color: "#4fd8ff", label: "ฟ้า", unlockStreak: 7 },
+  { color: "#5fe6b0", label: "เขียว", unlockStreak: 20 },
+  { color: "#ffb454", label: "อำพัน", unlockStreak: 40 },
+  { color: "#ff5c7a", label: "แดง", unlockStreak: 75 },
 ];
+
+/**
+ * เลือกสีนี้ได้ไหม — ใช้ "สตรีคสูงสุดที่เคยทำได้" ไม่ใช่สตรีคปัจจุบัน
+ *
+ * ถ้าใช้สตรีคปัจจุบัน ขาดวันเดียวสีที่อุตส่าห์ปลดได้จะหายไปเอง แล้วธีมทั้งแอป
+ * เปลี่ยนกลางคันโดยผู้ใช้ไม่ได้สั่ง — เป็นการลงโทษที่ไม่มีใครยอมรับ
+ * ปลดได้แล้วต้องอยู่ถาวร
+ */
+export const accentUnlocked = (opt: AccentOption, bestStreak: number, locked: boolean): boolean =>
+  !locked || opt.unlockStreak === 0 || bestStreak >= opt.unlockStreak;
 
 // รับค่าที่ปลอดภัยเสมอ — ค่าแปลก/undefined = cyan
 export function resolveAccent(a?: string): string {

@@ -6,6 +6,12 @@
       "runtimeExecutable": "C:\\ARTY\\COAD\\CLAUDE\\gym-tracker\\.tools\\node-v24.18.0-win-x64\\node.exe",
       "runtimeArgs": ["node_modules/vite/bin/vite.js"],
       "port": 5173
+    },
+    {
+      "name": "dev-pro",
+      "runtimeExecutable": "C:\\ARTY\\COAD\\CLAUDE\\gym-tracker\\.tools\\node-v24.18.0-win-x64\\node.exe",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--mode", "pro", "--port", "5174", "--strictPort"],
+      "port": 5174
     }
   ]
 }

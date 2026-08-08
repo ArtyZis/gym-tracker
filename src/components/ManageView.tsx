@@ -11,7 +11,8 @@ import LoopCard from "./LoopCard";
 import { activeDays as slotsOf, slotName } from "../lib/loop";
 import RecoveryCard from "./RecoveryCard";
 import { Kicker } from "./ui";
-import { ACCENTS, resolveAccent } from "../lib/accent";
+import { ACCENTS, accentUnlocked, resolveAccent } from "../lib/accent";
+import { computeStreak } from "../lib/streak";
 import { isPro } from "../lib/edition";
 import UpgradeCard from "./UpgradeCard";
 import { EQUIP_TH, EXERCISE_COUNT, findTemplate, incFor, isMachineEx, searchExercises, unitFor } from "../lib/exerciseDB";
@@ -607,17 +608,36 @@ function AppearanceCard() {
   const { data, update, toast } = useApp();
   const current = resolveAccent(data.settings.accent).toLowerCase();
   const coachOn = data.settings.showCoachNotes !== false;
+  // สีล็อกเฉพาะรุ่นที่ขาย — รุ่นส่วนตัวเปิดหมดเหมือนเดิม
+  const best = useMemo(() => computeStreak(data).best, [data]);
+  const nextLock = ACCENTS.find((a) => isPro && a.unlockStreak > best);
+
   return (
     <div className="glass p-4 mb-3">
-      <Kicker>หน้าตา · ธีม</Kicker>
+      <Kicker
+        right={
+          isPro ? (
+            <span className="font-mono2 text-[9px]" style={{ color: "var(--acc)" }}>
+              สตรีคสูงสุด {best} วัน
+            </span>
+          ) : undefined
+        }
+      >
+        หน้าตา · ธีม
+      </Kicker>
       <div className="text-[13.5px] mb-2.5">สีธีม (accent)</div>
       <div className="flex gap-2.5">
         {ACCENTS.map((a) => {
           const on = a.color.toLowerCase() === current;
+          const open = accentUnlocked(a, best, isPro);
           return (
             <button
               key={a.color}
               onClick={() => {
+                if (!open) {
+                  toast(`ฝึกต่อเนื่องให้ได้ ${a.unlockStreak} วันเพื่อปลดล็อกสี${a.label} (ตอนนี้ ${best})`, false);
+                  return;
+                }
                 update((d) => {
                   d.settings.accent = a.color;
                 });
@@ -628,23 +648,36 @@ function AppearanceCard() {
                 background: on ? `color-mix(in srgb, ${a.color} 14%, transparent)` : "rgba(120,180,255,.05)",
                 border: on ? `1px solid ${a.color}` : "1px solid var(--edge)",
                 boxShadow: on ? `0 0 14px -3px ${a.color}` : "none",
+                opacity: open ? 1 : 0.5,
               }}
               aria-pressed={on}
+              aria-label={open ? `สี${a.label}` : `สี${a.label} — ล็อกอยู่ ต้องสตรีค ${a.unlockStreak} วัน`}
             >
               <span
-                className="w-6 h-6 rounded-full"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
                 style={{
-                  background: `linear-gradient(180deg, ${a.color}, color-mix(in srgb, ${a.color} 70%, #06121f))`,
+                  background: open
+                    ? `linear-gradient(180deg, ${a.color}, color-mix(in srgb, ${a.color} 70%, #06121f))`
+                    : "rgba(10,20,31,.8)",
+                  border: open ? "none" : `1px dashed color-mix(in srgb, ${a.color} 45%, transparent)`,
                   boxShadow: on ? `0 0 10px ${a.color}` : "none",
                 }}
-              />
+              >
+                {open ? "" : "🔒"}
+              </span>
               <span className="font-mono2 text-[9px]" style={{ color: on ? a.color : "var(--mut)" }}>
-                {a.label}
+                {open ? a.label : `${a.unlockStreak} วัน`}
               </span>
             </button>
           );
         })}
       </div>
+      {nextLock && (
+        <p className="text-[10.5px] mt-2 leading-relaxed" style={{ color: "var(--dim)" }}>
+          อีก {nextLock.unlockStreak - best} วันต่อเนื่องจะปลดล็อกสี{nextLock.label} — นับจากสตรีคสูงสุดที่เคยทำได้
+          ปลดแล้วอยู่ถาวร ขาดวันก็ไม่หาย
+        </p>
+      )}
       <div className="mt-1.5">
         <ToggleRow
           label="โน้ตโค้ชในการ์ดท่า"

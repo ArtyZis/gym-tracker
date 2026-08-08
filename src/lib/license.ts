@@ -8,15 +8,45 @@ export const BUY_CONTACT = "";
 // การมีเซิร์ฟเวอร์ + บัญชี + Stripe แลกมาด้วยงานหลายสัปดาห์ก่อนจะรู้ด้วยซ้ำว่ามีคนยอมจ่ายไหม
 // ถ้าวันหนึ่งขายได้เยอะจนการแชร์รหัสกินรายได้จริง ค่อยย้ายไปตรวจฝั่งเซิร์ฟเวอร์
 //
-// รูปแบบ: COACH-AAAA-BBBB-CCCC   (CCCC = checksum ของ AAAABBBB + SALT)
-// สร้างรหัสด้วย: node scripts/make-license.mjs [จำนวน]
+// รหัสมี 2 แบบ อยู่ร่วมกันได้:
+//
+//   COACH-AAAA-BBBB-CCCC   รหัสเก่า "ตลอดชีพ" — ยังใช้ได้ตลอดไป ห้ามทำให้พัง
+//                          คนที่ซื้อตอนขายแบบจ่ายครั้งเดียวต้องไม่โดนตัดสิทธิ์ย้อนหลัง
+//   RF-EEXX-XXXX-CCCC      รหัสใหม่แบบมีวันหมดอายุ (EE = เดือนที่หมด)
+//
+// แยกด้วย prefix แทนที่จะยัดวันหมดอายุลงในรูปแบบเดิม เพราะถ้าใช้รูปแบบเดียวกัน
+// รหัสเก่าจะถูกอ่าน 2 ตัวแรกเป็นวันหมดอายุมั่ว แล้วลูกค้าเก่าโดนล็อกทันที
+//
+// สร้างรหัสด้วย: node scripts/make-license.mjs 3 5   (5 ใบ อายุ 3 เดือน)
+//
+// ข้อจำกัดที่รู้อยู่: ตรวจในเครื่องล้วน หมุนนาฬิกาเครื่องย้อนหลังก็ใช้ต่อได้
+// และรหัสส่งต่อกันได้ — เป็น "แรงเสียดทาน" ไม่ใช่ป้อมปราการ ตามเหตุผลข้างบน
 
 const KEY_STORE = "gymtracker_coach_license_v1";
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // ตัด I L O 0 1 ออก กันอ่าน/พิมพ์ผิด
 const SALT = "artyz-coach-2026";
 
-// ราคาขาย (จ่ายครั้งเดียว ใช้ถาวร) — แก้ตรงนี้ที่เดียว มีผลทุกที่ที่โชว์ราคา
-export const PRICE_THB = 299;
+// เดือนฐานของการเข้ารหัสวันหมดอายุ — ห้ามเปลี่ยน ไม่งั้นรหัสที่ออกไปแล้วเลื่อนวันหมดหมด
+const EPOCH_YEAR = 2026;
+const EPOCH_MONTH = 1;
+
+export interface Plan {
+  months: number;
+  price: number;
+  label: string;
+  note?: string;
+}
+
+// แพ็กเกจขาย — แก้ตรงนี้ที่เดียว มีผลทุกที่ที่โชว์ราคา
+//
+// ขายเป็นก้อน 3/12 เดือนแทนรายเดือน เพราะระบบไม่มี backend ตัดบัตรอัตโนมัติ
+// รายเดือนแปลว่าต้องส่งรหัสใหม่เองทุกเดือนต่อลูกค้าหนึ่งคน ซึ่งพังทันทีที่มีลูกค้าหลายสิบราย
+export const PLANS: Plan[] = [
+  { months: 3, price: 249, label: "3 เดือน", note: "83฿/เดือน" },
+  { months: 12, price: 690, label: "1 ปี", note: "58฿/เดือน · คุ้มสุด" },
+];
+
+export const PRICE_THB = PLANS[0].price; // ราคาต่ำสุดที่เริ่มต้น — ใช้โชว์ "เริ่มที่ N฿"
 
 function fnv1a(s: string): number {
   let h = 0x811c9dc5;
@@ -35,13 +65,56 @@ export function checksumOf(body: string): string {
 
 export const normalizeKey = (raw: string): string => raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
+// เดือนหมดอายุ <-> 2 ตัวอักษร (base31) — 961 เดือน = 80 ปี เหลือเฟือ
+export function encodeExpiry(year: number, month: number): string {
+  const n = (year - EPOCH_YEAR) * 12 + (month - EPOCH_MONTH);
+  return ALPHABET[Math.floor(n / ALPHABET.length) % ALPHABET.length] + ALPHABET[n % ALPHABET.length];
+}
+
+function decodeExpiry(code: string): { year: number; month: number } | null {
+  const a = ALPHABET.indexOf(code[0]);
+  const b = ALPHABET.indexOf(code[1]);
+  if (a < 0 || b < 0) return null;
+  const n = a * ALPHABET.length + b;
+  return { year: EPOCH_YEAR + Math.floor(n / 12), month: EPOCH_MONTH + (n % 12) };
+}
+
+const bodyOf = (k: string): string | null => {
+  if (k.startsWith("COACH") && k.length === 17) return k.slice(5);
+  if (k.startsWith("RF") && k.length === 14) return k.slice(2);
+  return null;
+};
+
 export function isValidKey(raw: string): boolean {
   const k = normalizeKey(raw);
-  if (!k.startsWith("COACH")) return false;
-  const rest = k.slice(5);
-  if (rest.length !== 12) return false;
+  const rest = bodyOf(k);
+  if (!rest || rest.length !== 12) return false;
   if ([...rest].some((c) => !ALPHABET.includes(c))) return false;
   return checksumOf(rest.slice(0, 8)) === rest.slice(8);
+}
+
+export type LicenseStatus =
+  | { kind: "none" }
+  | { kind: "lifetime" }
+  | { kind: "active"; until: string; daysLeft: number }
+  | { kind: "expired"; until: string };
+
+/** วันสุดท้ายที่ใช้ได้ = วันสิ้นเดือนที่เข้ารหัสไว้ (ให้ใช้ครบเดือนนั้นเสมอ) */
+function endOfMonth(year: number, month: number): Date {
+  return new Date(year, month, 0, 23, 59, 59, 999);
+}
+
+export function licenseStatus(raw = savedKey()): LicenseStatus {
+  if (!raw || !isValidKey(raw)) return { kind: "none" };
+  const k = normalizeKey(raw);
+  if (k.startsWith("COACH")) return { kind: "lifetime" }; // รหัสรุ่นจ่ายครั้งเดียว
+
+  const exp = decodeExpiry(k.slice(2, 4));
+  if (!exp) return { kind: "none" };
+  const end = endOfMonth(exp.year, exp.month);
+  const until = `${exp.year}-${String(exp.month).padStart(2, "0")}`;
+  const daysLeft = Math.ceil((end.getTime() - Date.now()) / 86400000);
+  return daysLeft > 0 ? { kind: "active", until, daysLeft } : { kind: "expired", until };
 }
 
 export function savedKey(): string | null {
@@ -53,8 +126,8 @@ export function savedKey(): string | null {
 }
 
 export function isUnlocked(): boolean {
-  const k = savedKey();
-  return !!k && isValidKey(k);
+  const s = licenseStatus();
+  return s.kind === "lifetime" || s.kind === "active";
 }
 
 export function saveKey(raw: string): boolean {
@@ -75,10 +148,11 @@ export function clearKey(): void {
   }
 }
 
-// COACHAAAABBBBCCCC -> COACH-AAAA-BBBB-CCCC
+// COACHAAAABBBBCCCC -> COACH-AAAA-BBBB-CCCC  ·  RFAAAABBBBCCCC -> RF-AAAA-BBBB-CCCC
 export function formatKey(raw: string): string {
   const n = normalizeKey(raw);
-  if (!n.startsWith("COACH") || n.length !== 17) return raw;
-  const r = n.slice(5);
-  return `COACH-${r.slice(0, 4)}-${r.slice(4, 8)}-${r.slice(8, 12)}`;
+  const body = bodyOf(n);
+  if (!body) return raw;
+  const head = n.startsWith("COACH") ? "COACH" : "RF";
+  return `${head}-${body.slice(0, 4)}-${body.slice(4, 8)}-${body.slice(8, 12)}`;
 }
