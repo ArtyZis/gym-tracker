@@ -198,7 +198,7 @@ export function drawWeeklyCard(stats: WeeklyStats, accent = "#4fd8ff"): HTMLCanv
   // footer
   ctx.fillStyle = "#3E5068";
   ctx.font = `600 30px ${disp}`;
-  ctx.fillText("GYM TRACKER BY ARTYZ", 80, H - 70);
+  ctx.fillText("RANKFORGE", 80, H - 70);
 
   return canvas;
 }
@@ -208,10 +208,10 @@ export async function shareWeeklyCard(data: Data): Promise<"shared" | "downloade
   const canvas = drawWeeklyCard(stats, resolveAccent(data.settings.accent));
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
   if (!blob) return "failed";
-  const file = new File([blob], "gym-week.png", { type: "image/png" });
+  const file = new File([blob], "rankforge-week.png", { type: "image/png" });
   try {
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: "สรุปสัปดาห์ Gym Tracker" });
+      await navigator.share({ files: [file], title: "สรุปสัปดาห์ RANKFORGE" });
       return "shared";
     }
   } catch (e: any) {
@@ -221,7 +221,7 @@ export async function shareWeeklyCard(data: Data): Promise<"shared" | "downloade
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "gym-week.png";
+    a.download = "rankforge-week.png";
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     return "downloaded";
@@ -520,7 +520,7 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   ctx.fillText("แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงทั่วไป", W / 2, H - 110);
   ctx.fillStyle = "#6d7fa8";
   ctx.font = "600 26px 'Chakra Petch', sans-serif";
-  ctx.fillText("GYM TRACKER BY ARTYZ", W / 2, H - 62);
+  ctx.fillText("RANKFORGE", W / 2, H - 62);
 
   return canvas;
 }
@@ -621,15 +621,15 @@ export function drawBestLiftsCard(data: Data): HTMLCanvasElement {
   ctx.fillText(`ฝึกจริง ${proof.days} วัน · ${proof.sets} เซต`, W / 2, H - 118);
   ctx.fillStyle = "#6d7fa8";
   ctx.font = "600 26px 'Chakra Petch', sans-serif";
-  ctx.fillText("GYM TRACKER BY ARTYZ", W / 2, H - 62);
+  ctx.fillText("RANKFORGE", W / 2, H - 62);
 
   return canvas;
 }
 
-export const shareRankCard = (data: Data) => shareCanvas(drawRankCard(data), "gym-rank.png", "แรงค์ความแข็งแรง Gym Tracker");
+export const shareRankCard = (data: Data) => shareCanvas(drawRankCard(data), "rankforge-rank.png", "แรงค์ความแข็งแรง RANKFORGE");
 
 export const shareBestLiftsCard = (data: Data) =>
-  shareCanvas(drawBestLiftsCard(data), "gym-best.png", "สถิติสูงสุด Gym Tracker");
+  shareCanvas(drawBestLiftsCard(data), "rankforge-best.png", "สถิติสูงสุด RANKFORGE");
 
 async function shareCanvas(canvas: HTMLCanvasElement, filename: string, title: string): Promise<"shared" | "downloaded" | "failed"> {
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));

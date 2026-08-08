@@ -12,4 +12,8 @@ export const EDITION: Edition = import.meta.env.VITE_EDITION === "pro" ? "pro" :
 
 export const isPro = EDITION === "pro";
 
-export const APP_NAME = "Gym Tracker";
+export const APP_NAME = "RANKFORGE";
+
+// ชื่อแท็บ — ต่อท้ายด้วยรุ่นเฉพาะรุ่นที่ขาย เพื่อให้เปิดสองรุ่นพร้อมกันแล้วแยกออก
+// (เดิมใช้ APP_NAME เฉยๆ ซึ่งเท่ากันทั้งสองรุ่น เลยไม่ได้แยกอะไรจริง)
+export const APP_TITLE = isPro ? `${APP_NAME} PRO — ตารางเวท ระบบแรงค์` : `${APP_NAME} — ตารางเวท ระบบแรงค์`;

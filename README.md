@@ -1,4 +1,4 @@
-# Gym Tracker by ARTYZ
+# RANKFORGE — ตารางเวท ระบบแรงค์
 
 เว็บแอปตารางฝึกเวท — React + TypeScript + Vite + Tailwind, UI ไทยทั้งหมด, ธีมกระจกฟ้า/cyan glow, mobile-first (iPhone Safari / PWA)
 

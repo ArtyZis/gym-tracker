@@ -551,7 +551,7 @@ export default function ManageView() {
       {/* เวอร์ชันที่กำลังใช้อยู่ — PWA อาจค้างเวอร์ชันเก่าไว้โดยผู้ใช้ไม่รู้ตัว
           มีตัวเลขให้ดูจะได้ตรวจได้ว่าที่เห็นตรงกับที่เพิ่ง deploy ไปไหม */}
       <p className="text-center font-mono2 text-[9px] mt-4 mb-1" style={{ color: "var(--dim)" }}>
-        GYM TRACKER v{__APP_VERSION__} · build {__BUILD_DATE__}
+        RANKFORGE v{__APP_VERSION__} · build {__BUILD_DATE__}
       </p>
     </div>
   );

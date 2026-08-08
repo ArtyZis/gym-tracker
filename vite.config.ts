@@ -8,7 +8,10 @@ import pkg from "./package.json";
 //   npm run build:pro  -> รุ่นที่ขาย ออกที่ dist-pro/  (โหลด .env.pro)
 export default defineConfig(({ mode }) => {
   const pro = mode === "pro";
-  const name = "Gym Tracker";
+  // short_name คือชื่อใต้ไอคอนบนหน้าจอโฮม ซึ่งถูกตัดสั้นถ้ายาวเกิน ~12 ตัว
+  // จึงต้องเป็นชื่อล้วน ส่วนคำอธิบายภาษาไทยไปอยู่ใน name เต็มแทน
+  const name = "RANKFORGE — ตารางเวท ระบบแรงค์";
+  const shortName = "RANKFORGE";
 
   return {
     // path แบบสัมพัทธ์ — เสิร์ฟได้ทั้งที่ราก (Netlify) และที่ path ย่อย (GitHub Pages: /ชื่อ-repo/)
@@ -29,8 +32,8 @@ export default defineConfig(({ mode }) => {
         includeAssets: ["icon.svg", "apple-touch-icon.png", "icon-192.png", "icon-512.png"],
         manifest: {
           name,
-          short_name: name,
-          description: "ตารางฝึกเวท บันทึกเซต คำนวณเป้าน้ำหนัก วิเคราะห์สมดุลกล้ามเนื้ออัตโนมัติ",
+          short_name: shortName,
+          description: "ตารางฝึกเวท บันทึกเซต คำนวณเป้าน้ำหนัก วัดแรงค์ความแข็งแรงเทียบน้ำหนักตัว",
           lang: "th",
           dir: "ltr",
           start_url: ".",

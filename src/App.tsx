@@ -151,7 +151,7 @@ export default function App() {
                 Hypertrophy System
               </div>
               <h1 className="font-disp font-bold text-[17px] leading-none tracking-wide" style={{ color: "var(--ink)" }}>
-                GYM TRACKER <span style={{ color: "var(--acc)" }}>BY ARTYZ</span>
+                RANK<span style={{ color: "var(--acc)" }}>FORGE</span>
               </h1>
             </div>
           </div>
