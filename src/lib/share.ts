@@ -242,7 +242,7 @@ import { RANK_COLOR, RANK_COLOR2, RANK_STARS, RANK_TH, bestLifts, computeRank } 
 
 // วาดตราแรงค์บน canvas — ต้องให้ออกมาเหมือน RankEmblem.tsx เพราะเป็นตราเดียวกัน
 // (SVG ใช้ในแอป · canvas ใช้ในรูปแชร์ — ถ้าไม่เหมือนกันคนจะงงว่าทำไมตราคนละแบบ)
-function drawEmblem(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, rank: Rank | null) {
+function drawEmblem(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, rank: Rank | null): { top: number; bottom: number } {
   const r = rank ?? "E";
   const idx = RANKS.indexOf(r);
   const c1 = rank ? RANK_COLOR[r] : "#4a5670";
@@ -356,18 +356,57 @@ function drawEmblem(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: nu
     ctx.fill();
     ctx.restore();
   }
+
+  // คืนขอบเขตจริงของตรา (รวมมงกุฎด้านบนและดาวด้านล่าง)
+  // ผู้เรียกต้องใช้ค่านี้วางเนื้อหาถัดไป ไม่ใช่เดาระยะเอาเอง
+  // (เดาแล้วพลาด: ชื่อแรงค์เคยไปทับดาวเพราะคิดว่าตราจบที่ cy + R)
+  const k = R / 44;
+  return { top: cy - R - (idx >= 5 ? 27 * k : 0), bottom: sy + 6 * k };
 }
 
 export function drawRankCard(data: Data): HTMLCanvasElement {
   const W = 1080;
-  const H = 1350;
+
+  const res: RankResult = computeRank(data);
+  const allLifts: BestLift[] = bestLifts(data);
+
+  // ── วางเลย์เอาต์ก่อนสร้าง canvas ──
+  //
+  // สัดส่วนต้องเป็นค่ามาตรฐานเท่านั้น (4:5 หรือ 3:4) ไม่ใช่ยืดตามเนื้อหาอิสระ
+  // เพราะรูปที่สัดส่วนแปลกจะโดนโซเชียลครอปทิ้งเอง ผู้ใช้เห็นเป็น "รูปเพี้ยน"
+  // (เคยยืดอิสระแล้วได้ 1080×1529 = 1.42 ซึ่งไม่ตรงกับสัดส่วนไหนเลย)
+  //
+  // เมื่อความสูงตายตัว จำนวนบรรทัดจึงต้องยอมตัด — ตัดที่ "สถิติสูงสุด" ซึ่งเรียงจาก
+  // หนักสุดอยู่แล้ว แล้วบอกจำนวนที่เหลือไว้ท้ายรายการ ดีกว่าปล่อยให้ล้นออกนอกกรอบ
+  const EMB_CY = 320;
+  const EMB_R = 118;
+  const ROW_MAIN = 48;
+  const ROW_BEST = 44;
+  const HEAD_GAP = 44; // จากหัวข้อย่อยถึงบรรทัดแรก
+  const FOOT = 150; // ที่ว่างท้ายการ์ดสำหรับคำเตือน + ชื่อแอป
+
+  const embBottom = EMB_CY + EMB_R + EMB_R * 0.36 + (EMB_R / 44) * 6;
+  const nameY = embBottom + 58;
+  const bodyY = res.bodyweight ? nameY + 38 : nameY;
+  const lineY = bodyY + 32;
+  let bestHeadY = lineY + 54;
+  if (res.lifts.length) bestHeadY += HEAD_GAP + res.lifts.length * ROW_MAIN + 14;
+
+  // เลือกจำนวนบรรทัดสถิติที่ใส่ได้จริงในการ์ดสูงสุด 3:4
+  const lastRowY = (n: number) => bestHeadY + HEAD_GAP + Math.max(0, n - 1) * ROW_BEST;
+  const MAX_H = 1440; // 3:4
+  let shown = Math.min(7, allLifts.length);
+  while (shown > 1 && lastRowY(shown) + (shown < allLifts.length ? ROW_BEST : 0) + FOOT > MAX_H) shown--;
+  const lifts = allLifts.slice(0, shown);
+  const more = allLifts.length - shown;
+
+  const needed = lastRowY(shown) + (more > 0 ? ROW_BEST : 0) + FOOT;
+  const H = needed <= 1350 ? 1350 : MAX_H; // 4:5 ถ้าพอ ไม่งั้น 3:4
+
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
-
-  const res: RankResult = computeRank(data);
-  const lifts: BestLift[] = bestLifts(data).slice(0, 8);
   // สีธีมของผู้ใช้ — การ์ดที่แชร์ควรเป็นสีเดียวกับแอปที่เขาใช้อยู่ ไม่ใช่สีตายตัว
   // แต่ "ตราแรงค์" ยังใช้สีตามระดับเสมอ เพราะสีคือข้อมูล (E เทา ... S ทอง)
   // ถ้าย้อมตราด้วยสีธีมด้วย ทุกแรงค์จะหน้าตาเหมือนกันจนดูไม่ออกว่าใครอยู่ระดับไหน
@@ -398,30 +437,31 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
     ctx.stroke();
   }
 
-  // เรืองแสงหลังตัวแรงค์
-  const glow = ctx.createRadialGradient(W / 2, 400, 20, W / 2, 400, 340);
-  glow.addColorStop(0, acc + "55");
+  // เรืองแสงหลังตรา
+  const glow = ctx.createRadialGradient(W / 2, EMB_CY, 20, W / 2, EMB_CY, 300);
+  glow.addColorStop(0, acc + "4d");
   glow.addColorStop(1, "transparent");
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 60, W, 700);
+  ctx.fillRect(0, 30, W, 640);
 
   ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
 
   ctx.fillStyle = "#8fa4d4";
   ctx.font = "500 26px 'JetBrains Mono', monospace";
-  ctx.fillText("S T R E N G T H   R A N K", W / 2, 150);
+  ctx.fillText("S T R E N G T H   R A N K", W / 2, 116);
 
   // ตราแรงค์แบบเกม (หกเหลี่ยมโลหะ + ปีก + มงกุฎ) — ชุดเดียวกับที่แสดงในแอป
-  drawEmblem(ctx, W / 2, 390, 150, res.rank);
+  drawEmblem(ctx, W / 2, EMB_CY, EMB_R, res.rank);
 
   ctx.fillStyle = "#e7edfb";
   ctx.font = "600 42px 'Chakra Petch', sans-serif";
-  ctx.fillText(res.rank ? RANK_TH[res.rank] : "ข้อมูลยังไม่พอ", W / 2, 620);
+  ctx.fillText(res.rank ? RANK_TH[res.rank] : "ข้อมูลยังไม่พอ", W / 2, nameY);
 
   if (res.bodyweight) {
     ctx.fillStyle = "#6d7fa8";
     ctx.font = "400 24px 'JetBrains Mono', monospace";
-    ctx.fillText(`เทียบน้ำหนักตัว ${res.bodyweight} kg`, W / 2, 660);
+    ctx.fillText(`เทียบน้ำหนักตัว ${res.bodyweight} kg`, W / 2, bodyY);
   }
 
   // เส้นคั่น
@@ -430,16 +470,16 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   line.addColorStop(0.5, acc);
   line.addColorStop(1, "transparent");
   ctx.fillStyle = line;
-  ctx.fillRect(120, 700, W - 240, 2);
+  ctx.fillRect(120, lineY, W - 240, 2);
 
   // ท่าหลัก + อัตราส่วน
   ctx.textAlign = "left";
-  let y = 764;
+  let y = lineY + 54;
   if (res.lifts.length) {
     ctx.fillStyle = "#8fa4d4";
     ctx.font = "500 22px 'JetBrains Mono', monospace";
     ctx.fillText("ท่าหลัก (1RM ประเมิน / น้ำหนักตัว)", 90, y);
-    y += 46;
+    y += HEAD_GAP;
     for (const l of res.lifts) {
       ctx.fillStyle = "#dbe4f7";
       ctx.font = "500 32px 'Chakra Petch', sans-serif";
@@ -449,17 +489,17 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
       ctx.font = "600 30px 'JetBrains Mono', monospace";
       ctx.fillText(`${l.oneRM} kg · ${l.ratio}x · ${l.rank}`, W - 90, y);
       ctx.textAlign = "left";
-      y += 50;
+      y += ROW_MAIN;
     }
-    y += 16;
+    y += 14;
   }
 
   // สถิติสูงสุดรายท่า
   ctx.fillStyle = "#8fa4d4";
   ctx.font = "500 22px 'JetBrains Mono', monospace";
   ctx.fillText("สถิติสูงสุดที่เคยทำ", 90, y);
-  y += 46;
-  for (const l of lifts.slice(0, 7)) {
+  y += HEAD_GAP;
+  for (const l of lifts) {
     ctx.fillStyle = "#c3cfe6";
     ctx.font = "400 29px 'Chakra Petch', sans-serif";
     const name = l.name.length > 26 ? l.name.slice(0, 25) + "…" : l.name;
@@ -469,7 +509,14 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
     ctx.font = "500 27px 'JetBrains Mono', monospace";
     ctx.fillText(`${l.weight} ${l.unit} × ${l.reps} · ${l.sets} เซต`, W - 90, y);
     ctx.textAlign = "left";
-    y += 44;
+    y += ROW_BEST;
+  }
+
+  // บอกตรงๆ ว่าตัดไปกี่ท่า ดีกว่าให้คนคิดว่าแอปจำสถิติได้แค่นี้
+  if (more > 0) {
+    ctx.fillStyle = "#4a5a7d";
+    ctx.font = "400 24px 'Chakra Petch', sans-serif";
+    ctx.fillText(`และอีก ${more} ท่า`, 90, y);
   }
 
   ctx.textAlign = "center";

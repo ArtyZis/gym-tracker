@@ -5,10 +5,12 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
+import type { Rank } from "../lib/rank";
 import { RANKS, RANK_COLOR, RANK_TH, bestLifts, computeRank } from "../lib/rank";
 import { shareRankCard } from "../lib/share";
 import { Kicker } from "./ui";
 import RankEmblem from "./RankEmblem";
+import RankPeek from "./RankPeek";
 
 const SHOW = 6;
 
@@ -18,6 +20,7 @@ export default function RankCard() {
   const lifts = useMemo(() => bestLifts(data), [data]);
   const [all, setAll] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [peek, setPeek] = useState<Rank | null>(null);
 
   if (!lifts.length) return null;
 
@@ -35,9 +38,9 @@ export default function RankCard() {
       </Kicker>
 
       <div className="flex items-center gap-3 mb-3">
-        <div className="shrink-0">
+        <button className="shrink-0" onClick={() => setPeek(res.rank ?? "E")} aria-label="ดูรายละเอียดแรงค์">
           <RankEmblem rank={res.rank} size={104} />
-        </div>
+        </button>
         <div className="min-w-0 flex-1">
           {res.rank ? (
             <>
@@ -57,13 +60,13 @@ export default function RankCard() {
         </div>
       </div>
 
-      {/* แถบระดับ E→S ให้เห็นว่าอยู่ตรงไหนและอีกไกลแค่ไหน */}
-      <div className="flex gap-1 mb-3">
+      {/* แถบระดับ E→S ให้เห็นว่าอยู่ตรงไหนและอีกไกลแค่ไหน · กดดูเกณฑ์ของแต่ละระดับได้ */}
+      <div className="flex gap-1 mb-1.5">
         {RANKS.map((r) => {
           const on = res.rank === r;
           const passed = res.rank ? RANKS.indexOf(r) <= RANKS.indexOf(res.rank) : false;
           return (
-            <div
+            <button
               key={r}
               className="flex-1 text-center font-mono2 text-[10px] py-1"
               style={{
@@ -71,12 +74,17 @@ export default function RankCard() {
                 background: on ? RANK_COLOR[r] : passed ? `color-mix(in srgb, ${RANK_COLOR[r]} 16%, transparent)` : "rgba(10,20,31,.5)",
                 border: `1px solid ${passed ? `color-mix(in srgb, ${RANK_COLOR[r]} 40%, transparent)` : "var(--edge)"}`,
               }}
+              onClick={() => setPeek(r)}
+              aria-label={`ดูแรงค์ ${r}`}
             >
               {r}
-            </div>
+            </button>
           );
         })}
       </div>
+      <p className="text-[10px] mb-3 text-center" style={{ color: "var(--dim)" }}>
+        กดที่ตัวอักษรเพื่อดูตราและเกณฑ์ของแต่ละระดับ
+      </p>
 
       {res.lifts.length > 0 && (
         <div className="glass-inset p-3 mb-2.5">
@@ -126,6 +134,8 @@ export default function RankCard() {
         แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงที่ใช้อ้างอิงกันทั่วไป (อิงผู้ชายเป็นหลัก)
         ไม่ใช่การวัดที่แม่นยำ — ใช้ดูพัฒนาการของตัวเองเทียบกับตัวเองดีที่สุด
       </p>
+
+      {peek && <RankPeek rank={peek} res={res} onPick={setPeek} onClose={() => setPeek(null)} />}
     </div>
   );
 }

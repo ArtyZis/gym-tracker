@@ -48,7 +48,7 @@ export const RANK_STARS: Record<Rank, number> = { E: 0, D: 1, C: 2, B: 3, A: 4, 
 
 // ท่าหลักที่ใช้ตัดสินแรงค์ + เกณฑ์อัตราส่วน 1RM ต่อน้ำหนักตัว สำหรับ [D, C, B, A, S]
 // ต่ำกว่าเกณฑ์ D ทั้งหมด = E
-const LIFT_STANDARDS: { key: string; label: string; names: string[]; ratios: [number, number, number, number, number] }[] = [
+export const LIFT_STANDARDS: { key: string; label: string; names: string[]; ratios: [number, number, number, number, number] }[] = [
   { key: "squat", label: "สควอท", names: ["Barbell Squat", "Front Squat", "Box Squat", "Smith Machine Squat"], ratios: [1.0, 1.25, 1.5, 2.0, 2.5] },
   { key: "bench", label: "เบนช์", names: ["Barbell Bench Press", "Incline Barbell Press", "Close Grip Bench Press"], ratios: [0.75, 1.0, 1.25, 1.5, 2.0] },
   { key: "deadlift", label: "เดดลิฟต์", names: ["Deadlift", "Sumo Deadlift", "Romanian Deadlift", "Stiff Leg Deadlift"], ratios: [1.25, 1.5, 1.75, 2.25, 3.0] },
@@ -135,6 +135,13 @@ const rankOf = (ratio: number, ratios: [number, number, number, number, number])
   for (let i = 0; i < ratios.length; i++) if (ratio >= ratios[i]) r = RANKS[i + 1];
   return r;
 };
+
+/** เกณฑ์ที่ต้องถึงของแรงค์นั้นในแต่ละท่าหลัก (เท่าของน้ำหนักตัว) — ใช้โชว์ว่าอีกไกลแค่ไหน */
+export function requirementFor(rank: Rank): { label: string; ratio: number }[] {
+  const i = RANKS.indexOf(rank) - 1; // E ไม่มีเกณฑ์ (เป็นระดับเริ่มต้น)
+  if (i < 0) return [];
+  return LIFT_STANDARDS.map((s) => ({ label: s.label, ratio: s.ratios[i] }));
+}
 
 export function computeRank(data: Data): RankResult {
   const bw = latestBodyweight(data);
