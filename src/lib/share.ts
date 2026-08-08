@@ -1,7 +1,7 @@
 // การ์ดสรุปรายสัปดาห์แชร์ได้ — วาดด้วย canvas ให้แคปแชร์ลง social
 
 import type { Data, SetLog } from "./store";
-import { computeStreak } from "./streak";
+import { computeStreak, trainingProof } from "./streak";
 import { resolveAccent } from "./accent";
 
 
@@ -368,40 +368,26 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   const W = 1080;
 
   const res: RankResult = computeRank(data);
-  const allLifts: BestLift[] = bestLifts(data);
+  const proof = trainingProof(data);
 
   // ── วางเลย์เอาต์ก่อนสร้าง canvas ──
   //
-  // สัดส่วนต้องเป็นค่ามาตรฐานเท่านั้น (4:5 หรือ 3:4) ไม่ใช่ยืดตามเนื้อหาอิสระ
+  // สัดส่วนต้องเป็นค่ามาตรฐานเท่านั้น (4:5) ไม่ใช่ยืดตามเนื้อหาอิสระ
   // เพราะรูปที่สัดส่วนแปลกจะโดนโซเชียลครอปทิ้งเอง ผู้ใช้เห็นเป็น "รูปเพี้ยน"
-  // (เคยยืดอิสระแล้วได้ 1080×1529 = 1.42 ซึ่งไม่ตรงกับสัดส่วนไหนเลย)
   //
-  // เมื่อความสูงตายตัว จำนวนบรรทัดจึงต้องยอมตัด — ตัดที่ "สถิติสูงสุด" ซึ่งเรียงจาก
-  // หนักสุดอยู่แล้ว แล้วบอกจำนวนที่เหลือไว้ท้ายรายการ ดีกว่าปล่อยให้ล้นออกนอกกรอบ
+  // การ์ดนี้มีแค่ "แรงค์ + ท่าหลัก + หลักฐานการฝึก" เท่านั้น
+  // สถิติสูงสุดรายท่าแยกไปเป็นการ์ดของตัวเอง (drawBestLiftsCard) เพราะยัดรวมกัน
+  // แล้วกลายเป็นกำแพงตัวเลขที่ไม่มีใครอ่าน และดันให้การ์ดสูงเกินสัดส่วนมาตรฐาน
   const EMB_CY = 320;
   const EMB_R = 118;
   const ROW_MAIN = 48;
-  const ROW_BEST = 44;
   const HEAD_GAP = 44; // จากหัวข้อย่อยถึงบรรทัดแรก
-  const FOOT = 150; // ที่ว่างท้ายการ์ดสำหรับคำเตือน + ชื่อแอป
+  const H = 1350; // 4:5
 
   const embBottom = EMB_CY + EMB_R + EMB_R * 0.36 + (EMB_R / 44) * 6;
   const nameY = embBottom + 58;
   const bodyY = res.bodyweight ? nameY + 38 : nameY;
   const lineY = bodyY + 32;
-  let bestHeadY = lineY + 54;
-  if (res.lifts.length) bestHeadY += HEAD_GAP + res.lifts.length * ROW_MAIN + 14;
-
-  // เลือกจำนวนบรรทัดสถิติที่ใส่ได้จริงในการ์ดสูงสุด 3:4
-  const lastRowY = (n: number) => bestHeadY + HEAD_GAP + Math.max(0, n - 1) * ROW_BEST;
-  const MAX_H = 1440; // 3:4
-  let shown = Math.min(7, allLifts.length);
-  while (shown > 1 && lastRowY(shown) + (shown < allLifts.length ? ROW_BEST : 0) + FOOT > MAX_H) shown--;
-  const lifts = allLifts.slice(0, shown);
-  const more = allLifts.length - shown;
-
-  const needed = lastRowY(shown) + (more > 0 ? ROW_BEST : 0) + FOOT;
-  const H = needed <= 1350 ? 1350 : MAX_H; // 4:5 ถ้าพอ ไม่งั้น 3:4
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -491,35 +477,44 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
       ctx.textAlign = "left";
       y += ROW_MAIN;
     }
-    y += 14;
   }
 
-  // สถิติสูงสุดรายท่า
-  ctx.fillStyle = "#8fa4d4";
-  ctx.font = "500 22px 'JetBrains Mono', monospace";
-  ctx.fillText("สถิติสูงสุดที่เคยทำ", 90, y);
-  y += HEAD_GAP;
-  for (const l of lifts) {
-    ctx.fillStyle = "#c3cfe6";
-    ctx.font = "400 29px 'Chakra Petch', sans-serif";
-    const name = l.name.length > 26 ? l.name.slice(0, 25) + "…" : l.name;
-    ctx.fillText(name, 90, y);
-    ctx.textAlign = "right";
-    ctx.fillStyle = theme;
-    ctx.font = "500 27px 'JetBrains Mono', monospace";
-    ctx.fillText(`${l.weight} ${l.unit} × ${l.reps} · ${l.sets} เซต`, W - 90, y);
-    ctx.textAlign = "left";
-    y += ROW_BEST;
-  }
-
-  // บอกตรงๆ ว่าตัดไปกี่ท่า ดีกว่าให้คนคิดว่าแอปจำสถิติได้แค่นี้
-  if (more > 0) {
-    ctx.fillStyle = "#4a5a7d";
-    ctx.font = "400 24px 'Chakra Petch', sans-serif";
-    ctx.fillText(`และอีก ${more} ท่า`, 90, y);
-  }
+  // ── หลักฐานการฝึก ──
+  // ตัวเลขที่ปลอมไม่ได้ คู่กับแรงค์ที่พิมพ์น้ำหนักมั่วก็ได้
+  // คนดูจะเทียบเองว่า "แรงค์ S แต่ฝึกมา 4 วัน" กับ "แรงค์ B ฝึกมา 300 วัน" อันไหนของจริง
+  const proofTop = H - 430;
+  ctx.fillStyle = theme + "0f";
+  ctx.fillRect(70, proofTop, W - 140, 190);
+  ctx.strokeStyle = theme + "38";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(70, proofTop, W - 140, 190);
 
   ctx.textAlign = "center";
+  ctx.fillStyle = "#8fa4d4";
+  ctx.font = "500 21px 'JetBrains Mono', monospace";
+  ctx.fillText("หลักฐานการฝึก", W / 2, proofTop + 40);
+
+  const cells: [string, string][] = [
+    [String(proof.days), "วันที่ฝึกจริง"],
+    [proof.months ? `${proof.months}` : "—", "เดือนที่ผ่านมา"],
+    [String(proof.sets), "เซตที่บันทึก"],
+  ];
+  cells.forEach(([big, small], i) => {
+    const cx = W / 2 + (i - 1) * 290;
+    ctx.fillStyle = theme;
+    ctx.font = "700 56px 'Chakra Petch', sans-serif";
+    ctx.fillText(big, cx, proofTop + 115);
+    ctx.fillStyle = "#6d7fa8";
+    ctx.font = "400 21px 'Chakra Petch', sans-serif";
+    ctx.fillText(small, cx, proofTop + 155);
+  });
+
+  if (proof.firstDate) {
+    ctx.fillStyle = "#4a5a7d";
+    ctx.font = "400 22px 'JetBrains Mono', monospace";
+    ctx.fillText(`บันทึกครั้งแรก ${proof.firstDate}`, W / 2, proofTop + 228);
+  }
+
   ctx.fillStyle = "#4a5a7d";
   ctx.font = "400 20px 'JetBrains Mono', monospace";
   ctx.fillText("แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงทั่วไป", W / 2, H - 110);
@@ -530,14 +525,119 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   return canvas;
 }
 
-export async function shareRankCard(data: Data): Promise<"shared" | "downloaded" | "failed"> {
-  const canvas = drawRankCard(data);
+// ── การ์ดสถิติสูงสุดรายท่า (แยกจากการ์ดแรงค์) ──
+//
+// แยกออกมาเพราะเป็นคนละเรื่องกัน: การ์ดแรงค์ตอบว่า "แข็งแรงแค่ไหนเทียบน้ำหนักตัว"
+// การ์ดนี้ตอบว่า "เคยยกอะไรได้เท่าไหร่บ้าง" — คนอยากแชร์คนละโอกาสกัน
+export function drawBestLiftsCard(data: Data): HTMLCanvasElement {
+  const W = 1080;
+  const ROW = 62;
+  const HEAD_END = 250; // ท้ายหัวการ์ด (ชื่อเรื่อง + เส้นคั่น)
+  const FOOT = 210; // แถบหลักฐานการฝึก + ชื่อแอป
+
+  const all = bestLifts(data);
+  const proof = trainingProof(data);
+
+  // ใส่ได้กี่แถวในการ์ด 4:5 ก่อน ไม่พอค่อยขยับเป็น 3:4 (ไม่ยืดเป็นสัดส่วนแปลกๆ)
+  const fits = (h: number) => Math.floor((h - HEAD_END - FOOT) / ROW);
+  const H = all.length <= fits(1350) ? 1350 : 1440;
+  const shown = Math.min(all.length, fits(H));
+  const lifts = all.slice(0, shown);
+  const more = all.length - shown;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+  const theme = resolveAccent(data.settings.accent);
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, mixHex(theme, "#05081a", 0.22));
+  bg.addColorStop(0.55, "#05081a");
+  bg.addColorStop(1, "#03050c");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = theme + "14";
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+  for (let y = 0; y < H; y += 60) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#8fa4d4";
+  ctx.font = "500 26px 'JetBrains Mono', monospace";
+  ctx.fillText("P E R S O N A L   B E S T", W / 2, 120);
+  ctx.fillStyle = "#e7edfb";
+  ctx.font = "600 46px 'Chakra Petch', sans-serif";
+  ctx.fillText("สถิติสูงสุดที่เคยทำ", W / 2, 186);
+
+  const line = ctx.createLinearGradient(120, 0, W - 120, 0);
+  line.addColorStop(0, "transparent");
+  line.addColorStop(0.5, theme);
+  line.addColorStop(1, "transparent");
+  ctx.fillStyle = line;
+  ctx.fillRect(120, 220, W - 240, 2);
+
+  let y = HEAD_END + 44;
+  ctx.textAlign = "left";
+  lifts.forEach((l, i) => {
+    // แถบสลับสีอ่อนๆ ให้กวาดตาตามแถวได้ ไม่หลงบรรทัดตอนมีหลายท่า
+    if (i % 2 === 0) {
+      ctx.fillStyle = theme + "0b";
+      ctx.fillRect(70, y - 42, W - 140, ROW);
+    }
+    ctx.fillStyle = "#c3cfe6";
+    ctx.font = "400 30px 'Chakra Petch', sans-serif";
+    const name = l.name.length > 24 ? l.name.slice(0, 23) + "…" : l.name;
+    ctx.fillText(name, 90, y);
+    ctx.textAlign = "right";
+    ctx.fillStyle = theme;
+    ctx.font = "600 30px 'JetBrains Mono', monospace";
+    ctx.fillText(`${l.weight} ${l.unit} × ${l.reps} · ${l.sets} เซต`, W - 90, y);
+    ctx.textAlign = "left";
+    y += ROW;
+  });
+
+  if (more > 0) {
+    ctx.fillStyle = "#4a5a7d";
+    ctx.font = "400 24px 'Chakra Petch', sans-serif";
+    ctx.fillText(`และอีก ${more} ท่า`, 90, y);
+  }
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#6d7fa8";
+  ctx.font = "400 24px 'JetBrains Mono', monospace";
+  ctx.fillText(`ฝึกจริง ${proof.days} วัน · ${proof.sets} เซต`, W / 2, H - 118);
+  ctx.fillStyle = "#6d7fa8";
+  ctx.font = "600 26px 'Chakra Petch', sans-serif";
+  ctx.fillText("GYM TRACKER BY ARTYZ", W / 2, H - 62);
+
+  return canvas;
+}
+
+export const shareRankCard = (data: Data) => shareCanvas(drawRankCard(data), "gym-rank.png", "แรงค์ความแข็งแรง Gym Tracker");
+
+export const shareBestLiftsCard = (data: Data) =>
+  shareCanvas(drawBestLiftsCard(data), "gym-best.png", "สถิติสูงสุด Gym Tracker");
+
+async function shareCanvas(canvas: HTMLCanvasElement, filename: string, title: string): Promise<"shared" | "downloaded" | "failed"> {
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
   if (!blob) return "failed";
-  const file = new File([blob], "gym-rank.png", { type: "image/png" });
+  const file = new File([blob], filename, { type: "image/png" });
   try {
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: "สถิติและแรงค์ Gym Tracker" });
+      await navigator.share({ files: [file], title });
       return "shared";
     }
   } catch (e: any) {
@@ -547,7 +647,7 @@ export async function shareRankCard(data: Data): Promise<"shared" | "downloaded"
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "gym-rank.png";
+    a.download = filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     return "downloaded";

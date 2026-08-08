@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { Rank } from "../lib/rank";
 import { RANKS, RANK_COLOR, RANK_TH, bestLifts, computeRank } from "../lib/rank";
-import { shareRankCard } from "../lib/share";
+import { shareBestLiftsCard, shareRankCard } from "../lib/share";
 import { Kicker } from "./ui";
 import RankEmblem from "./RankEmblem";
 import RankPeek from "./RankPeek";
@@ -24,9 +24,11 @@ export default function RankCard() {
 
   if (!lifts.length) return null;
 
-  const share = async () => {
+  // แชร์แยกสองใบ: แรงค์ (แข็งแรงแค่ไหน) กับสถิติสูงสุด (เคยยกอะไรได้บ้าง)
+  // เป็นคนละเรื่องและคนอยากแชร์คนละโอกาส ยัดรวมใบเดียวกลายเป็นกำแพงตัวเลข
+  const share = async (kind: "rank" | "best") => {
     setBusy(true);
-    const r = await shareRankCard(data);
+    const r = await (kind === "rank" ? shareRankCard(data) : shareBestLiftsCard(data));
     setBusy(false);
     toast(r === "shared" ? "แชร์แล้ว" : r === "downloaded" ? "บันทึกรูปแล้ว" : "แชร์ไม่สำเร็จ", r !== "failed");
   };
@@ -102,6 +104,13 @@ export default function RankCard() {
         </div>
       )}
 
+      <button className="btn-cy w-full !py-2.5 !text-[12.5px] mb-1" onClick={() => share("rank")} disabled={busy}>
+        {busy ? "กำลังสร้างรูป…" : "แชร์แรงค์ + ท่าหลัก"}
+      </button>
+      <p className="text-[10px] mb-3 text-center leading-relaxed" style={{ color: "var(--dim)" }}>
+        การ์ดจะโชว์จำนวนวันที่ฝึกจริงคู่ไปด้วย — คนดูจะได้แยกออกว่าใครฝึกมาจริง
+      </p>
+
       <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-1.5" style={{ color: "var(--mut)" }}>
         สถิติสูงสุดที่เคยทำ
       </div>
@@ -121,8 +130,8 @@ export default function RankCard() {
         </button>
       )}
 
-      <button className="btn-cy w-full !py-2.5 !text-[12.5px] mt-2.5" onClick={share} disabled={busy}>
-        {busy ? "กำลังสร้างรูป…" : "แชร์สถิติ + แรงค์"}
+      <button className="btn-gh w-full !py-2.5 !text-[12px] mt-2" onClick={() => share("best")} disabled={busy}>
+        {busy ? "กำลังสร้างรูป…" : `แชร์สถิติสูงสุด ${lifts.length} ท่า`}
       </button>
 
       {!res.bodyweight && (

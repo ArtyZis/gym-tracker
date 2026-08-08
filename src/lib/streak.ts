@@ -74,6 +74,28 @@ function makeupCredits(data: Data): { slot: DayKey; date: string }[] {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// ── หลักฐานการฝึก ──
+//
+// ตัวเลขที่ "ปลอมยาก" สำหรับใส่ในการ์ดแชร์แรงค์
+// ใครก็พิมพ์น้ำหนัก 200 กก. ลงไปแล้วได้แรงค์ S ในนาทีเดียว แต่ปลอม "ฝึกมา 240 วัน
+// ตลอด 14 เดือน" ไม่ได้ ต้องเปิดแอปบันทึกจริงทุกครั้ง — ตัวเลขนี้จึงเป็นตัวแยก
+// ของจริงกับของปลอม และเป็นเหตุผลที่ต้องโชว์คู่กับแรงค์เสมอ
+export interface TrainingProof {
+  days: number; // จำนวนวันที่มีการบันทึกจริง
+  sets: number; // เซตทั้งหมดที่เคยบันทึก
+  firstDate: string | null; // วันแรกที่บันทึก
+  months: number; // ระยะเวลาตั้งแต่วันแรกถึงวันนี้ (เดือน)
+}
+
+export function trainingProof(data: Data): TrainingProof {
+  const perDay = setsPerDay(data);
+  const dates = [...perDay.keys()].sort();
+  const sets = [...perDay.values()].reduce((a, b) => a + b, 0);
+  const first = dates[0] ?? null;
+  const months = first ? Math.max(1, Math.round((Date.now() - Date.parse(first + "T00:00:00")) / 2_592_000_000)) : 0;
+  return { days: perDay.size, sets, firstDate: first, months };
+}
+
 export interface StreakInfo {
   current: number;
   best: number;

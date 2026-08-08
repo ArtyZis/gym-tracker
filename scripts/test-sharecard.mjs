@@ -6,7 +6,7 @@
 //
 // รัน: .\node_modules\.bin\esbuild.cmd scripts/test-sharecard.mjs --bundle --platform=node --format=esm --outfile=t.mjs; node t.mjs
 
-import { drawRankCard } from "../src/lib/share.ts";
+import { drawBestLiftsCard, drawRankCard } from "../src/lib/share.ts";
 import { createDefault, createEmpty } from "../src/lib/store.ts";
 
 let pass = 0, fail = 0;
@@ -23,7 +23,7 @@ function makeCtx() {
     createLinearGradient: () => grad,
     createRadialGradient: () => grad,
     fillText: (t, x, y) => texts.push({ t, x, y }),
-    fillRect: noop, beginPath: noop, moveTo: noop, lineTo: noop, closePath: noop,
+    fillRect: noop, strokeRect: noop, beginPath: noop, moveTo: noop, lineTo: noop, closePath: noop,
     fill: noop, stroke: noop, save: noop, restore: noop, translate: noop, scale: noop,
     measureText: (t) => ({ width: t.length * 14 }),
   };
@@ -76,10 +76,39 @@ const hFull = check("ข้อมูลครบ (ท่าหลัก 4 + ส�
 const hMid = check("ข้อมูลปานกลาง (ท่าหลัก 2 + สถิติ 3)", mk([MAIN[0], MAIN[1], EXTRA[0]]));
 const hThin = check("ข้อมูลน้อย (ไม่มีน้ำหนักตัว 2 ท่า)", mk([EXTRA[0], EXTRA[1]], 0));
 
-console.log("\n═══ ความสูงมีแค่ 2 ค่า ไม่ยืดอิสระ ═══");
-ok("ข้อมูลครบ -> ใช้การ์ด 3:4", hFull === 1440, `${hFull}`);
-ok("ข้อมูลปานกลาง -> ใช้การ์ด 4:5", hMid === 1350, `${hMid}`);
-ok("ข้อมูลน้อย -> ใช้การ์ด 4:5", hThin === 1350, `${hThin}`);
+console.log("\n═══ การ์ดแรงค์เป็น 4:5 เสมอ ไม่ว่าข้อมูลเยอะแค่ไหน ═══");
+ok("ข้อมูลครบ -> 4:5", hFull === 1350, `${hFull}`);
+ok("ข้อมูลปานกลาง -> 4:5", hMid === 1350, `${hMid}`);
+ok("ข้อมูลน้อย -> 4:5", hThin === 1350, `${hThin}`);
+
+console.log("\n═══ การ์ดแรงค์ต้องมีแค่แรงค์ + ท่าหลัก + หลักฐาน ═══");
+{
+  texts.length = 0;
+  drawRankCard(mk([...MAIN, ...EXTRA]));
+  const all = texts.map((t) => t.t);
+  ok("ไม่มีบล็อกสถิติสูงสุดรายท่าแล้ว", !all.some((t) => t === "สถิติสูงสุดที่เคยทำ"), all.join(" | ").slice(0, 120));
+  ok("ไม่มีชื่อท่าเสริมหลุดมา", !all.some((t) => t === "Leg Press" || t === "Dumbbell Curl"));
+  ok("ยังมีท่าหลักครบ", ["สควอท", "เบนช์", "เดดลิฟต์", "ดันบ่า"].every((l) => all.includes(l)), all.join(" | "));
+  ok("มีหัวข้อหลักฐานการฝึก", all.includes("หลักฐานการฝึก"));
+  ok("มีป้ายจำนวนวันที่ฝึกจริง", all.includes("วันที่ฝึกจริง"));
+  ok("มีป้ายจำนวนเซตที่บันทึก", all.includes("เซตที่บันทึก"));
+  ok("บอกวันที่บันทึกครั้งแรก", all.some((t) => /^บันทึกครั้งแรก \d{4}-\d{2}-\d{2}$/.test(t)), all.join(" | ").slice(-100));
+}
+
+console.log("\n═══ กรอบหลักฐานต้องไม่ชนรายการท่าหลัก ═══");
+{
+  // ท่าหลัก 4 ท่า = เคสที่รายการยาวสุด ถ้าไม่ชนตรงนี้ก็ไม่ชนเคสอื่น
+  texts.length = 0;
+  drawRankCard(mk([...MAIN, ...EXTRA]));
+  const PROOF_TOP = 1350 - 430; // ต้องตรงกับ proofTop ใน drawRankCard
+  const mains = texts.filter((t) => ["สควอท", "เบนช์", "เดดลิฟต์", "ดันบ่า"].includes(t.t));
+  const lastMain = Math.max(...mains.map((t) => t.y));
+  const head = texts.find((t) => t.t === "หลักฐานการฝึก");
+  ok("ท่าหลักแถวสุดท้ายอยู่เหนือกรอบ", lastMain < PROOF_TOP - 20, `แถวสุดท้าย y=${lastMain} กรอบเริ่ม ${PROOF_TOP}`);
+  ok("หัวข้อหลักฐานอยู่ในกรอบ", head.y > PROOF_TOP && head.y < PROOF_TOP + 190, `y=${head.y}`);
+  const firstDate = texts.find((t) => /^บันทึกครั้งแรก/.test(t.t));
+  ok("บรรทัดวันแรกอยู่ใต้กรอบ ไม่ทับตัวเลข", firstDate.y > PROOF_TOP + 190, `y=${firstDate.y} กรอบจบ ${PROOF_TOP + 190}`);
+}
 
 console.log("\n═══ มงกุฎแรงค์ S ต้องไม่ชนหัวข้อบนสุด ═══");
 {
@@ -96,11 +125,33 @@ console.log("\n═══ มงกุฎแรงค์ S ต้องไม่�
   ok("มงกุฎไม่ชนหัวข้อบนสุด", CROWN_TOP - head.y >= 10, `หัวข้อ y=${head.y} มงกุฎเริ่ม ${CROWN_TOP.toFixed(1)}`);
 }
 
-console.log("\n═══ ท่าที่ตัดออกต้องบอกจำนวน ═══");
+console.log("\n═══ การ์ดสถิติสูงสุด (ใบแยก) ═══");
 {
+  // 11 ท่า — ต้องใส่ได้หมดในใบเดียวโดยไม่ล้น
   texts.length = 0;
-  drawRankCard(mk([...MAIN, ...EXTRA])); // สถิติ 11 ท่า ใส่ไม่หมดแน่นอน
-  ok("มีบรรทัดบอกจำนวนท่าที่เหลือ", texts.some((t) => /^และอีก \d+ ท่า$/.test(t.t)), texts.map((t) => t.t).join(" | ").slice(-90));
+  const c = drawBestLiftsCard(mk([...MAIN, ...EXTRA]));
+  const all = texts.map((t) => t.t);
+  const lowest = Math.max(...texts.map((t) => t.y));
+  const ratio = c.height / c.width;
+  console.log(`   การ์ด ${c.width}×${c.height} · ข้อความล่างสุด y=${lowest} · ${all.filter((t) => /kg ×/.test(t)).length} แถว`);
+  ok("สัดส่วนเป็นค่ามาตรฐาน", OK_RATIOS.some((r) => Math.abs(ratio - r) < 0.01), `ได้ ${ratio.toFixed(3)}`);
+  ok("ข้อความไม่ล้นการ์ด", lowest <= c.height - 40, `y=${lowest} สูง=${c.height}`);
+  ok("มีหัวเรื่องของตัวเอง", all.includes("สถิติสูงสุดที่เคยทำ"));
+  ok("ใส่ครบ 11 ท่าไม่ต้องตัด", all.filter((t) => /kg × \d+ · \d+ เซต/.test(t)).length === 11, `ได้ ${all.filter((t) => /kg ×/.test(t)).length}`);
+  ok("ไม่มีบรรทัด 'และอีก' เพราะใส่ครบแล้ว", !all.some((t) => /^และอีก/.test(t)));
+  ok("มีจำนวนวันที่ฝึกจริงกำกับ", all.some((t) => /^ฝึกจริง \d+ วัน · \d+ เซต$/.test(t)), all.join(" | ").slice(-90));
+}
+{
+  // ท่าเยอะเกินใส่ใบเดียว -> ต้องตัดแล้วบอกจำนวนที่เหลือ ไม่ปล่อยล้น
+  const many = Array.from({ length: 40 }, (_, i) => `Exercise ${i + 1}`);
+  texts.length = 0;
+  const c = drawBestLiftsCard(mk(many, 61.6));
+  const all = texts.map((t) => t.t);
+  const lowest = Math.max(...texts.map((t) => t.y));
+  console.log(`   40 ท่า -> การ์ด ${c.width}×${c.height} · ข้อความล่างสุด y=${lowest}`);
+  ok("ยังไม่ล้นการ์ด", lowest <= c.height - 40, `y=${lowest} สูง=${c.height}`);
+  ok("สัดส่วนยังมาตรฐาน", OK_RATIOS.some((r) => Math.abs(c.height / c.width - r) < 0.01), `${(c.height / c.width).toFixed(3)}`);
+  ok("บอกจำนวนท่าที่ตัดออก", all.some((t) => /^และอีก \d+ ท่า$/.test(t)), all.join(" | ").slice(-90));
 }
 
 console.log(`\n${fail === 0 ? "✅" : "❌"} ผ่าน ${pass} · ไม่ผ่าน ${fail}`);
