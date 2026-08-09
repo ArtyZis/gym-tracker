@@ -1,6 +1,6 @@
 // คำนวณเป้าน้ำหนักวันนี้ + warm-up ramp จากประวัติครั้งล่าสุด
 
-import type { Data, Exercise, SetLog } from "./store";
+import type { Data, Exercise, SessionLog, SetLog } from "./store";
 import { todayStr } from "./store";
 import { muscleMap } from "./analyzer";
 import { findTemplate } from "./exerciseDB";
@@ -65,6 +65,31 @@ function groupByWeight(done: SetLog[]): SetGroup[] {
 /** ปัดน้ำหนักให้ลงหมุด/แผ่นที่มีจริง */
 const roundToStep = (w: number, step: number): number => Math.max(step, +(Math.round(w / step) * step).toFixed(2));
 
+/** จำนวนครั้งล่าสุดติดกันที่เล่นน้ำหนักเท่านี้ — ใช้กันคำแนะนำวนไปกลับ */
+function roundsAtWeight(sessions: SessionLog[], weight: number): number {
+  let n = 0;
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const first = sessions[i].sets.find(Boolean);
+    if (!first || first.weight !== weight) break;
+    n++;
+  }
+  return n;
+}
+
+/**
+ * เคยขึ้นไปลองน้ำหนักนี้แล้วทำไม่ถึงช่วงเป้าไหม
+ *
+ * ดูย้อนแค่ 3 ครั้งล่าสุดโดยตั้งใจ: ถ้าจำนานกว่านั้น คนที่แข็งแรงขึ้นแล้วจริงๆ
+ * จะโดนกฎกันลูปล็อกไว้ที่น้ำหนักเดิมตลอดกาล ซึ่งแย่กว่าการวนไปกลับเสียอีก
+ */
+function failedAt(sessions: SessionLog[], weight: number, rmin: number): boolean {
+  return sessions.slice(-3).some((s) => {
+    const sets = s.sets.filter(Boolean) as SetLog[];
+    if (!sets.length || sets[0].weight !== weight) return false;
+    return Math.min(...sets.map((x) => x.reps || 0)) < rmin;
+  });
+}
+
 export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
   const sessions = (data.history[ex.id] || []).filter((s) => s.date !== todayStr());
   const last = sessions[sessions.length - 1];
@@ -113,18 +138,44 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
 
     const w = groups[0].weight;
     const allHit = done.every((s) => (s.reps || 0) >= ex.rmax);
+    const rounds = roundsAtWeight(sessions, w);
+    const worst = Math.min(...done.map((s) => s.reps || 0));
 
     if (allHit) {
-      // ครบเป้าทุกเซตแล้ว แต่ยังเหลือแรงเยอะ = ขึ้นได้เลยไม่ต้องรอ
-      // เหลือแรงน้อย = ท่าเดี่ยวควรย้ำอีกรอบก่อน (กระโดดทีเป็น % เยอะ)
+      const next = roundToStep(w + inc * style.stepMul, inc);
       const easy = rir !== undefined && rir >= 3;
-      if (!easy && style.holdRounds > 1 && rir !== undefined && rir <= 1)
+
+      // เคยขึ้นไปน้ำหนักนี้แล้วทำไม่ถึงช่วงเป้ามาก่อน — อย่ากระโดดกลับไปซ้ำทันที
+      // ไม่งั้นจะวนอยู่สองค่านี้ไม่จบ: ครบ -> ขึ้น -> ไม่ไหว -> ถอย -> ครบ -> ขึ้น...
+      // แต่ถ้าย่ำที่นี่ครบเป้ามา 3 รอบแล้วก็ให้ลองใหม่ได้ (แข็งแรงขึ้นจริงแล้ว)
+      const justFailed = rounds < 3 && failedAt(sessions, next, ex.rmin);
+
+      // ก้าวถัดไปกระโดดเกิน 20% = หมุดหยาบเกินไปสำหรับน้ำหนักระดับนี้
+      // (เคเบิล/ดัมเบลเบา 7.5 -> 10 คือ +33% ไม่มีทางทำเรปเท่าเดิมได้)
+      // ข้อนี้ต้องมาก่อนการเช็คว่าเหลือแรงเยอะไหม เพราะเป็นข้อจำกัดของอุปกรณ์
+      // ไม่ใช่เรื่องความพร้อมของคน — ต่อให้เหลือแรง 5 หมุดถัดไปก็ยังกระโดดเท่าเดิม
+      if (justFailed && inc / w > 0.2)
+        return {
+          weight: w,
+          kind: "hold",
+          msg: `ก้าวถัดไป ${next} ${unit} กระโดด ${Math.round((inc / w) * 100)}% ซึ่งเยอะเกินสำหรับท่านี้ — อยู่ที่ ${w} ${unit} แล้วดันให้เกิน ${ex.rmax} ครั้ง หรือเพิ่มอีกเซตแทน${tail}`,
+        };
+
+      if (!easy && justFailed)
+        return {
+          weight: w,
+          kind: "hold",
+          msg: `เคยลอง ${next} ${unit} แล้วยังไม่ถึง ${ex.rmin} ครั้ง — อยู่ที่ ${w} ${unit} ให้สบายกว่านี้ก่อน (เหลือแรง 3+) ค่อยขึ้นอีกที${tail}`,
+        };
+
+      // ท่าเดี่ยวที่ครบเป้าแบบเฉียดฉิว ให้ย้ำอีกรอบเดียว ไม่ใช่ย้ำตลอดกาล
+      if (!easy && rir !== undefined && rir <= 1 && rounds < style.holdRounds)
         return {
           weight: w,
           kind: "hold",
           msg: `ครบ ${ex.rmax} ครั้งแล้วแต่เหลือแรงแค่ ${rir} — ย้ำ ${w} ${unit} อีกรอบให้สบายขึ้นก่อนค่อยเพิ่ม${tail}`,
         };
-      const next = roundToStep(w + inc * style.stepMul, inc);
+
       return {
         weight: next,
         kind: "up",
@@ -132,16 +183,37 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
       };
     }
 
-    // ยังไม่ถึงเป้า — คงน้ำหนักแล้วดันเรป ยกเว้นหนักเกินจนหลุดช่วงล่าง
-    const worst = Math.min(...done.map((s) => s.reps || 0));
+    // หลุดช่วงล่าง — ให้โอกาสปรับตัวก่อน 2 ครั้ง แล้วค่อยลดจริง
+    //
+    // ลดทันทีที่พลาดครั้งเดียวคือต้นเหตุของการวนไปกลับ: ครั้งแรกที่ขึ้นน้ำหนัก
+    // ร่างกายยังไม่ชิน ทำไม่ถึงเป็นเรื่องปกติและมักผ่านได้ในรอบถัดไป
     if (worst < ex.rmin) {
+      if (rounds < 2)
+        return {
+          weight: w,
+          kind: "hold",
+          msg: `ครั้งก่อนได้ ${worst} ครั้ง ยังไม่ถึงช่วงเป้า ${ex.rmin}-${ex.rmax} — ลอง ${w} ${unit} อีกรอบก่อน ยังไม่ต้องลด${tail}`,
+        };
       const down = roundToStep(w - inc, inc);
       return {
         weight: down,
         kind: "settle",
-        msg: `ครั้งก่อนได้แค่ ${worst} ครั้ง ต่ำกว่าช่วงเป้า ${ex.rmin}-${ex.rmax} — ลดเป็น ${down} ${unit} แล้วทำให้ครบก่อน${tail}`,
+        msg: `ลอง ${w} ${unit} มา ${rounds} รอบแล้วยังไม่ถึง ${ex.rmin} ครั้ง — ลดเป็น ${down} ${unit} แล้วทำให้ครบก่อน${tail}`,
       };
     }
+
+    // อยู่ในช่วงเป้าแต่ไม่ถึงเพดาน — คงน้ำหนักดันเรป
+    // ถ้าย่ำอยู่ที่เดิมนานเกินไปต้องบอกทางออก ไม่ใช่พูดประโยคเดิมทุกสัปดาห์
+    // ต้องคืนน้ำหนักที่ลดแล้วจริงๆ ด้วย ไม่งั้นข้อความบอกให้ลดแต่ช่องกรอกเติมค่าเดิม = ขัดกันเอง
+    if (rounds >= 4) {
+      const down = roundToStep(w - inc, inc);
+      return {
+        weight: down,
+        kind: "settle",
+        msg: `ค้างที่ ${w} ${unit} มา ${rounds} รอบแล้ว — ถอยมา ${down} ${unit} สัก 1-2 รอบให้ทำครบสบายๆ แล้วค่อยไต่กลับขึ้นไป (หรือเปลี่ยนตัวแปรอื่น เช่น ลงช้าลง เพิ่มเวลาพัก)${tail}`,
+      };
+    }
+
     return {
       weight: w,
       kind: "hold",

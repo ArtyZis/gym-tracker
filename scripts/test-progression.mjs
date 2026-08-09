@@ -82,11 +82,16 @@ console.log("\n═══ 3. ท่าเดี่ยว/เคเบิลต้
   eq("ขึ้นตาม inc ของท่านั้น", t.weight, 105);
 }
 
-console.log("\n═══ 4. หนักเกินจนหลุดช่วงล่าง = ต้องลด ═══");
+console.log("\n═══ 4. หนักเกินจนหลุดช่วงล่าง = ต้องลด (หลังให้โอกาสแล้ว) ═══");
 {
+  // พลาดที่น้ำหนักเดิมสองรอบติด -> ถึงเวลาลดจริง
   const ex = EX();
-  const t = suggestTarget(mk(ex, [{ weight: 25, reps: 8 }, { weight: 25, reps: 7 }, { weight: 25, reps: 6 }]), ex);
-  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg}`);
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  const heavy = [{ weight: 25, reps: 8 }, { weight: 25, reps: 7 }, { weight: 25, reps: 6 }];
+  d.history = { e: [{ date: dk(14), sets: heavy }, { date: dk(7), sets: heavy }] };
+  const t = suggestTarget(d, ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg.slice(0, 60)}`);
   eq("ลดน้ำหนัก", t.kind, "settle");
   eq("ลดลงหนึ่งสเต็ป", t.weight, 22.5);
 }
@@ -99,7 +104,83 @@ console.log("\n═══ 4. หนักเกินจนหลุดช่ว�
   eq("น้ำหนักเดิม", t.weight, 15);
 }
 
-console.log("\n═══ 5. ข้อมูลเก่าที่ไม่มี RIR ต้องยังทำงานเหมือนเดิม ═══");
+console.log("\n═══ 5. ห้ามวนไปกลับระหว่างสองน้ำหนัก ═══");
+{
+  // ครบที่ 15 -> ขึ้น 17.5 -> ไม่ไหว -> ถอย 15 -> ครบ -> ต้องไม่กระโดดกลับ 17.5 ทันที
+  const ex = EX();
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  d.history = { e: [
+    { date: dk(21), sets: [{ weight: 15, reps: 15 }, { weight: 15, reps: 15 }, { weight: 15, reps: 15 }] },
+    { date: dk(14), sets: [{ weight: 17.5, reps: 14 }, { weight: 17.5, reps: 12 }, { weight: 17.5, reps: 10 }] },
+    { date: dk(7), sets: [{ weight: 15, reps: 15 }, { weight: 15, reps: 15 }, { weight: 15, reps: 15, rir: 1 }] },
+  ] };
+  const t = suggestTarget(d, ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg.slice(0, 70)}`);
+  eq("ไม่กระโดดกลับไป 17.5 ที่เพิ่งพลาด", t.weight, 15);
+  ok("บอกเหตุผลว่าเคยลองแล้วไม่ผ่าน", /เคยลอง 17.5/.test(t.msg), t.msg);
+}
+{
+  // แต่ถ้าย่ำครบเป้ามา 3 รอบแล้ว ต้องได้ลองใหม่ ไม่ใช่ล็อกตลอดกาล
+  const ex = EX();
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  const full = (w) => ({ weight: w, reps: 15 });
+  d.history = { e: [
+    { date: dk(28), sets: [{ weight: 17.5, reps: 14 }, { weight: 17.5, reps: 11 }, { weight: 17.5, reps: 10 }] },
+    { date: dk(21), sets: [full(15), full(15), full(15)] },
+    { date: dk(14), sets: [full(15), full(15), full(15)] },
+    { date: dk(7), sets: [full(15), full(15), full(15)] },
+  ] };
+  const t = suggestTarget(d, ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg`);
+  eq("ย่ำครบ 3 รอบแล้วได้ลองขึ้นใหม่", t.kind, "up");
+  eq("ขึ้นไป 17.5", t.weight, 17.5);
+}
+
+console.log("\n═══ 6. หลุดเป้าครั้งแรกยังไม่ลด · ค้างนานต้องมีทางออก ═══");
+{
+  const ex = EX();
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  d.history = { e: [{ date: dk(7), sets: [{ weight: 20, reps: 11 }, { weight: 20, reps: 10 }, { weight: 20, reps: 9 }] }] };
+  const t = suggestTarget(d, ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg`);
+  eq("พลาดรอบแรกยังไม่ลด ให้ลองอีกที", t.kind, "hold");
+  eq("คงน้ำหนักเดิม", t.weight, 20);
+}
+{
+  // ค้างในช่วงเป้าแต่ไม่ถึงเพดาน 4 รอบ -> ต้องเสนอ deload และคืนน้ำหนักที่ลดแล้วจริง
+  const ex = EX();
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  const mid = { weight: 17.5, reps: 13 };
+  d.history = { e: [28, 21, 14, 7].map((b) => ({ date: dk(b), sets: [mid, mid, mid] })) };
+  const t = suggestTarget(d, ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg.slice(0, 60)}`);
+  eq("เสนอถอยเพื่อไต่ใหม่", t.kind, "settle");
+  eq("คืนน้ำหนักที่ลดแล้ว ไม่ใช่ค่าเดิม", t.weight, 15);
+  ok("ข้อความตรงกับน้ำหนักที่คืน", t.msg.includes("15 kg"), t.msg);
+}
+
+console.log("\n═══ 7. ก้าวกระโดดเยอะเกินต้องเสนอเพิ่มเรปแทน ═══");
+{
+  // 7.5 -> 10 คือ +33% · เพิ่งพลาดที่ 10 มา -> ต้องไม่ดันขึ้นซ้ำแม้เหลือแรงเยอะ
+  const ex = EX({ name: "Cable Lateral Raise" });
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  d.history = { e: [
+    { date: dk(14), sets: [{ weight: 10, reps: 13 }, { weight: 10, reps: 11 }, { weight: 10, reps: 9 }] },
+    { date: dk(7), sets: [{ weight: 7.5, reps: 15 }, { weight: 7.5, reps: 15 }, { weight: 7.5, reps: 15, rir: 4 }] },
+  ] };
+  const t = suggestTarget(d, ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg.slice(0, 80)}`);
+  eq("ไม่ดันขึ้นทั้งที่เหลือแรงเยอะ", t.weight, 7.5);
+  ok("บอกว่ากระโดดกี่ %", /กระโดด 33%/.test(t.msg), t.msg);
+  ok("เสนอทางอื่นแทนการขึ้นน้ำหนัก", /เกิน 15 ครั้ง|เพิ่มอีกเซต/.test(t.msg), t.msg);
+}
+
+console.log("\n═══ 8. ข้อมูลเก่าที่ไม่มี RIR ต้องยังทำงานเหมือนเดิม ═══");
 {
   const ex = EX();
   const t = suggestTarget(mk(ex, [{ weight: 15, reps: 15 }, { weight: 15, reps: 15 }, { weight: 15, reps: 15 }]), ex);
