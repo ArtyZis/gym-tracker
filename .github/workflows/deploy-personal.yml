@@ -1,0 +1,73 @@
+# deploy รุ่นส่วนตัวไป Cloudflare Pages อัตโนมัติทุกครั้งที่ push ขึ้น main
+#
+# ทำไมใช้ workflow แทนการเชื่อม Git ใน Cloudflare dashboard:
+#   ตั้งค่า build อยู่ในโค้ด ตรวจสอบและแก้ได้ ไม่ต้องจำว่าไปตั้งอะไรไว้ในหน้าเว็บ
+#   และไม่มีทางพิมพ์ build command ผิดเป็น build:pro ซึ่งจะได้รุ่นที่ขายมาแทน
+#
+# ต้องตั้ง secret 2 ตัวก่อนถึงจะทำงาน (ดูวิธีที่ DEPLOY-PERSONAL.md):
+#   CLOUDFLARE_API_TOKEN   token ที่มีสิทธิ์ Cloudflare Pages — Edit
+#   CLOUDFLARE_ACCOUNT_ID  Account ID ของบัญชี Cloudflare
+#
+# ยังไม่ได้ตั้ง = workflow ข้ามไปเฉยๆ ไม่ขึ้นแดง (จะได้ไม่รกแท็บ Actions)
+name: Deploy personal to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cloudflare-personal
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ตรวจว่าตั้ง secret ครบหรือยัง
+        id: gate
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
+            echo "::notice::ยังไม่ได้ตั้ง CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID — ข้ามการ deploy (ดู DEPLOY-PERSONAL.md)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+        if: steps.gate.outputs.ready == 'true'
+
+      # ต้องเป็น build (ไม่ใช่ build:pro) — รุ่นส่วนตัวเปิดทุกฟีเจอร์ ไม่มีช่วงทดลอง
+      - run: npm run build
+        if: steps.gate.outputs.ready == 'true'
+
+      # กันพลาดแบบที่เสียหายที่สุด: ถ้าไฟล์ที่ build มีโค้ดตรวจสิทธิ์แปลว่าได้รุ่นที่ขายมา
+      # ปล่อยขึ้นไปแล้วจะกลายเป็นแอปที่ล็อกตัวเองหลัง 30 วันบนเครื่องเจ้าของ
+      - name: ยืนยันว่าเป็นรุ่นส่วนตัวจริง
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          if grep -rq "artyz-coach-2026" dist/assets/*.js; then
+            echo "::error::build นี้มีโค้ดตรวจสิทธิ์ = ไม่ใช่รุ่นส่วนตัว ยกเลิก deploy"
+            exit 1
+          fi
+          echo "ผ่าน: ไม่มีโค้ดตรวจสิทธิ์ใน build"
+
+      - name: deploy ขึ้น Cloudflare Pages
+        if: steps.gate.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=rankforge-me --branch=main

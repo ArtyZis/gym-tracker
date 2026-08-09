@@ -27,27 +27,55 @@ localStorage จึงแชร์กันหมด เปิดรุ่นข
 
 โค้ดนี้คือข้อมูลทั้งหมดของคุณ ถ้าทำหาย = เริ่มใหม่
 
-### 2. สร้าง Cloudflare Pages
+### 2. เอาค่า 2 ตัวจาก Cloudflare มาใส่ GitHub
 
-1. สมัคร https://dash.cloudflare.com/sign-up (ฟรี ไม่ต้องใส่บัตร)
-2. เมนูซ้าย → **Workers & Pages** → **Create** → แท็บ **Pages** → **Connect to Git**
-3. เชื่อม GitHub แล้วเลือก repo `ArtyZis/gym-tracker`
-4. ตั้งค่า build ตามนี้ **เป๊ะๆ**:
+**ไม่ต้องสร้าง Pages project และไม่ต้องตั้งค่า build ในหน้าเว็บ** — ทั้งหมดอยู่ใน
+`.github/workflows/deploy-personal.yml` แล้ว มันจะสร้าง project ให้เองตอน deploy ครั้งแรก
 
-   | ช่อง | ใส่ |
-   |---|---|
-   | Project name | `rankforge-me` (หรือชื่ออื่นที่ชอบ) |
-   | Production branch | `main` |
-   | Build command | `npm run build` |
-   | Build output directory | `dist` |
+คุณแค่ต้องเอาค่า 2 ตัวนี้มาใส่ GitHub Secrets:
 
-5. กด **Environment variables** → เพิ่ม `NODE_VERSION` = `24`
-6. **Save and Deploy**
+#### 2.1 Account ID
 
-รอ 2-3 นาที จะได้ URL หน้าตา `https://rankforge-me.pages.dev`
+เข้า https://dash.cloudflare.com → เมนูซ้าย **Workers & Pages**
+→ ดูแถบขวามือ หัวข้อ **Account ID** → กดไอคอนคัดลอก
 
-> **สำคัญ:** ต้องเป็น `npm run build` (ไม่ใช่ `build:pro`) และ output เป็น `dist`
-> ถ้าใส่ `dist-pro` จะได้รุ่นที่ขายซึ่งมีช่วงทดลอง 30 วัน — ผิดตัว
+#### 2.2 API Token
+
+1. เข้า https://dash.cloudflare.com/profile/api-tokens
+2. **Create Token** → เลื่อนหา **Custom token** → **Get started**
+3. ตั้งชื่ออะไรก็ได้ เช่น `rankforge-deploy`
+4. **Permissions** ใส่บรรทัดเดียว:
+
+   | | | |
+   |---|---|---|
+   | Account | Cloudflare Pages | **Edit** |
+
+5. **Continue to summary** → **Create Token**
+6. **ก๊อปทันที** — หน้านี้แสดงครั้งเดียว ปิดแล้วดูไม่ได้อีก
+
+> Token นี้ให้สิทธิ์แก้ Pages ในบัญชีคุณ อย่าส่งให้ใครรวมทั้งในแชทนี้
+> ถ้าเผลอหลุด เข้าหน้าเดิมแล้วกด **Roll** เพื่อยกเลิกใบเก่าได้ทันที
+
+#### 2.3 ใส่ลง GitHub
+
+เข้า https://github.com/ArtyZis/gym-tracker/settings/secrets/actions
+→ **New repository secret** ทีละตัว:
+
+| Name | Secret |
+|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` | ค่าจากข้อ 2.1 |
+| `CLOUDFLARE_API_TOKEN` | ค่าจากข้อ 2.2 |
+
+#### 2.4 สั่งรัน
+
+เข้า https://github.com/ArtyZis/gym-tracker/actions
+→ เลือก **Deploy personal to Cloudflare Pages** ทางซ้าย
+→ **Run workflow** → **Run workflow**
+
+รอ 2-3 นาที จะได้ URL `https://rankforge-me.pages.dev`
+
+> ถ้ายังไม่ได้ใส่ secret workflow จะข้ามไปเฉยๆ ไม่ขึ้นแดง
+> และถ้า build ออกมาเป็นรุ่นที่ขายโดยไม่ตั้งใจ workflow จะหยุดเองก่อน deploy
 
 ### 3. นำข้อมูลเข้าเครื่องใหม่
 
