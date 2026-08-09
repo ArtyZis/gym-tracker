@@ -198,6 +198,24 @@ export const VOLUME_TARGETS: Record<Experience, VolumeTarget> = {
   advanced: { min: 14, max: 20, warnLow: 10, warnHigh: 25 },
 };
 
+/**
+ * ตัวคูณเพดานปริมาณรายมัด — ปริมาณที่ฟื้นตัวไหวไม่เท่ากันทุกมัด
+ *
+ * ใช้เพดานตัวเดียวกับทุกมัดคือจุดที่เกณฑ์เดิมหยาบเกินไป:
+ * "หลัง" ในระบบนี้นับรวม lats + traps + rhomboids + erectors เป็นก้อนเดียว
+ * ซึ่งเป็นหลายมัดที่แบ่งงานกัน จึงรับปริมาณได้มากกว่าอกที่เป็นมัดเดียวจริงๆ
+ * ตาราง Pull 2 วันที่ทำกันปกติจะได้หลัง 25-30 เซต ซึ่งไม่ใช่ปริมาณที่มากเกิน
+ * แต่เกณฑ์เดิมตีว่า "เกินโซนคุ้มค่า" ทำให้ตารางมาตรฐานเสียคะแนนฟรี
+ *
+ * ต้นขาหน้าก็เช่นกัน — สควอท/ลันจ์/เลกเพรสคนละแพทเทิร์นกัน ซ้อนกันได้มากกว่ามัดเดี่ยว
+ */
+export const VOLUME_CEILING_MUL: Partial<Record<MuscleKey, number>> = {
+  back: 1.6,
+  quads: 1.3,
+  glutes: 1.3,
+  hamstrings: 1.2,
+};
+
 // ── เพดานต่อเซสชัน (สเปค 4.2) ──
 export const MAX_SETS_PER_MUSCLE_PER_SESSION = 10;
 export const DEFAULT_MAX_SETS_PER_SESSION = 30;

@@ -20,6 +20,7 @@ import {
   MUSCLE_TH,
   PATTERN_TH,
   SMALL_MUSCLES,
+  VOLUME_CEILING_MUL,
 } from "./muscles";
 import type { ExTemplate } from "./exerciseDB";
 import { EXERCISE_DB, TIER_RANK, findTemplate, incFor, isMachineEx, musclesOf, tierOf, unitFor } from "./exerciseDB";
@@ -251,13 +252,29 @@ export function analyzeProgram(data: Data): Analysis {
     DAYS.map((d) => [d, Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0]))]),
   ) as Record<DayKey, Record<MuscleKey, number>>;
   const daysHit = Object.fromEntries(MUSCLE_KEYS.map((m) => [m, new Set<DayKey>()])) as Record<MuscleKey, Set<DayKey>>;
+  // เซตที่ "หนักจริง" ของมัดนั้นในวันนั้น — ใช้ตัดสินว่าฟื้นตัวชนกันไหม
+  //
+  // นับเฉพาะเซตที่เข้าเงื่อนไขทั้งสองข้อ:
+  //   1. มัดนั้นเป็นกล้ามหลักของท่า — สควอท 5 เซตให้หลังขาเป็นกล้ามรอง (2.5 เซต)
+  //      พอบวกเลกเคิร์ลกลายเป็น 5.5 ระบบก็ตีว่า "หลังขาโดนหนัก" ทั้งที่สควอท
+  //      ไม่ได้ทำให้หลังขาล้าแบบ RDL หรือเลกเคิร์ล
+  //   2. ท่านั้นล้าสูงจริง — ท่า 12-15 ครั้งสร้างความเสียหายกล้ามเนื้อและความล้าระบบประสาท
+  //      น้อยกว่าท่า 5 ครั้งหนักอย่างมีนัยสำคัญ นับรวมกันแล้วบอกว่าหนักเท่ากันจึงไม่ตรงความจริง
+  //
+  // ผลคือตาราง PPL ปกติ (เดดลิฟต์วันดึง แล้ววันขามี RDL เบากว่า) ไม่ถูกแจ้งว่าชนกัน
+  // แต่ตารางที่เอาท่าหนักมัดเดียวกันมาวางติดกันจริงๆ ยังถูกจับได้เหมือนเดิม
+  const priByDay = Object.fromEntries(
+    DAYS.map((d) => [d, Object.fromEntries(MUSCLE_KEYS.map((m) => [m, 0]))]),
+  ) as Record<DayKey, Record<MuscleKey, number>>;
   const patternSets = new Map<Pattern, number>();
 
   for (const day of activeDays(data))
     for (const ex of exercisesForDay(data, day)) {
+      const heavyLift = fatigueOf(ex) === "high";
       for (const { m, w } of muscleMap(ex.name)) {
         vol[m] += ex.sets * w;
         volByDay[day][m] += ex.sets * w;
+        if (w >= 1 && heavyLift) priByDay[day][m] += ex.sets;
         daysHit[m].add(day);
       }
       const p = patternOf(ex);
@@ -276,8 +293,10 @@ export function analyzeProgram(data: Data): Analysis {
     const sets = Math.round(10 * vol[m]) / 10;
     const days = daysHit[m].size;
     const small = SMALL_MUSCLES.includes(m);
+    // เพดานรายมัด — มัดใหญ่/กลุ่มหลายมัดรับปริมาณได้มากกว่า (ดู VOLUME_CEILING_MUL)
+    const ceilHigh = target.warnHigh * (VOLUME_CEILING_MUL[m] ?? 1);
     const status: MuscleStatus =
-      sets === 0 ? "missing" : sets < target.warnLow ? "low" : !small && sets > target.warnHigh ? "high" : "good";
+      sets === 0 ? "missing" : sets < target.warnLow ? "low" : !small && sets > ceilHigh ? "high" : "good";
     // ควรได้ 2 ครั้ง/สัปดาห์ แต่ตารางอาจไม่เอื้อ
     const wantDays = Math.min(2, achievableFreq);
     const blocked = status !== "missing" && days < wantDays && achievableFreq < 2;
@@ -310,7 +329,7 @@ export function analyzeProgram(data: Data): Analysis {
       const gap = minGapHours(a, b, len);
       if (gap >= MIN_RECOVERY_HOURS) continue;
       for (const m of MUSCLE_KEYS)
-        if (volByDay[a][m] >= HEAVY_HIT_SETS && volByDay[b][m] >= HEAVY_HIT_SETS)
+        if (priByDay[a][m] >= HEAVY_HIT_SETS && priByDay[b][m] >= HEAVY_HIT_SETS)
           recovery.push({ muscle: m, a, b, gapHours: gap });
     }
 
@@ -324,7 +343,9 @@ export function analyzeProgram(data: Data): Analysis {
   let volCeil = 0;
   const scored = stats.filter((s) => !SMALL_MUSCLES.includes(s.muscle) || s.sets > 0);
   for (const s of scored) {
-    const inRange = s.sets >= target.warnLow && (SMALL_MUSCLES.includes(s.muscle) || s.sets <= target.warnHigh);
+    // ต้องใช้เกณฑ์เดียวกับที่ตัดสิน status ไม่งั้นมัดที่ขึ้นว่า "good" ยังโดนหักคะแนนเงียบๆ
+    // (เคสจริง: ทุกมัดขึ้น good หมดแต่หมวดปริมาณได้ 92% โดยไม่มีอะไรบอกว่าเพราะอะไร)
+    const inRange = s.status === "good";
     volHit += inRange ? 1 : s.status === "missing" ? 0 : 0.5;
     volCeil += 1; // ปริมาณเพิ่มได้เสมอถ้ามีที่ว่างในตาราง
     if (s.status === "missing" && MAJOR_MUSCLES.includes(s.muscle)) issues.push(`ไม่มีท่าโดน${MUSCLE_TH[s.muscle]}เลย`);
@@ -336,8 +357,17 @@ export function analyzeProgram(data: Data): Analysis {
   // 2) สมดุลแพทเทิร์น (20%) — สเปค 4.4
   const hPush = pat("horizontal_push");
   const hPull = pat("horizontal_pull");
+  // สมดุลดัน/ดึง — ผ่านได้ 2 ทาง เพราะไหล่ห่อมีตัวป้องกันมากกว่าแค่ท่าโรว์
+  //
+  // เดิมดูแค่ horizontal ล้วน ตาราง Pull ที่เน้นพูลอัพ/พูลดาวน์ (ซึ่งก็ดึงสะบักลงหลัง
+  // และสร้างมวลหลังเหมือนกัน) จึงถูกตัดสินว่าไม่สมดุลทั้งที่ปริมาณดึงรวมมากกว่าดันด้วยซ้ำ
+  // ทางที่สองจึงเทียบดึงรวมกับดันรวม โดยบังคับว่าต้องมีงานไหล่หลังจริงประกอบด้วย
+  const allPull = hPull + pat("vertical_pull");
+  const allPush = hPush + pat("vertical_push");
+  const rearDeltSets = vol.rear_delts;
+  const balanced = hPull >= hPush * 0.8 || (allPull >= allPush * 0.8 && rearDeltSets >= 8);
   const checks: { ok: boolean; msg: string }[] = [
-    { ok: hPull >= hPush * 0.8, msg: `ท่าดึงเข้าหาตัว ${hPull} เซต น้อยกว่าท่าดันออกหน้า ${hPush} เซต — เสี่ยงไหล่ห่อ` },
+    { ok: balanced, msg: `ท่าดึงเข้าหาตัว ${hPull} เซต น้อยกว่าท่าดันออกหน้า ${hPush} เซต — เสี่ยงไหล่ห่อ` },
     { ok: pat("vertical_pull") >= 1, msg: "ไม่มีท่าดึงลงล่างเลย (พูลอัพ/พูลดาวน์)" },
     { ok: hPull >= 1, msg: "ไม่มีท่าดึงเข้าหาตัวเลย (โรว์)" },
     { ok: pat("hip_hinge") >= 3, msg: "ท่าบานพับสะโพกน้อยเกิน (RDL/ฮิปทรัส) — หลังขาและก้นจะขาด" },
@@ -484,6 +514,13 @@ function scoreOrder(data: Data, train: DayKey[]): number {
   let good = 0;
   for (const day of train) {
     const exs = exercisesForDay(data, day);
+    // ยอมให้สลับได้ 1 คู่ต่อวันโดยไม่หัก
+    //
+    // การเอาท่าเดี่ยวแทรกก่อนท่ารวม (pre-exhaust) เช่น เคเบิลฟลายก่อนดิป เป็นเทคนิคที่ใช้จริง
+    // ไม่ใช่ความผิดพลาด · เกณฑ์เดิมเทียบทุกคู่ติดกันแบบไม่มีข้อยกเว้น ตารางที่จัดมาดีแล้ว
+    // จึงเสียคะแนนจากการสลับจุดเดียว ทั้งที่ท่าหนักสุดยังอยู่ต้นวันถูกต้อง
+    // ส่วนตารางที่ลำดับมั่วจริง (ยกน่องก่อนสควอท) จะผิดหลายคู่ ยังถูกจับได้เหมือนเดิม
+    let slack = 1;
     for (let i = 0; i + 1 < exs.length; i++) {
       pairs++;
       const a = exs[i];
@@ -495,6 +532,10 @@ function scoreOrder(data: Data, train: DayKey[]): number {
         continue;
       }
       if (rank[fatigueOf(a)] <= rank[fatigueOf(b)]) good++;
+      else if (slack > 0) {
+        slack--;
+        good++;
+      }
     }
   }
   return pairs ? good / pairs : 1;

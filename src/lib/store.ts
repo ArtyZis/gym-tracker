@@ -218,44 +218,22 @@ export const uid = () => "ex_" + Date.now().toString(36) + Math.random().toStrin
 
 export const todayStr = () => new Date().toISOString().slice(0, 10);
 
+// เปิดแอปครั้งแรก = ว่างเปล่า ไม่มีท่าและไม่มีชื่อวัน
+//
+// จงใจไม่ยัดตารางสำเร็จรูปให้ เพราะตารางที่ไม่ใช่ของตัวเองจะกลายเป็นขยะที่ผู้ใช้
+// ต้องมานั่งลบทีละท่าก่อนเริ่มใช้จริง · ให้เขาสร้างของตัวเองหรือนำเข้าโปรแกรมที่มีอยู่แทน
+// (แท็บวิเคราะห์ยังใช้งานได้ตั้งแต่ท่าแรกที่ใส่ จึงมีตัวช่วยตั้งแต่ต้นอยู่แล้ว)
 const DEFAULT_DAY_LABELS: Record<DayKey, string> = {
-  mon: "Gym Day",
+  mon: "",
   tue: "",
-  wed: "Leg Day",
-  thu: "Push Day",
+  wed: "",
+  thu: "",
   fri: "",
-  sat: "Pull Day",
+  sat: "",
   sun: "",
 };
 
-const DEFAULT_EXERCISES: Omit<Exercise, "id" | "order">[] = [
-  { name: "Barbell Squat", day: "mon", type: "weight", sets: 3, rmin: 6, rmax: 8, inc: 5, unit: "kg" },
-  { name: "Incline DB Press", day: "mon", type: "weight", sets: 4, rmin: 6, rmax: 8, inc: 2.5, unit: "kg/ข้าง" },
-  { name: "Overhead Press (DB)", day: "mon", type: "weight", sets: 3, rmin: 6, rmax: 8, inc: 2.5, unit: "kg/ข้าง" },
-  { name: "Lat Pulldown", day: "mon", type: "weight", sets: 3, rmin: 8, rmax: 12, inc: 5, unit: "kg", machine: true },
-  { name: "Seated Cable Row", day: "mon", type: "weight", sets: 3, rmin: 8, rmax: 12, inc: 5, unit: "kg", machine: true },
-  { name: "Barbell Hip Thrust", day: "mon", type: "weight", sets: 3, rmin: 10, rmax: 12, inc: 5, unit: "kg" },
-  { name: "Lateral Raise", day: "mon", type: "weight", sets: 3, rmin: 12, rmax: 15, inc: 1, unit: "kg/ข้าง" },
-  { name: "Face Pull", day: "mon", type: "weight", sets: 2, rmin: 15, rmax: 20, inc: 2.5, unit: "kg" },
-  { name: "Overhead Tricep Extension", day: "mon", type: "weight", sets: 3, rmin: 10, rmax: 12, inc: 1, unit: "kg" },
-  { name: "Incline DB Curl", day: "mon", type: "weight", sets: 3, rmin: 10, rmax: 12, inc: 1, unit: "kg/ข้าง" },
-  { name: "Wrist Curl (DB)", day: "mon", type: "weight", sets: 3, rmin: 15, rmax: 20, inc: 1, unit: "kg/ข้าง" },
-  { name: "Reverse Wrist Curl (DB)", day: "mon", type: "weight", sets: 3, rmin: 15, rmax: 20, inc: 1, unit: "kg/ข้าง" },
-  { name: "Pronation Curl", day: "mon", type: "weight", sets: 3, rmin: 10, rmax: 12, inc: 1, unit: "kg" },
-  { name: "Bulgarian Split Squat", day: "wed", type: "bodyweight", sets: 3, rmin: 12, rmax: 15 },
-  { name: "Glute Bridge", day: "wed", type: "bodyweight", sets: 3, rmin: 15, rmax: 20 },
-  { name: "Calf Raise", day: "wed", type: "bodyweight", sets: 4, rmin: 15, rmax: 25 },
-  { name: "Wide Push-up", day: "thu", type: "bodyweight", sets: 4, rmin: 1, rmax: 999, amrap: true },
-  { name: "Decline Push-up", day: "thu", type: "bodyweight", sets: 3, rmin: 1, rmax: 999, amrap: true },
-  { name: "Pike Push-up", day: "thu", type: "bodyweight", sets: 3, rmin: 10, rmax: 15 },
-  { name: "Plank", day: "thu", type: "time", sets: 3, rmin: 30, rmax: 45, unit: "วิ" },
-  { name: "Wide Grip Pull-up", day: "sat", type: "bodyweight", sets: 4, rmin: 1, rmax: 999, amrap: true },
-  { name: "Chin-up", day: "sat", type: "bodyweight", sets: 3, rmin: 1, rmax: 999, amrap: true },
-  { name: "Australian Row", day: "sat", type: "bodyweight", sets: 3, rmin: 12, rmax: 15 },
-  { name: "Towel Pull-up", day: "sat", type: "bodyweight", sets: 3, rmin: 1, rmax: 999, amrap: true },
-  { name: "Wrist Isometric Hold", day: "sat", type: "time", sets: 3, rmin: 20, rmax: 30, unit: "วิ" },
-  { name: "Hanging Knee Raise", day: "sat", type: "bodyweight", sets: 3, rmin: 15, rmax: 15 },
-];
+const DEFAULT_EXERCISES: Omit<Exercise, "id" | "order">[] = [];
 
 export function createDefault(): Data {
   return {

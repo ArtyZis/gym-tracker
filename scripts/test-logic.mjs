@@ -165,9 +165,24 @@ function driveToMax(seed) {
   return { score: analyzeProgram(prog).score, startScore, startDays, endDays: dayOf(prog), iter, trace, prog };
 }
 
-const fromDefault = driveToMax(normalizeData(createDefault()));
-check("recs: โปรแกรมเริ่มต้น ไม่ทำให้คะแนนแย่ลง", fromDefault.score >= fromDefault.startScore, true);
-check("recs: โปรแกรมเริ่มต้น ไม่ย้าย/เพิ่มวันฝึกให้เอง", fromDefault.endDays, fromDefault.startDays);
+// ต้องเป็นตารางที่ "ผู้ใช้จัดไว้แล้ว" ไม่ใช่ createDefault ซึ่งตอนนี้ว่างเปล่า
+// (ตารางว่างย่อมต้องเพิ่มวันฝึกจากศูนย์อยู่แล้ว วัดข้อนี้กับมันจึงไม่ได้ความหมาย)
+const userProgram = normalizeData({
+  dayLabels: { mon: "ดัน", tue: "", wed: "ดึง", thu: "", fri: "ขา", sat: "", sun: "" },
+  exercises: [
+    { id: "u1", name: "Barbell Bench Press", day: "mon", type: "weight", sets: 4, rmin: 6, rmax: 8, order: 0 },
+    { id: "u2", name: "Overhead Press", day: "mon", type: "weight", sets: 3, rmin: 8, rmax: 10, order: 1 },
+    { id: "u3", name: "Lat Pulldown", day: "wed", type: "weight", sets: 4, rmin: 8, rmax: 12, order: 2 },
+    { id: "u4", name: "Seated Cable Row", day: "wed", type: "weight", sets: 3, rmin: 10, rmax: 12, order: 3 },
+    { id: "u5", name: "Barbell Squat", day: "fri", type: "weight", sets: 4, rmin: 6, rmax: 8, order: 4 },
+    { id: "u6", name: "Romanian Deadlift", day: "fri", type: "weight", sets: 3, rmin: 8, rmax: 10, order: 5 },
+  ],
+  history: {},
+  settings: { autoRest: true, restDefault: 90, barWeight: 20 },
+});
+const fromDefault = driveToMax(userProgram);
+check("recs: ตารางที่ผู้ใช้จัดเอง ไม่ทำให้คะแนนแย่ลง", fromDefault.score >= fromDefault.startScore, true);
+check("recs: ตารางที่ผู้ใช้จัดเอง ไม่ย้าย/เพิ่มวันฝึกให้เอง", fromDefault.endDays, fromDefault.startDays);
 
 // โปรแกรมแย่ๆ: มีแต่อกวันเดียว 10 เซต ฝึกวันเดียว
 const bad = normalizeData({
