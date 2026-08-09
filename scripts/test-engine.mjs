@@ -87,7 +87,8 @@ console.log("\n═══ เคสที่ 4: ทุกกลุ่มอยู
   const d = plan(
     {
       mon: ["Barbell Bench Press", "Seated Cable Row", "Overhead Press", "Lateral Raise", "Face Pull", "Barbell Curl", "Standing Calf Raise"],
-      wed: ["Barbell Squat", "Romanian Deadlift", "Lying Leg Curl", "Seated Calf Raise", "Plank", "Wrist Curl (DB)"],
+      // Wrist Curl ต้องมาก่อน Calf/Plank — สองตัวนั้นเป็นท่าปิดท้าย ถ้าวางไว้ก่อนจะผิดลำดับ
+      wed: ["Barbell Squat", "Romanian Deadlift", "Lying Leg Curl", "Wrist Curl (DB)", "Seated Calf Raise", "Plank"],
       sat: ["Incline DB Press", "Lat Pulldown", "Leg Press", "Barbell Hip Thrust", "Cable Lateral Raise", "Tricep Pushdown", "Hanging Knee Raise"],
     },
     { sets: 4, profile: { experience: "beginner" }, constraints: { maxSetsPerSession: 30, sessionTimeCapMinutes: 120 } },

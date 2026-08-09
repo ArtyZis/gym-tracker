@@ -19,6 +19,7 @@ import {
   MUSCLE_KEYS,
   MUSCLE_TH,
   PATTERN_TH,
+  INDIRECT_MUSCLES,
   SMALL_MUSCLES,
   VOLUME_CEILING_MUL,
 } from "./muscles";
@@ -295,8 +296,16 @@ export function analyzeProgram(data: Data): Analysis {
     const small = SMALL_MUSCLES.includes(m);
     // เพดานรายมัด — มัดใหญ่/กลุ่มหลายมัดรับปริมาณได้มากกว่า (ดู VOLUME_CEILING_MUL)
     const ceilHigh = target.warnHigh * (VOLUME_CEILING_MUL[m] ?? 1);
+    // มัดที่ได้งานทางอ้อมพอแล้ว (ปลายแขน) ไม่เตือนว่าต่ำ — ขอแค่มีท่าที่ใช้มันอยู่บ้าง
+    const indirect = INDIRECT_MUSCLES.includes(m);
     const status: MuscleStatus =
-      sets === 0 ? "missing" : sets < target.warnLow ? "low" : !small && sets > ceilHigh ? "high" : "good";
+      sets === 0
+        ? "missing"
+        : !indirect && sets < target.warnLow
+          ? "low"
+          : !small && sets > ceilHigh
+            ? "high"
+            : "good";
     // ควรได้ 2 ครั้ง/สัปดาห์ แต่ตารางอาจไม่เอื้อ
     const wantDays = Math.min(2, achievableFreq);
     const blocked = status !== "missing" && days < wantDays && achievableFreq < 2;
@@ -789,11 +798,11 @@ function blockedInsight(analysis: Analysis, insight: BlockedInsight): void {
 // เหมือน predictedScore แต่คืน ceiling มาด้วย — ใช้ตอนต้องเทียบ "เติมวันเดิม" กับ "เปิดวันใหม่"
 // เพราะบางทีเติมวันเดิมได้คะแนนเท่ากันในตานี้ แต่เปิดวันใหม่ปลดล็อกเพดานที่สูงกว่าในระยะยาว
 // ถ้าเทียบแค่คะแนนตานี้ตาเดียว ระบบจะติดกับดักอัดท่าลงวันเดิมไปเรื่อยๆ จนวันฝึกไม่พอจริงและคะแนนไปได้ไม่ถึง 100
-function predictedAnalysis(data: Data, rec: Recommendation): { execution: number; ceiling: number } {
+function predictedAnalysis(data: Data, rec: Recommendation): { execution: number; ceiling: number; breakdown: ScoreBreakdown } {
   const clone: Data = structuredClone(data);
   applyRecommendation(clone, rec);
   const a = analyzeProgram(clone);
-  return { execution: a.execution, ceiling: a.ceiling };
+  return { execution: a.execution, ceiling: a.ceiling, breakdown: a.breakdown };
 }
 
 // วันนั้นฝึกกลุ่มกล้ามเนื้อแบบไหนอยู่บ้าง (push/pull/legs) — ดูจากท่าที่มีอยู่จริง ไม่ใช่จากป้าย dayType
@@ -818,10 +827,18 @@ function findValidDay(data: Data, tpl: ExTemplate, sets: number): { day: DayKey;
   // แค่เป็นวันประเภทเดียวกัน (เช่น มีท่าอกอยู่แล้ว = วันดัน ก็ใส่ไหล่ข้าง/ไตรเซปเพิ่มได้)
   // ถ้าเข้มงวดว่าต้องเคยโดนกล้ามเนื้อมัดนี้มาก่อนเป๊ะๆ ท่าที่ยังไม่เคยมีเลย (เช่น ไหล่ข้าง)
   // จะไม่มีทางถูกเสนอผ่านวันเดิมได้เลย ทั้งที่วันนั้นเป็นวันดันอยู่แล้วและใส่ได้จริง
+  // มีวันไหนที่ "เข้าพวก" กับกล้ามเนื้อนี้บ้างไหม
+  const anyMatchingDay = days.some((day: DayKey) => {
+    const cats = dayCategories(data, day);
+    return cats.size > 0 && (!targetType || cats.has(targetType));
+  });
   const trainsMuscle = (day: DayKey) => {
     const cats = dayCategories(data, day);
     if (!cats.size) return false; // วันว่างเปล่า ไม่นับว่าเข้าพวกอะไร
-    return targetType ? cats.has(targetType) : true;
+    if (targetType && cats.has(targetType)) return true;
+    // ไม่มีวันไหนเข้าพวกเลย (เช่นตารางมีแต่วันดัน แล้วต้องเติมหลัง) ก็ต้องลงที่ไหนสักที่
+    // ไม่งั้นกล้ามเนื้อที่ขาดจะไม่มีวันถูกเติมได้เลย และคะแนนค้างอยู่แบบนั้นตลอดไป
+    return !anyMatchingDay;
   };
 
   const load = (day: DayKey) => exercisesForDay(data, day).reduce((x, e) => x + e.sets, 0);
@@ -1085,9 +1102,13 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   // 3) กล้ามเนื้อที่เกินโซนคุ้มค่า — ลดเซตท่าที่ซ้ำซ้อน
   for (const s of analysis.stats.filter((s) => s.status === "high")) {
     if (recs.length >= MAX_RECOMMENDATIONS) break;
+    // เรียงท่าที่มัดนี้เป็น "กล้ามหลัก" ไว้ก่อน — ลด 1 เซตแล้วได้ผลเต็ม 1 เซต
+    // ถ้าไปลดท่าที่มันเป็นกล้ามรอง จะลดได้แค่ 0.5 ซึ่งมักไม่พอพ้นเกณฑ์
+    // แล้วระบบก็จะวนเสนอลดท่าอื่นไปเรื่อยๆ โดยไม่มีทางแก้ปัญหาได้จริง
+    const weightOf = (ex: Exercise) => muscleMap(ex.name).find((h) => h.m === s.muscle)?.w ?? 0;
     const contributors = data.exercises
-      .filter((ex) => muscleMap(ex.name).some((h) => h.m === s.muscle))
-      .sort((a, b) => b.sets - a.sets);
+      .filter((ex) => weightOf(ex) > 0)
+      .sort((a, b) => weightOf(b) - weightOf(a) || b.sets - a.sets);
     const cut = contributors.find((ex) => ex.sets > MIN_SETS_PER_EX);
     if (!cut) continue;
     const candidateRec: Recommendation = {
@@ -1101,9 +1122,139 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
       priority: "low",
     };
     const predicted = predictedScore(data, candidateRec);
-    // ต้องดีขึ้นจริง (>) ไม่ใช่แค่เสมอตัว
-    // เดิมยอมเสมอตัว ผลคือระบบเสนอ "ลดเซต" ไล่ทีละท่าเป็นสิบครั้งโดยคะแนนไม่ขยับ
-    // = ค่อยๆ แกะเซตออกจากตารางที่ผู้ใช้ตั้งใจจัดไว้ ซึ่งแย่กว่าปล่อยไว้เฉยๆ
+    // ยอมรับได้ 2 กรณี: คะแนนขึ้นจริง หรือ "เข้าใกล้เป้ามากขึ้น" แม้คะแนนยังไม่ขยับ
+    //
+    // เดิมบังคับว่าคะแนนต้องขึ้นทันที ซึ่งบล็อกการแก้ที่ต้องทำหลายขั้น:
+    // อก 27 เซตต้องลดถึง 22 ถึงจะพ้นเกณฑ์ แต่ลดครั้งแรกเหลือ 26 คะแนนยังเท่าเดิม
+    // ระบบจึงไม่เสนอเลยแม้แต่ครั้งเดียว แล้วผู้ใช้ก็ติดอยู่ที่คะแนนนั้นตลอดไป
+    // (เงื่อนไข "ต้องยังเกินเพดานอยู่" กันไม่ให้ไล่ลดเซตต่อหลังเข้าเป้าแล้ว)
+    const stillOver = s.sets - 1 > target.warnHigh * (VOLUME_CEILING_MUL[s.muscle] ?? 1);
+    if (predicted <= analysis.execution && !stillOver) continue;
+    candidateRec.gain = Math.max(1, predicted - analysis.execution);
+    recs.push(candidateRec);
+  }
+
+  // 3.5) วันฝึกที่มีอยู่เต็มหมดแล้วแต่ยังมีมัดที่ขาด — เปิดวันใหม่
+  //
+  // ทางเลือกสุดท้ายเมื่อ add ลงวันเดิมไม่ได้อีกแล้ว (ทุกวันชนเพดานเซตหรือเวลา)
+  // ถ้าไม่มีข้อนี้ ตารางที่ฝึกน้อยวันจะติดเพดานคะแนนถาวรโดยไม่มีอะไรให้กดต่อ
+  //
+  // เงื่อนไขที่กันไม่ให้กลายเป็นการยัดวันมั่ว:
+  //   - ต้องมีมัดใหญ่ที่ขาดจริง (ไม่ใช่แค่อยากได้คะแนน)
+  //   - ต้องเหลือวันพักอย่างน้อย 1 วันหลังเพิ่ม
+  //   - ประเภทวันต้องตรงกับมัดที่ขาด
+  {
+    // ใช้เมื่อ "ไม่มีคำแนะนำอื่นเหลือแล้ว" เท่านั้น — recs ว่าง = ทุกทางในวันเดิมตันหมด
+    // ถ้าไม่จำกัดแบบนี้ ระบบจะชอบเปิดวันใหม่มากกว่าเติมของในวันที่มีอยู่ ซึ่งไม่ใช่ทางที่ดีกว่า
+    const lacking = analysis.stats
+      .filter((s) => s.status === "low" || s.status === "missing")
+      .sort((a, b) => (MAJOR_MUSCLES.includes(b.muscle) ? 1 : 0) - (MAJOR_MUSCLES.includes(a.muscle) ? 1 : 0));
+    const freeDays = activeDays(data).filter((day) => exercisesForDay(data, day).length === 0);
+    if (lacking.length && freeDays.length >= 2 && recs.length === 0) {
+      const dayType = MUSCLE_TO_TYPE[lacking[0].muscle] ?? "full";
+      if (dayType) {
+        const day = freeDays[0];
+        const candidateRec: Recommendation = {
+          id: mkId(),
+          kind: "addDay",
+          day,
+          dayType,
+          title: `เปิดวัน${DAY_TYPE_SHORT[dayType]}เพิ่มที่${slotName(data, day)}`,
+          detail: `วันฝึกที่มีอยู่เต็มแล้ว — เปิดวันใหม่เพื่อใส่ท่า${MUSCLE_TH[lacking[0].muscle]}ที่ยังขาด`,
+          reason: `${MUSCLE_TH[lacking[0].muscle]}ได้ ${lacking[0].sets} เซต/สัปดาห์ (เป้า ${target.min}-${target.max}) และวันเดิมไม่มีที่ว่างแล้ว`,
+          gain: 6,
+          priority: "medium",
+        };
+        const predicted = predictedScore(data, candidateRec);
+        if (predicted > analysis.execution) {
+          candidateRec.gain = predicted - analysis.execution;
+          recs.push(candidateRec);
+        }
+      }
+    }
+  }
+
+  // 4) ลำดับท่าในวันยังไม่ถูกหลัก — จัดใหม่ในวันเดิม ไม่เพิ่ม/ลด/ย้ายท่าไปไหน
+  //
+  // ระบบรองรับ reorder ใน applyRecommendation มาตั้งแต่แรกแต่ไม่เคยมีใครสร้างคำแนะนำนี้
+  // ผลคือหมวดลำดับท่าไม่มีทางเต็มได้เลยไม่ว่าจะกดกี่ครั้ง — คำแนะนำหมดทั้งที่ปัญหายังอยู่
+  if (analysis.breakdown.order < 1)
+    for (const day of trainingDays(data)) {
+      if (recs.length >= MAX_RECOMMENDATIONS) break;
+      const candidateRec: Recommendation = {
+        id: mkId(),
+        kind: "reorder",
+        day,
+        title: `จัดลำดับท่าวัน${slotName(data, day)}ใหม่`,
+        detail: "เรียงท่าหนักไว้ต้นวัน ท่าเจาะจงและหน้าท้อง/น่องไว้ท้าย — ไม่เพิ่มหรือลดท่าใดๆ",
+        reason: "ท่าที่ล้าสูงควรทำตอนแรงยังเต็ม ไม่ใช่ตอนหมดแรงแล้ว",
+        gain: 3,
+        priority: "low",
+      };
+      // ต้องทำให้หมวดลำดับท่าดีขึ้นจริง ไม่ใช่แค่ลำดับเปลี่ยนไป
+      //
+      // เช็คด้วยคะแนนรวมอย่างเดียวไม่พอ: การปัดเศษทำให้บางครั้งขยับจาก 97% เป็น 100%
+      // แล้วคะแนนรวมเท่าเดิม ระบบก็จะเสนอ "จัดลำดับใหม่" ค้างไว้ทุกวันตลอดไป
+      // ทั้งที่ตารางเรียงดีอยู่แล้ว (เคสจริง: ตาราง 99 คะแนนโดนเสนอจัดลำดับ 2 วันรวด)
+      if (sameOrderAfterSort(data, day)) continue;
+      const after = predictedAnalysis(data, candidateRec);
+      if (after.breakdown.order <= analysis.breakdown.order) continue;
+      candidateRec.gain = Math.max(1, after.execution - analysis.execution);
+      recs.push(candidateRec);
+    }
+
+  // 5) วันที่ยาวเกินเพดาน — ย้ายท่าท้ายวันไปวันพักที่ติดกัน
+  //
+  // เดิมมีแต่ blockedInsight บอกว่า "วันนี้ยาวเกิน" แล้วจบ ผู้ใช้ต้องไปแก้เอง
+  // ทั้งที่ splitDay ทำงานได้อยู่แล้ว · เสนอเฉพาะเมื่อมีวันว่างจริงเท่านั้น
+  // ไม่งั้นจะกลายเป็นการยัดท่าเข้าไปในวันที่ผู้ใช้ฝึกอยู่แล้วจนยาวขึ้นอีก
+  for (const d of analysis.dayLoads.filter((x) => x.overSets || x.overTime)) {
+    if (recs.length >= MAX_RECOMMENDATIONS) break;
+    // แบ่งได้ก็ต่อเมื่อทั้งสองฝั่งเหลืออย่างน้อย 2 ท่า — วันที่มีท่าเดียวโดดๆ ไม่ใช่ตารางที่ใช้ได้
+    const canSplit = exercisesForDay(data, d.day).length >= 4;
+    const freeDays = canSplit ? activeDays(data).filter((day) => exercisesForDay(data, day).length === 0) : [];
+    // ต้องเหลือวันพักไว้อย่างน้อย 1 วันเสมอ — ตารางที่ฝึกครบ 7 วันไม่พักเลยไม่ใช่ตารางที่ดีขึ้น
+    // (เคสจริง: ระบบไล่แบ่งวันจนกินวันพักหมด แล้วเสนอตารางฝึกติดกัน 7 วัน)
+    //
+    // แบ่งวันไม่ได้ก็ยังต้องมีทางออก ไม่งั้นวันที่ยาวเกินจะค้างอยู่แบบนั้นตลอดไป
+    // ทางออกที่ไม่ต้องกินวันพัก: ตัดเซตท้ายวันของท่าที่มีเซตเยอะสุดในวันนั้น
+    if (freeDays.length <= 1) {
+      const inDay = exercisesForDay(data, d.day)
+        .filter((ex) => ex.sets > MIN_SETS_PER_EX)
+        .sort((a, b) => b.sets - a.sets)[0];
+      if (!inDay) continue;
+      const trim: Recommendation = {
+        id: mkId(),
+        kind: "reduceSets",
+        exerciseId: inDay.id,
+        title: `ลดเซต ${inDay.name}`,
+        detail: `ลดเหลือ ${inDay.sets - 1} เซต — วัน${slotName(data, d.day)}จะจบในเวลาที่ตั้งไว้`,
+        reason: d.overTime ? `วัน${slotName(data, d.day)}ใช้เวลาราว ${d.minutes} นาที เกินที่ตั้งไว้` : `วัน${slotName(data, d.day)}มี ${d.sets} เซต เกินเพดาน`,
+        gain: 4,
+        priority: "medium",
+      };
+      // เหมือนกรณีลดปริมาณ: วันที่ยาวเกินมากต้องตัดหลายเซตกว่าจะพ้นเพดาน
+      // ถ้าบังคับว่าคะแนนต้องขึ้นตั้งแต่ครั้งแรก จะไม่มีคำแนะนำโผล่มาเลยสักครั้ง
+      const p = predictedScore(data, trim);
+      if (p > analysis.execution || d.overTime || d.overSets) {
+        trim.gain = Math.max(1, p - analysis.execution);
+        recs.push(trim);
+      }
+      continue;
+    }
+    const free = freeDays[0];
+    const candidateRec: Recommendation = {
+      id: mkId(),
+      kind: "splitDay",
+      fromDay: d.day,
+      toDay: free,
+      title: `แบ่งวัน${slotName(data, d.day)}ไป${slotName(data, free)}`,
+      detail: `ย้ายท่าท้ายๆ ของวัน${slotName(data, d.day)}ไปวัน${slotName(data, free)}ที่ยังว่าง`,
+      reason: d.overTime ? `วัน${slotName(data, d.day)}ใช้เวลาราว ${d.minutes} นาที เกินที่ตั้งไว้` : `วัน${slotName(data, d.day)}มี ${d.sets} เซต เกินเพดาน`,
+      gain: 5,
+      priority: "medium",
+    };
+    const predicted = predictedScore(data, candidateRec);
     if (predicted <= analysis.execution) continue;
     candidateRec.gain = predicted - analysis.execution;
     recs.push(candidateRec);
@@ -1115,6 +1266,15 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
 }
 
 // จัดลำดับท่าในวันหนึ่งให้ถูกหลัก: compound หนัก -> ปานกลาง -> เจาะจง -> core/น่องปิดท้าย
+/** วันนี้เรียงถูกตามหลักอยู่แล้วไหม — ใช้กันไม่ให้เสนอ "จัดลำดับใหม่" ทั้งที่จัดไว้ดีแล้ว */
+function sameOrderAfterSort(d: Data, day: DayKey): boolean {
+  const before = exercisesForDay(d, day).map((e) => e.id);
+  const copy = structuredClone(d);
+  reorderDay(copy, day);
+  const after = exercisesForDay(copy, day).map((e) => e.id);
+  return before.join(",") === after.join(",");
+}
+
 export function reorderDay(d: Data, day: DayKey) {
   const rank: Record<FatigueCost, number> = { high: 0, moderate: 1, low: 2 };
   const isFinisher = (ex: Exercise) => muscleMap(ex.name).some((h) => h.m === "core" || h.m === "calves");
@@ -1173,15 +1333,20 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
       ex.order = exercisesForDay(d, rec.day).length;
     }
   } else if (rec.kind === "splitDay" && rec.fromDay && rec.toDay) {
+    // แบ่งครึ่งวันจริงๆ ไม่ใช่ย้ายทีละท่าจนพ้นเพดานเซต
+    //
+    // ของเดิมวนย้ายจนกว่า sets <= cap เท่านั้น ซึ่งไม่แก้กรณีที่วันนั้น "ยาวเกินเวลา"
+    // ทั้งที่เซตยังไม่เกิน (25 เซตแต่ใช้ 95 นาที) — ลูปไม่ทำงานเลยสักรอบ
+    // และเวลาย้ายได้ก็มักได้วันใหม่ที่มีท่าเดียว ซึ่งไม่ใช่ตารางที่ใช้ได้จริง
     const exs = exercisesForDay(d, rec.fromDay);
-    const cap = getMaxSetsPerSession(d);
-    let sets = exs.reduce((a, e) => a + e.sets, 0);
-    for (let i = exs.length - 1; i >= 1 && sets > cap; i--) {
-      const ex = d.exercises.find((e) => e.id === exs[i].id);
-      if (!ex) continue;
-      ex.day = rec.toDay;
-      ex.order = exercisesForDay(d, rec.toDay).length;
-      sets -= ex.sets;
+    if (exs.length >= 2) {
+      const half = Math.floor(exs.length / 2);
+      for (let i = exs.length - half; i < exs.length; i++) {
+        const ex = d.exercises.find((e) => e.id === exs[i].id);
+        if (!ex) continue;
+        ex.day = rec.toDay;
+        ex.order = exercisesForDay(d, rec.toDay).length;
+      }
     }
   } else if (rec.kind === "restDay" && rec.fromDay && rec.toDay) {
     for (const ex of d.exercises) if (ex.day === rec.fromDay) ex.day = rec.toDay;
