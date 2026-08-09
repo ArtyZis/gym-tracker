@@ -1,0 +1,23 @@
+# Security headers สำหรับ Cloudflare Pages — เทียบเท่ากับที่ตั้งไว้ใน netlify.toml
+#
+# ไฟล์นี้อยู่ใน public/ เพื่อให้ Vite คัดลอกเข้า dist/ ทุก build
+# Cloudflare Pages อ่านไฟล์ชื่อ _headers จากรากของโฟลเดอร์ที่ deploy เท่านั้น
+# (GitHub Pages ตั้ง header เองไม่ได้ ไฟล์นี้จึงถูกเพิกเฉยที่นั่น ไม่มีผลเสีย)
+
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/manifest+json
+
+# ไฟล์ hashed ของ Vite เปลี่ยนชื่อทุก build อยู่แล้ว cache ยาวได้
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'; object-src 'none'

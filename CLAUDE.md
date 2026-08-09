@@ -109,6 +109,21 @@ deploy — **ต้องระบุ `--site` ให้ถูกรุ่น �
 
 ---
 
+## แยกรุ่นส่วนตัวออกจากเว็บที่ขาย (กำลังย้าย)
+
+ตอนนี้ทั้งสองรุ่นอยู่โดเมนเดียวกัน ซึ่งมีปัญหา 2 ข้อ:
+- `/me/` เดาได้ไม่ยาก ใครรู้ก็ใช้รุ่นปลดล็อกฟรี
+- **`artyzis.github.io` เป็น origin เดียวทุก repo → localStorage แชร์กันหมด**
+  (ย้ายไป repo อื่นบน GitHub Pages จึงไม่ช่วย ต้องคนละโดเมนเท่านั้น)
+
+ปลายทาง: รุ่นส่วนตัวไป **Cloudflare Pages** — ขั้นตอนอยู่ที่ [DEPLOY-PERSONAL.md](DEPLOY-PERSONAL.md)
+
+**ห้ามลบ `/me/` ออกจาก deploy.yml จนกว่าผู้ใช้จะยืนยันว่าย้ายข้อมูลไปเครื่องใหม่ครบแล้ว**
+โดเมนใหม่ = localStorage ใหม่ = แอปว่างเปล่า ต้องย้ายด้วย "ย้ายข้อมูลข้ามเครื่อง" ในแท็บจัดการ
+
+ไฟล์ที่ Cloudflare ใช้ (อยู่ใน `public/` เพื่อให้ Vite คัดลอกเข้า dist ทุก build):
+`_headers` (security header เทียบเท่า netlify.toml) · `_redirects` (SPA fallback) · `.node-version`
+
 ## Deploy target
 
 - **`artytraining`** → https://artytraining.netlify.app (รุ่น personal — โฟลเดอร์ link ไว้กับอันนี้)

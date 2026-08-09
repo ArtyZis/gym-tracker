@@ -1,0 +1,3 @@
+# SPA fallback สำหรับ Cloudflare Pages
+# แอปไม่มี router แต่ต้องกัน 404 ตอนเปิดจากไอคอนหน้าจอโฮมที่จำ path ไว้
+/*  /index.html  200
