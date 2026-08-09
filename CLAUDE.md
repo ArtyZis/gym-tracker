@@ -109,20 +109,33 @@ deploy — **ต้องระบุ `--site` ให้ถูกรุ่น �
 
 ---
 
-## แยกรุ่นส่วนตัวออกจากเว็บที่ขาย (กำลังย้าย)
+## สามที่ที่แอปขึ้นอยู่ตอนนี้
 
-ตอนนี้ทั้งสองรุ่นอยู่โดเมนเดียวกัน ซึ่งมีปัญหา 2 ข้อ:
-- `/me/` เดาได้ไม่ยาก ใครรู้ก็ใช้รุ่นปลดล็อกฟรี
-- **`artyzis.github.io` เป็น origin เดียวทุก repo → localStorage แชร์กันหมด**
-  (ย้ายไป repo อื่นบน GitHub Pages จึงไม่ช่วย ต้องคนละโดเมนเท่านั้น)
+โค้ดชุดเดียว push ครั้งเดียว ขึ้นทั้งสามที่อัตโนมัติ:
 
-ปลายทาง: รุ่นส่วนตัวไป **Cloudflare Pages** — ขั้นตอนอยู่ที่ [DEPLOY-PERSONAL.md](DEPLOY-PERSONAL.md)
+| ที่ | URL | รุ่น | deploy โดย |
+|---|---|---|---|
+| ของ ARTYZ | rankforge-me.pages.dev | personal | `deploy-personal.yml` → Cloudflare |
+| ที่ขาย | artyzis.github.io/gym-tracker/ | pro | `deploy.yml` → GitHub Pages |
+| ของเก่า | artyzis.github.io/gym-tracker/**me/** | personal | `deploy.yml` (กำลังจะเลิกใช้) |
 
-**ห้ามลบ `/me/` ออกจาก deploy.yml จนกว่าผู้ใช้จะยืนยันว่าย้ายข้อมูลไปเครื่องใหม่ครบแล้ว**
-โดเมนใหม่ = localStorage ใหม่ = แอปว่างเปล่า ต้องย้ายด้วย "ย้ายข้อมูลข้ามเครื่อง" ในแท็บจัดการ
+### ⛔ ห้ามลบ `/me/` ออกจาก deploy.yml จนกว่าผู้ใช้จะ**สั่งตรงๆ**
+
+ผู้ใช้ยืนยันเมื่อ 9 ส.ค. 2026 ว่ายังไม่ให้ลบ แม้ Cloudflare จะขึ้นเรียบร้อยแล้วก็ตาม
+อย่าเสนอลบเอง อย่าลบเพราะคิดว่า "ย้ายเสร็จแล้วน่าจะลบได้"
+
+เหตุผลที่ต้องมี `/me/` อยู่: ข้อมูลฝึกจริงยังอยู่ที่ origin `artyzis.github.io`
+ถ้าปิดทางเข้าก่อนย้ายข้อมูลครบ = ผู้ใช้เข้าถึงประวัติตัวเองไม่ได้
+
+**เวลาแก้ฟีเจอร์ให้สนใจแค่ Cloudflare กับตัวขาย** — `/me/` build จากคำสั่งเดียวกับ
+Cloudflare (`npm run build`) อยู่แล้ว จึงได้ของเหมือนกันเป๊ะโดยไม่ต้องทำอะไรเพิ่ม
 
 ไฟล์ที่ Cloudflare ใช้ (อยู่ใน `public/` เพื่อให้ Vite คัดลอกเข้า dist ทุก build):
-`_headers` (security header เทียบเท่า netlify.toml) · `_redirects` (SPA fallback) · `.node-version`
+`_headers` (security header เทียบเท่า netlify.toml — GitHub Pages ตั้งเองไม่ได้)
+`_redirects` (SPA fallback) · `.node-version`
+
+Secret ที่ตั้งไว้ใน repo แล้ว: `CLOUDFLARE_API_TOKEN` · `CLOUDFLARE_ACCOUNT_ID`
+ขั้นตอนตั้งค่าเดิมอยู่ที่ [DEPLOY-PERSONAL.md](DEPLOY-PERSONAL.md)
 
 ## Deploy target
 
@@ -188,3 +201,6 @@ repo นี้เพิ่ง `git init` เมื่อ 24 ก.ค. 2026 หล
 | เปลี่ยน shape ข้อมูล หรือรื้อใหญ่ | major `2.x` → `3.0.0` | เพิ่มโหมดตารางแบบรอบ |
 
 รอบที่มีทั้งฟีเจอร์และแก้บั๊ก ให้ยึดตัวที่ใหญ่กว่า
+
+commit ที่แตะแต่เอกสาร/workflow (ไม่มีอะไรเปลี่ยนในตัวแอปที่ build ออกมา) **ไม่ต้องขยับ** —
+ขยับแล้วเลขจะเปลี่ยนทั้งที่ของในเครื่องผู้ใช้เหมือนเดิม ซึ่งก็โกหกอีกแบบ
