@@ -64,10 +64,26 @@ jobs:
           fi
           echo "ผ่าน: ไม่มีโค้ดตรวจสิทธิ์ใน build"
 
+      # ต้องสร้าง project ก่อน deploy เสมอ
+      #
+      # wrangler pages deploy จะถามยืนยันแบบ interactive ถ้า project ยังไม่มี
+      # แต่ CI ไม่มี stdin ให้ตอบ -> ค้างแล้วตาย โดย log ไม่บอกตรงๆ ว่าเพราะอะไร
+      # คำสั่งนี้รันซ้ำได้ไม่เสียหาย (มีอยู่แล้วจะ error ซึ่งเรากลืนทิ้ง)
+      - name: สร้าง Pages project ถ้ายังไม่มี
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@3 pages project create rankforge-me \
+            --production-branch=main 2>&1 | tee create.log || true
+          if grep -qi "already exists\|already in use" create.log; then
+            echo "project มีอยู่แล้ว — ข้ามไป deploy ต่อ"
+          fi
+
       - name: deploy ขึ้น Cloudflare Pages
         if: steps.gate.outputs.ready == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=rankforge-me --branch=main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@3 pages deploy dist --project-name=rankforge-me --branch=main
