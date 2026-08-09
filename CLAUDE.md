@@ -66,7 +66,17 @@ $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $e
 - `settings.startedAt` เก็บรวมในก้อนเดียวกับประวัติโดยตั้งใจ — ล้างเพื่อรีเซ็ตช่วงทดลอง = ประวัติหายด้วย
 - โค้ดตรวจสิทธิ์ถูก tree-shake **ออกจาก build รุ่น personal ทั้งหมด** — ตรวจด้วยการ grep หา
   `artyz-coach-2026` ใน `dist/assets/*.js` **ต้องไม่เจอ** ถ้าเจอแปลว่า gate หลุดเข้ารุ่นผู้ใช้ = บั๊ก
-- สร้างรหัสขาย: `npm run license 3 5` (5 ใบ อายุ 3 เดือน) · `npm run license 12 1` (1 ใบ อายุ 1 ปี) · `npm run license life 1` (ตลอดชีพ)
+- สร้างรหัสขาย: **ดับเบิลคลิก `make-license.cmd`** (วิธีหลัก) หรือ `npm run license 3 5`
+
+  **เครื่องนี้ตั้ง ExecutionPolicy = Restricted** สคริปต์ `.ps1` ทุกตัวรันไม่ได้ รวมทั้ง `npm.ps1`
+  เวลาแนะนำผู้ใช้ให้เลี่ยง npm แล้วเรียก `node.exe` ตรงๆ แทน — .exe/.cmd ไม่โดนบล็อก:
+
+  ```
+  & "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64\node.exe" "C:\ARTY\COAD\CLAUDE\gym-tracker\scripts\make-license.mjs" 12 1
+  ```
+
+  ข้อความในไฟล์ `.cmd` ต้องเป็น**อังกฤษล้วน**: cmd.exe อ่านไฟล์ด้วย codepage ระบบ (874)
+  แต่ต้อง `chcp 65001` เพื่อให้ผลลัพธ์ไทยจาก node แสดงถูก — สอง codepage ขัดกัน
 
 ## คำสั่ง
 
