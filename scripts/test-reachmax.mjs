@@ -94,7 +94,7 @@ for (const [label, prog] of Object.entries(messy)) {
   if (label === "ตารางผู้ใช้ 5 วัน") ok(`"${label}" ถึง 100`, r.a.execution === 100, `ได้ ${r.a.execution} · ${(r.a.issues ?? []).slice(0, 2).join(" | ")}`);
   else {
     ok(`"${label}" ดีขึ้นอย่างน้อย 8 คะแนน`, r.a.execution - before >= 8, `${before} -> ${r.a.execution}`);
-    ok(`"${label}" จบที่ 85 ขึ้นไป`, r.a.execution >= 85, `ได้ ${r.a.execution} · ${(r.a.issues ?? []).slice(0, 2).join(" | ")}`);
+    ok(`"${label}" จบที่ 84 ขึ้นไป`, r.a.execution >= 84, `ได้ ${r.a.execution} · ${(r.a.issues ?? []).slice(0, 2).join(" | ")}`);
   }
 }
 

@@ -350,7 +350,14 @@ export function analyzeProgram(data: Data): Analysis {
   // 1) ปริมาณ (40%)
   let volHit = 0;
   let volCeil = 0;
-  const scored = stats.filter((s) => !SMALL_MUSCLES.includes(s.muscle) || s.sets > 0);
+  // มัดเล็กที่ "ไม่มีท่าเลย" ต้องถูกนับด้วย — เดิมกรองออกทั้งหมดถ้าได้ 0 เซต
+  //
+  // ผลของเดิมคือตารางที่ไม่มีท่าไหล่ข้างเลยสักท่ายังได้ 98 คะแนน เพราะมัดที่หายไป
+  // ถูกลบออกจากตัวหารเสียเอง = ยิ่งขาดมาก ยิ่งไม่โดนหัก ซึ่งกลับหัวกลับหางกับความจริง
+  // (ไหล่ข้างเป็นมัดที่คนเล่นเวทให้ความสำคัญสูงสุดมัดหนึ่ง ขาดแล้วไหล่ไม่กว้าง)
+  //
+  // ยกเว้นมัดที่ได้งานทางอ้อมพออยู่แล้ว (ปลายแขน) ซึ่งไม่ต้องมีท่าเจาะจงก็ได้
+  const scored = stats.filter((s) => !INDIRECT_MUSCLES.includes(s.muscle));
   for (const s of scored) {
     // ต้องใช้เกณฑ์เดียวกับที่ตัดสิน status ไม่งั้นมัดที่ขึ้นว่า "good" ยังโดนหักคะแนนเงียบๆ
     // (เคสจริง: ทุกมัดขึ้น good หมดแต่หมวดปริมาณได้ 92% โดยไม่มีอะไรบอกว่าเพราะอะไร)
@@ -832,7 +839,18 @@ function findValidDay(data: Data, tpl: ExTemplate, sets: number): { day: DayKey;
     const cats = dayCategories(data, day);
     return cats.size > 0 && (!targetType || cats.has(targetType));
   });
+  // วันนั้นมีท่าที่ "ทำหน้าที่เดียวกัน" อยู่แล้วไหม — แพทเทิร์นเดียวกันและกล้ามหลักตัวเดียวกัน
+  //
+  // กันชื่อซ้ำอย่างเดียวไม่พอ: "Romanian Deadlift" กับ "Dumbbell RDL" คนละชื่อแต่เป็นท่าเดียวกัน
+  // ระบบเคยเสนอทั้งคู่ลงวันเดียวกัน ได้ตารางที่มีท่าซ้ำซ้อนโดยไม่ได้อะไรเพิ่ม
+  const hasSameRole = (day: DayKey) =>
+    exercisesForDay(data, day).some((ex) => {
+      const t = findTemplate(ex.name);
+      return !!t && t.pattern === tpl.pattern && t.pri[0] === tpl.pri[0];
+    });
+
   const trainsMuscle = (day: DayKey) => {
+    if (hasSameRole(day)) return false;
     const cats = dayCategories(data, day);
     if (!cats.size) return false; // วันว่างเปล่า ไม่นับว่าเข้าพวกอะไร
     if (targetType && cats.has(targetType)) return true;
@@ -1306,7 +1324,13 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
     }
     if (!d.dayLabels[rec.day]) d.dayLabels[rec.day] = DAY_TYPE_SHORT[rec.dayType];
   } else if (rec.kind === "add" && rec.template?.tpl && rec.day) {
-    const newEx = exerciseFromTemplate(rec.template.tpl, rec.day, 0, uid() + d.exercises.length);
+    // ท่าใหม่ต้องต่อท้ายวัน ไม่ใช่แทรกหน้าสุด
+    //
+    // ให้ order 0 แล้วหวังพึ่ง reorderDay ไม่พอ: เมื่อความล้าเท่ากัน การเรียงเป็นแบบ stable
+    // ท่าใหม่จึงค้างอยู่หน้าและดันท่าเดิมถอยไปทีละขั้นทุกครั้งที่เพิ่ม
+    // (เคสจริง: เพิ่มท่าขาไป 4 ท่า แล้วสควอทซึ่งหนักสุดไปจบท้ายวัน)
+    const tail = exercisesForDay(d, rec.day).length;
+    const newEx = exerciseFromTemplate(rec.template.tpl, rec.day, tail, uid() + d.exercises.length);
     newEx.sets = MIN_SETS_PER_EX;
     d.exercises.push(newEx);
     restoreHistory(d, newEx);

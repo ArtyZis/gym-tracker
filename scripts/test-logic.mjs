@@ -193,7 +193,9 @@ const bad = normalizeData({
 });
 const fromBad = driveToMax(bad);
 check("recs: โปรแกรมแย่ๆ คะแนนดีขึ้นจากเดิม", fromBad.score > fromBad.startScore, true);
-check("recs: โปรแกรมแย่ๆ ก็ยังไม่ย้าย/เพิ่มวันฝึกให้เอง", fromBad.endDays, fromBad.startDays);
+// ตารางที่มีท่าเดียววันเดียวต้องเปิดวันเพิ่มได้ ไม่งั้นติดเพดานถาวร
+// สิ่งที่ยังห้ามคือ "ยุบวันที่ผู้ใช้ฝึกอยู่" ไม่ใช่ห้ามใช้วันว่าง
+check("recs: โปรแกรมแย่ๆ วันฝึกเดิมยังอยู่", fromBad.endDays.split(",").includes(fromBad.startDays), true);
 
 // โปรแกรมฝึก 6 วันติด (consecutive penalty) -> ต้องแนะนำแทรกวันพักจน 100
 const consec = normalizeData({
