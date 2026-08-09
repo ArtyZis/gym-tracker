@@ -34,6 +34,10 @@ export interface SetLog {
   // เวลาที่ติ๊กเซตนี้ (epoch ms) — ใช้คำนวณว่าเล่นมานานแค่ไหนแล้วในเซสชันนี้
   // optional เพราะข้อมูลเก่าไม่มี: ไม่มี = นาฬิกาเซสชันจะไม่แสดงสำหรับเซสชันนั้น (ไม่พัง ไม่เดา)
   at?: number;
+  // RIR = เหลือแรงอีกกี่ครั้งตอนจบเซต (0 = หมดจริง, 3+ = ยังเหลือเยอะ)
+  // เก็บเฉพาะเซตสุดท้ายของท่าโดยตั้งใจ: ถามทุกเซตคือแรงเสียดทานที่คนเลิกกรอกภายในสัปดาห์เดียว
+  // ไม่มีค่า = ไม่รู้ ซึ่งระบบต้องทำงานได้ปกติเหมือนเดิม ห้ามเดาแทน
+  rir?: number;
 }
 
 export interface SessionLog {
@@ -172,6 +176,12 @@ export interface Data {
   // len = ความยาวรอบ (2-7 วัน) · anchor = วันที่ (YYYY-MM-DD) ที่เป็น "วันที่ 1" ของรอบ
   // ไม่มี = โหมดสัปดาห์ปกติ (ค่าเดิมของระบบ) ดูรายละเอียดที่ lib/loop.ts
   loop?: { len: number; anchor: string };
+  // ชื่อจริงของท่า "นอกโปรแกรม" — key = id ที่ใช้ในประวัติ (x~... หรือ origId~...)
+  //
+  // ต้องเก็บแยกเพราะ id ถอดกลับเป็นชื่อสวยไม่ได้: normName ทำเป็นตัวเล็กและแทนช่องว่างหมดแล้ว
+  // ไม่มีข้อมูลนี้ = ท่าที่เพิ่มชั่วคราว/ท่าที่ใช้แทน จะไม่โผล่ในสถิติสูงสุดเลย
+  // (ข้อมูลเก่าก่อนมีฟิลด์นี้จึงไม่มีสถิติย้อนหลังของท่าพวกนั้น — ยอมรับ ไม่เดาชื่อเอง)
+  exNames?: Record<string, { name: string; unit?: string }>;
   // วันชดเชย — key = วันที่จริง (YYYY-MM-DD), value = ช่องวันที่ดึงตารางมาเล่นชดเชยในวันนั้น
   //
   // ทำไมเก็บถาวรไม่ล้างรายวันแบบ swaps: สตรีคต้องย้อนดูได้ว่าวันที่พลาดไปนั้น
@@ -296,6 +306,7 @@ const MAX_NAME_LEN = 200;
 const MAX_SETS = 50;
 const MAX_REPS = 9999;
 const MAX_MAKEUP_DAYS = 800; // เกินสองปี — สตรีคย้อนดูแค่ 730 วัน เก็บมากกว่านี้ไม่มีใครใช้
+export const MAX_RIR = 5; // เหลือแรงเกิน 5 ครั้งคือเบาเกินกว่าจะเรียกว่าเซตทำงาน
 
 const num = (v: any, lo: number, hi: number, dflt: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
@@ -342,6 +353,7 @@ function cleanSetLog(s: any): SetLog | null {
   if (s.reps !== undefined) out.reps = Math.round(num(s.reps, 0, MAX_REPS, 0));
   if (s.duration !== undefined) out.duration = Math.round(num(s.duration, 0, 86400, 0));
   if (s.at !== undefined) out.at = num(s.at, 0, 4e12, 0);
+  if (s.rir !== undefined) out.rir = Math.round(num(s.rir, 0, MAX_RIR, 0));
   return out;
 }
 
@@ -462,6 +474,19 @@ export function normalizeData(d: any): Data | null {
       typeof d.loop.anchor === "string" &&
       Number.isFinite(Date.parse(d.loop.anchor));
     if (!ok) d.loop = undefined;
+  }
+  // ชื่อท่านอกโปรแกรม — ค่าต้องเป็น object ที่มี name เป็นสตริงจริง
+  // ค่าพังแล้วปล่อยผ่านจะไปโผล่เป็นชื่อท่าประหลาดในสถิติและการ์ดแชร์
+  if (!isObj(d.exNames)) d.exNames = undefined;
+  else {
+    const names: Record<string, { name: string; unit?: string }> = {};
+    for (const k of Object.keys(d.exNames).slice(0, MAX_EXERCISES)) {
+      if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+      const v = d.exNames[k];
+      if (isObj(v) && typeof v.name === "string" && v.name.trim())
+        names[k] = { name: v.name.slice(0, MAX_NAME_LEN), unit: typeof v.unit === "string" ? v.unit.slice(0, 12) : undefined };
+    }
+    d.exNames = Object.keys(names).length ? names : undefined;
   }
   // วันชดเชย — คีย์ต้องเป็นวันที่ ค่าต้องเป็นรายการช่องวันที่รู้จักเท่านั้น
   // ปล่อยค่ามั่วผ่านไปได้จะทำให้สตริงแปลกๆ กลายเป็น "วันที่ชดเชยแล้ว" แล้วสตรีคเพี้ยน
@@ -677,8 +702,16 @@ export function addExtra(d: Data, target: SwapTarget) {
   if (d.swaps.extras.some((t) => normName(t.name) === normName(target.name))) return;
   d.swaps.extras.push(target);
   const id = extraIdFor(target.name);
+  rememberExName(d, id, target);
   const arch = d.historyArchive?.[normName(target.name)];
   if (arch?.length && !d.history[id]?.length) d.history[id] = structuredClone(arch);
+}
+
+// จำชื่อจริงของท่านอกโปรแกรมไว้ตั้งแต่ตอนเพิ่ม — ต้องทำตรงนี้เท่านั้น
+// เพราะ swaps ถูกล้างทุกวัน ถ้าไม่จำไว้ พอข้ามวันแล้วจะไม่เหลือชื่อให้โยงกับประวัติอีกเลย
+function rememberExName(d: Data, id: string, target: SwapTarget) {
+  if (!d.exNames) d.exNames = {};
+  d.exNames[id] = { name: target.name, unit: target.unit };
 }
 
 export function removeExtra(d: Data, name: string) {
@@ -691,6 +724,7 @@ export function setSwap(d: Data, origId: string, target: SwapTarget) {
   if (!d.swaps || d.swaps.date !== todayStr()) d.swaps = { date: todayStr(), map: {} };
   d.swaps.map[origId] = target;
   const sid = swapIdFor(origId, target.name);
+  rememberExName(d, sid, target);
   const arch = d.historyArchive?.[normName(target.name)];
   if (arch?.length && !d.history[sid]?.length) d.history[sid] = structuredClone(arch);
 }

@@ -1,0 +1,118 @@
+// การแนะนำน้ำหนักครั้งหน้า — ตรรกะที่ผิดแล้วผู้ใช้ฝึกผิดตามไปทั้งสัปดาห์
+//
+// เคสหลักที่ต้องผ่าน (เคสจริงของผู้ใช้):
+//   leg extension เซตแรก 20x12 แล้วลดเหลือ 10x15 สองเซต
+//   ของเดิมบอก "คงน้ำหนัก 20 แล้วดันให้ถึง 15" ซึ่งเพิ่งพิสูจน์ไปเองว่าทำไม่ได้
+//   ที่ถูกคือเสนอน้ำหนักกลางที่น่าจะทำครบได้ทั้งชุด
+//
+// รัน: .\node_modules\.bin\esbuild.cmd scripts/test-progression.mjs --bundle --platform=node --format=esm --outfile=t.mjs; node t.mjs
+
+import { liftStyle, suggestTarget } from "../src/lib/progression.ts";
+import { createDefault, createEmpty } from "../src/lib/store.ts";
+
+let pass = 0, fail = 0;
+const ok = (n, c, extra = "") => { if (c) { pass++; console.log(`  ✅ ${n}`); } else { fail++; console.log(`  ❌ ${n}${extra ? "  << " + extra : ""}`); } };
+const eq = (n, got, want) => ok(n, got === want, `ได้ ${JSON.stringify(got)} ต้องการ ${JSON.stringify(want)}`);
+
+const dk = (b) => { const d = new Date(); d.setDate(d.getDate() - b); return d.toISOString().slice(0, 10); };
+
+function mk(ex, sets, daysAgo = 7) {
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  d.history = { [ex.id]: [{ date: dk(daysAgo), sets }] };
+  return d;
+}
+const EX = (over = {}) => ({ id: "e", name: "Leg Extension", day: "mon", type: "weight", sets: 3, rmin: 12, rmax: 15, unit: "kg", inc: 2.5, order: 0, ...over });
+
+console.log("═══ 1. เคสจริง: เซตแรกหนักไป แล้วลดน้ำหนักเซตหลัง ═══");
+{
+  const ex = EX();
+  const t = suggestTarget(mk(ex, [{ weight: 20, reps: 12 }, { weight: 10, reps: 15 }, { weight: 10, reps: 15 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg}`);
+  eq("รู้ว่ากำลังหาน้ำหนักที่ใช่", t.kind, "settle");
+  ok("เสนอน้ำหนักกลาง ไม่ใช่ค้างที่ 20", t.weight > 10 && t.weight < 20, `ได้ ${t.weight}`);
+  eq("ปัดลงหมุด 2.5 ได้ 15", t.weight, 15);
+  ok("บอกด้วยว่าให้ทำครบทั้ง 3 เซต", /ทั้ง 3 เซต/.test(t.msg), t.msg);
+}
+{
+  // ลดน้ำหนักแต่เซตแรกทำครบเป้าแล้ว = ไม่ใช่เคสหาน้ำหนัก แค่หมดแรงท้าย
+  const ex = EX();
+  const t = suggestTarget(mk(ex, [{ weight: 20, reps: 15 }, { weight: 20, reps: 15 }, { weight: 15, reps: 15 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg`);
+  ok("เซตแรกครบเป้าแล้วไม่ถือว่าต้องหาน้ำหนักใหม่", t.kind !== "settle", t.kind);
+}
+
+console.log("\n═══ 2. ครบทุกเซต = ขึ้นน้ำหนัก ═══");
+{
+  const ex = EX();
+  const t = suggestTarget(mk(ex, [{ weight: 15, reps: 15 }, { weight: 15, reps: 15 }, { weight: 15, reps: 15 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg`);
+  eq("ขึ้นน้ำหนัก", t.kind, "up");
+  eq("ขึ้นทีละ inc", t.weight, 17.5);
+}
+{
+  // ครบเป้าแต่เหลือแรงเยอะ -> ขึ้นได้เลยไม่ต้องลังเล
+  const ex = EX({ name: "Cable Lateral Raise" });
+  const t = suggestTarget(mk(ex, [{ weight: 10, reps: 15 }, { weight: 10, reps: 15 }, { weight: 10, reps: 15, rir: 4 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg`);
+  eq("เหลือแรงเยอะ = ขึ้นเลยแม้เป็นท่าเดี่ยว", t.kind, "up");
+  ok("บอกด้วยว่าเหลือแรงเท่าไหร่", /เหลือแรง 4/.test(t.msg), t.msg);
+}
+
+console.log("\n═══ 3. ท่าเดี่ยว/เคเบิลต้องไม่รีบขึ้นน้ำหนัก ═══");
+{
+  const st = liftStyle(EX({ name: "Cable Lateral Raise" }));
+  ok("รู้ว่าเป็นท่าเดี่ยวแบบเคเบิล", st.holdRounds > 1, JSON.stringify(st));
+  ok("มีคำแนะนำเรื่องคุมฟอร์ม", /คุมฟอร์ม/.test(st.note || ""), st.note);
+}
+{
+  // ครบเป้าแต่เหลือแรงแค่ 1 -> ท่าเดี่ยวย้ำอีกรอบก่อน
+  const ex = EX({ name: "Cable Lateral Raise" });
+  const t = suggestTarget(mk(ex, [{ weight: 10, reps: 15 }, { weight: 10, reps: 15 }, { weight: 10, reps: 15, rir: 1 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg}`);
+  eq("ยังไม่ขึ้น ย้ำน้ำหนักเดิมก่อน", t.kind, "hold");
+  eq("คงน้ำหนักเดิม", t.weight, 10);
+}
+{
+  // ท่ารวมหนัก ครบเป้าเหลือแรง 1 -> ขึ้นได้เลย ไม่ต้องย้ำ
+  const ex = EX({ name: "Barbell Squat", rmin: 5, rmax: 8, sets: 3, inc: 5 });
+  const t = suggestTarget(mk(ex, [{ weight: 100, reps: 8 }, { weight: 100, reps: 8 }, { weight: 100, reps: 8, rir: 1 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg`);
+  eq("ท่ารวมขึ้นได้เลย", t.kind, "up");
+  eq("ขึ้นตาม inc ของท่านั้น", t.weight, 105);
+}
+
+console.log("\n═══ 4. หนักเกินจนหลุดช่วงล่าง = ต้องลด ═══");
+{
+  const ex = EX();
+  const t = suggestTarget(mk(ex, [{ weight: 25, reps: 8 }, { weight: 25, reps: 7 }, { weight: 25, reps: 6 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg · ${t.msg}`);
+  eq("ลดน้ำหนัก", t.kind, "settle");
+  eq("ลดลงหนึ่งสเต็ป", t.weight, 22.5);
+}
+{
+  // อยู่ในช่วงเป้าแต่ยังไม่ถึงเพดาน = คงน้ำหนักดันเรป
+  const ex = EX();
+  const t = suggestTarget(mk(ex, [{ weight: 15, reps: 13 }, { weight: 15, reps: 13 }, { weight: 15, reps: 12 }]), ex);
+  console.log(`   -> ${t.kind} · ${t.weight} kg`);
+  eq("คงน้ำหนัก", t.kind, "hold");
+  eq("น้ำหนักเดิม", t.weight, 15);
+}
+
+console.log("\n═══ 5. ข้อมูลเก่าที่ไม่มี RIR ต้องยังทำงานเหมือนเดิม ═══");
+{
+  const ex = EX();
+  const t = suggestTarget(mk(ex, [{ weight: 15, reps: 15 }, { weight: 15, reps: 15 }, { weight: 15, reps: 15 }]), ex);
+  ok("ไม่มี RIR ก็ยังแนะนำได้", t.weight !== null && !/undefined|NaN/.test(t.msg), t.msg);
+}
+{
+  const ex = EX();
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [ex];
+  d.history = {};
+  const t = suggestTarget(d, ex);
+  eq("ไม่เคยเล่นมาก่อน = เซสชันแรก", t.kind, "start");
+}
+
+console.log(`\n${fail === 0 ? "✅" : "❌"} ผ่าน ${pass} · ไม่ผ่าน ${fail}`);
+process.exit(fail ? 1 : 0);

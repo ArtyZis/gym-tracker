@@ -7,9 +7,63 @@ import { findTemplate } from "./exerciseDB";
 
 export interface TargetSuggestion {
   weight: number | null;
-  kind: "start" | "up" | "hold" | "push";
+  kind: "start" | "up" | "hold" | "push" | "settle";
   msg: string;
 }
+
+// ── นิสัยการขึ้นน้ำหนักต่างกันตามชนิดท่า ──
+//
+// ท่าเดี่ยว (isolation) โดยเฉพาะเคเบิล/ดัมเบลเล็ก ขึ้นน้ำหนักทีคือกระโดดเป็น % ที่เยอะมาก
+// เทียบกับท่ารวม เช่น lateral raise 5→7.5 kg คือ +50% ซึ่งไม่มีทางทำเรปเท่าเดิมได้
+// ท่าพวกนี้จึงต้อง "ดันเรปให้เต็มช่วงก่อน" แล้วค่อยขยับน้ำหนัก และคุมฟอร์มสำคัญกว่าตัวเลข
+//
+// คืนคำแนะนำเป็นข้อความสั้นๆ ต่อท้าย เพื่อให้ผู้ใช้รู้ว่าทำไมระบบถึงไม่รีบให้ขึ้นน้ำหนัก
+export interface LiftStyle {
+  /** ต้องทำเรปเต็มช่วงติดกันกี่ครั้งก่อนถึงจะแนะนำให้ขึ้นน้ำหนัก */
+  holdRounds: number;
+  /** ขยับน้ำหนักได้ทีละกี่เท่าของ inc */
+  stepMul: number;
+  note?: string;
+}
+
+export function liftStyle(ex: Exercise): LiftStyle {
+  const t = findTemplate(ex.name);
+  const isolation = t?.pattern === "isolation";
+  const cable = t?.equip?.includes("cable");
+  const machine = t?.equip?.includes("machine");
+  const heavy = t?.fatigue === "high";
+
+  if (isolation && cable)
+    return {
+      holdRounds: 2,
+      stepMul: 1,
+      note: "ท่าเดี่ยวแบบเคเบิล — คุมฟอร์มให้นิ่งแล้วดันเรปให้เต็มช่วงก่อน ยังไม่ต้องรีบเพิ่มน้ำหนัก",
+    };
+  if (isolation)
+    return { holdRounds: 2, stepMul: 1, note: "ท่าเดี่ยว — เพิ่มเรปให้เต็มช่วงก่อน แล้วค่อยขยับน้ำหนักทีละสเต็ปเล็ก" };
+  if (machine) return { holdRounds: 1, stepMul: 1, note: "เครื่อง — ขยับตามหมุดที่มี ถ้ากระโดดแล้วเรปตกเยอะให้กลับมาน้ำหนักเดิม" };
+  if (heavy) return { holdRounds: 1, stepMul: 1, note: "ท่าหนัก — ขึ้นทีละน้อยและคงฟอร์มไว้สำคัญกว่าตัวเลข" };
+  return { holdRounds: 1, stepMul: 1 };
+}
+
+/** เซตที่ทำได้จริง แยกตามน้ำหนัก — ใช้ดูว่ามีการลดน้ำหนักกลางท่าไหม */
+interface SetGroup {
+  weight: number;
+  reps: number[];
+}
+
+function groupByWeight(done: SetLog[]): SetGroup[] {
+  const map = new Map<number, number[]>();
+  for (const s of done) {
+    const w = s.weight ?? 0;
+    if (!map.has(w)) map.set(w, []);
+    map.get(w)!.push(s.reps || 0);
+  }
+  return [...map.entries()].map(([weight, reps]) => ({ weight, reps })).sort((a, b) => b.weight - a.weight);
+}
+
+/** ปัดน้ำหนักให้ลงหมุด/แผ่นที่มีจริง */
+const roundToStep = (w: number, step: number): number => Math.max(step, +(Math.round(w / step) * step).toFixed(2));
 
 export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
   const sessions = (data.history[ex.id] || []).filter((s) => s.date !== todayStr());
@@ -29,18 +83,70 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
   }
 
   if (ex.type === "weight") {
-    const w = done[0].weight || 0;
-    return done.every((s) => (s.reps || 0) >= ex.rmax)
-      ? {
-          weight: +(w + (ex.inc || 2.5)).toFixed(1),
-          kind: "up",
-          msg: `ครั้งก่อนครบทุกเซต — วันนี้ขึ้นเป็น ${(w + (ex.inc || 2.5)).toFixed(1)} ${ex.unit || "kg"}`,
-        }
-      : {
+    const unit = ex.unit || "kg";
+    const inc = ex.inc || 2.5;
+    const style = liftStyle(ex);
+    const groups = groupByWeight(done);
+    const rir = done.map((s) => s.rir).filter((v): v is number => typeof v === "number").pop();
+    const tail = style.note ? ` · ${style.note}` : "";
+
+    // ── เคสที่เดิมพลาด: น้ำหนักไม่เท่ากันในแต่ละเซต ──
+    //
+    // เซตแรกหนักเกินจนทำไม่ถึงเป้า แล้วต้องลดลงมาเซตหลัง = ยังหา "น้ำหนักที่ใช่" ไม่เจอ
+    // ของเดิมอ่านแค่เซตแรกแล้วสั่งให้คงน้ำหนักนั้นและดันเรปให้ถึง ซึ่งเป็นเป้าที่เพิ่ง
+    // พิสูจน์ไปเองแล้วว่าทำไม่ได้ · ที่ถูกคือเสนอน้ำหนักกลางที่น่าจะทำครบได้ทั้งชุด
+    if (groups.length > 1) {
+      const top = groups[0]; // หนักสุด
+      const bottom = groups[groups.length - 1]; // เบาสุด
+      const topOk = top.reps.every((r) => r >= ex.rmax);
+      if (!topOk) {
+        const mid = roundToStep((top.weight + bottom.weight) / 2, inc);
+        // ค่ากลางต้องอยู่ระหว่างสองฝั่งจริง ไม่งั้นเสนอเท่าเดิมก็ไม่มีประโยชน์
+        const target = mid >= top.weight ? roundToStep(top.weight - inc, inc) : mid <= bottom.weight ? roundToStep(bottom.weight + inc, inc) : mid;
+        return {
+          weight: target,
+          kind: "settle",
+          msg: `ครั้งก่อนลดจาก ${top.weight} เหลือ ${bottom.weight} ${unit} กลางท่า — ลอง ${target} ${unit} ให้ครบ ${ex.rmax} ครั้งทั้ง ${ex.sets} เซต${tail}`,
+        };
+      }
+    }
+
+    const w = groups[0].weight;
+    const allHit = done.every((s) => (s.reps || 0) >= ex.rmax);
+
+    if (allHit) {
+      // ครบเป้าทุกเซตแล้ว แต่ยังเหลือแรงเยอะ = ขึ้นได้เลยไม่ต้องรอ
+      // เหลือแรงน้อย = ท่าเดี่ยวควรย้ำอีกรอบก่อน (กระโดดทีเป็น % เยอะ)
+      const easy = rir !== undefined && rir >= 3;
+      if (!easy && style.holdRounds > 1 && rir !== undefined && rir <= 1)
+        return {
           weight: w,
           kind: "hold",
-          msg: `คงน้ำหนัก ${w} ${ex.unit || "kg"} แล้วดันครั้งให้ถึง ${ex.rmax}`,
+          msg: `ครบ ${ex.rmax} ครั้งแล้วแต่เหลือแรงแค่ ${rir} — ย้ำ ${w} ${unit} อีกรอบให้สบายขึ้นก่อนค่อยเพิ่ม${tail}`,
         };
+      const next = roundToStep(w + inc * style.stepMul, inc);
+      return {
+        weight: next,
+        kind: "up",
+        msg: `ครั้งก่อนครบทุกเซต${easy ? ` และยังเหลือแรง ${rir}` : ""} — วันนี้ขึ้นเป็น ${next} ${unit}${tail}`,
+      };
+    }
+
+    // ยังไม่ถึงเป้า — คงน้ำหนักแล้วดันเรป ยกเว้นหนักเกินจนหลุดช่วงล่าง
+    const worst = Math.min(...done.map((s) => s.reps || 0));
+    if (worst < ex.rmin) {
+      const down = roundToStep(w - inc, inc);
+      return {
+        weight: down,
+        kind: "settle",
+        msg: `ครั้งก่อนได้แค่ ${worst} ครั้ง ต่ำกว่าช่วงเป้า ${ex.rmin}-${ex.rmax} — ลดเป็น ${down} ${unit} แล้วทำให้ครบก่อน${tail}`,
+      };
+    }
+    return {
+      weight: w,
+      kind: "hold",
+      msg: `คงน้ำหนัก ${w} ${unit} แล้วดันครั้งให้ถึง ${ex.rmax}${rir !== undefined ? ` (ครั้งก่อนเหลือแรง ${rir})` : ""}${tail}`,
+    };
   }
 
   if (ex.type === "time") {

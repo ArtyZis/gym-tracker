@@ -65,14 +65,23 @@ export interface BestLift {
   date: string;
 }
 
-/** สถิติสูงสุดของทุกท่าที่เคยเล่น เรียงจากหนักสุด */
+/**
+ * สถิติสูงสุดของทุกท่าที่เคยเล่น เรียงจากหนักสุด
+ *
+ * รวมท่า "นอกโปรแกรม" ด้วย — ท่าที่เพิ่มชั่วคราวและท่าที่ใช้แทน ใช้ id คนละชุด
+ * (x~... / origId~...) ซึ่งไม่มีใน data.exercises เดิมจึงถูกข้ามทิ้งหมด
+ * ทั้งที่ผู้ใช้ยกจริงและอยากเห็นในสถิติ · ชื่อมาจาก data.exNames ที่จำไว้ตอนเพิ่ม
+ */
 export function bestLifts(data: Data): BestLift[] {
   const out: BestLift[] = [];
   const byId = new Map(data.exercises.map((e) => [e.id, e]));
 
   for (const [exId, sessions] of Object.entries(data.history)) {
-    const ex: Exercise | undefined = byId.get(exId);
-    if (!ex || ex.type !== "weight") continue;
+    const known = byId.get(exId);
+    const outside = known ? undefined : data.exNames?.[exId];
+    if (!known && !outside) continue; // ท่าถูกลบและไม่รู้ชื่อ — ไม่เดา
+    if (known && known.type !== "weight") continue;
+    const ex = known ?? ({ name: outside!.name, unit: outside!.unit || "kg" } as Exercise);
 
     let best = 0;
     let bestReps = 0;

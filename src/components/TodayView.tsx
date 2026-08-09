@@ -156,6 +156,29 @@ export default function TodayView() {
     return best;
   }
 
+  // RIR ผูกกับ "เซตสุดท้ายที่ติ๊กจริง" ไม่ใช่ ex.sets-1
+  // เพราะผู้ใช้อาจติ๊กไม่ครบตามแผน (หมดแรงก่อน) แล้วค่าจะไปเกาะเซตที่ยังว่างอยู่
+  const lastRir = (exId: string): number | undefined => {
+    const s = todaySession(exId);
+    if (!s) return undefined;
+    for (let i = s.sets.length - 1; i >= 0; i--) if (s.sets[i]) return s.sets[i]!.rir;
+    return undefined;
+  };
+
+  function setRir(ex: Exercise, value: number) {
+    update((d) => {
+      const s = (d.history[ex.id] || []).find((x) => x.date === todayStr());
+      if (!s) return;
+      for (let i = s.sets.length - 1; i >= 0; i--) {
+        if (s.sets[i]) {
+          // กดซ้ำค่าเดิม = ยกเลิก (เผื่อกดพลาด ไม่ต้องมีปุ่มลบแยก)
+          s.sets[i]!.rir = s.sets[i]!.rir === value ? undefined : value;
+          return;
+        }
+      }
+    });
+  }
+
   function toggleSet(ex: Exercise, idx: number, override?: Draft) {
     const draft = override ?? draftFor(ex, idx);
     const already = !!todaySession(ex.id)?.sets[idx];
@@ -674,6 +697,41 @@ export default function TodayView() {
                     </div>
                   );
                 })}
+
+                {/* RIR ของเซตสุดท้าย — ถามครั้งเดียวตอนจบท่า ไม่ถามทุกเซต
+                    เพราะการกรอกทุกเซตคือแรงเสียดทานที่คนเลิกทำภายในสัปดาห์เดียว
+                    ค่านี้ทำให้ระบบรู้ว่า "ครบเป้าแบบสบาย" ต่างจาก "ครบเป้าแบบหมดแรง" */}
+                {complete && (
+                  <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--edge)" }}>
+                    <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-1.5" style={{ color: "var(--mut)" }}>
+                      เซตสุดท้ายเหลือแรงอีกกี่ครั้ง
+                    </div>
+                    <div className="flex gap-1.5">
+                      {[0, 1, 2, 3, 4].map((v) => {
+                        const on = lastRir(ex.id) === v;
+                        return (
+                          <button
+                            key={v}
+                            className="flex-1 font-mono2 text-[11px] py-1.5"
+                            style={{
+                              color: on ? "#050a18" : "var(--mut)",
+                              background: on ? "linear-gradient(180deg, var(--acc), var(--acc-2))" : "rgba(10,22,34,.9)",
+                              border: on ? "none" : "1px solid var(--edge)",
+                              clipPath: "var(--cut-path-sm)",
+                            }}
+                            onClick={() => setRir(ex, v)}
+                            aria-pressed={on}
+                          >
+                            {v === 4 ? "4+" : v}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] mt-1.5 leading-relaxed" style={{ color: "var(--dim)" }}>
+                      0 = หมดแรงจริง · 1-2 = กำลังดี · 3+ = เบาไป ครั้งหน้าขึ้นน้ำหนักได้
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
