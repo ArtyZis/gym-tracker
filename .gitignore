@@ -8,7 +8,13 @@ bundle.html
 .env
 .env.local
 
-# Local Netlify folder
+# Netlify — เลิกใช้แล้ว 14 ส.ค. 2026 แต่โฟลเดอร์อาจยังค้างในเครื่อง
 .netlify
+
+# bundle ชั่วคราวของเทสต์ (esbuild เขียนออกมาแล้วลบทิ้ง)
+# เคยหลุดเข้า commit มาแล้วเพราะ pattern ครอบไม่ครบ — คลุมทุกชื่อที่ใช้จริง
 t.mjs
 t2.mjs
+t3.mjs
+tt.mjs
+.test-bundle.mjs

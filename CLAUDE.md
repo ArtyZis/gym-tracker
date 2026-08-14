@@ -159,11 +159,25 @@ git push          # -> Cloudflare (personal) + GitHub Pages (pro) พร้อ�
 .\node_modules\.bin\esbuild.cmd scripts/test-logic.mjs --bundle --platform=node --format=esm --outfile=t.mjs; node t.mjs
 ```
 
-ตอนนี้มี 19 ไฟล์ รวม 447 ข้อ — รันทีเดียวทั้งหมด (`$fail` ต้องเป็น 0):
+**รันทั้งหมดทีเดียวด้วยคำสั่งนี้** (24 ไฟล์ 616 ข้อ — ต้องเขียว 100% ก่อน commit):
 
 ```powershell
-$fail=0; Get-ChildItem scripts\test-*.mjs | ForEach-Object { .\node_modules\.bin\esbuild.cmd $_.FullName --bundle --platform=node --format=esm --outfile=tt.mjs --log-level=error; $o = node tt.mjs 2>&1 | Out-String; $m=[regex]::Match($o,"ไม่ผ่าน (\d+)"); if($m.Success){$fail+=[int]$m.Groups[1].Value} }; "ไม่ผ่าน: $fail"; rm tt.mjs
+node scripts\run-tests.mjs
 ```
+
+ตัวรันจัดการ bundle + flag พิเศษให้เอง (เช่น `test-prelaunch` ต้อง build เป็นรุ่น pro
+ไม่งั้น `isPro=false` แล้วเทสต์สิทธิ์ไม่มีความหมาย) — อย่าเขียน loop ใน PowerShell เอง
+เพราะ quoting ของ `--define:import.meta.env={...}` โดนกัดพังประจำ
+
+เทสต์ที่ต้องรู้ว่ามีไว้ทำไม:
+
+| ไฟล์ | กันอะไร |
+|---|---|
+| `test-prelaunch` | วงจรลูกค้าจ่ายเงิน: ทดลอง → หมด → ใส่รหัส → ต่ออายุ · และกันเผลอล็อกของที่สัญญาว่าฟรี |
+| `test-migration` | ข้อมูลผู้ใช้เก่าต้องอ่านได้ครบ ไม่หายแม้แต่เซตเดียว (กฎเหล็กข้อ 1) |
+| `test-localdate` | วันที่ต้องเป็นเวลาท้องถิ่น ไม่ใช่ UTC — เคยพังจนบันทึกผิดวันช่วงเที่ยงคืน-ตี 7 |
+| `test-reference` | ตารางอ้างอิงต้องได้ 100 เต็มเสมอ |
+| `test-sharecard-en` | การ์ดแชร์ภาษาอังกฤษต้องไม่ล้นกรอบ (คำอังกฤษยาวกว่าไทย) |
 
 ---
 
