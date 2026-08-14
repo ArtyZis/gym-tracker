@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { Rank } from "../lib/rank";
 import { RANKS, RANK_COLOR, bestLifts, computeRank, rankName } from "../lib/rank";
+import { deleteBestRecord, normName } from "../lib/store";
 import { shareBestLiftsCard, shareRankCard } from "../lib/share";
 import { exText, setsText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
@@ -16,7 +17,7 @@ import RankPeek from "./RankPeek";
 const SHOW = 6;
 
 export default function RankCard() {
-  const { data, toast, goTab } = useApp();
+  const { data, update, toast, goTab } = useApp();
   const res = useMemo(() => computeRank(data), [data]);
   const lifts = useMemo(() => bestLifts(data), [data]);
   const [all, setAll] = useState(false);
@@ -35,6 +36,24 @@ export default function RankCard() {
       r === "shared" ? t("แชร์แล้ว", "Shared") : r === "downloaded" ? t("บันทึกรูปแล้ว", "Image saved") : t("แชร์ไม่สำเร็จ", "Share failed"),
       r !== "failed",
     );
+  };
+
+  // ลบสถิติที่กรอกผิด — บอกล่วงหน้าว่าลบแล้วสถิติใหม่จะเป็นเท่าไหร่
+  //
+  // ลองลบในสำเนาก่อนแล้วคำนวณจริงเพื่อเอามาบอกในกล่องยืนยัน คนกรอกผิดมักไม่แน่ใจว่า
+  // "ลบแล้วจะเหลืออะไร" ถ้าถามแค่ "แน่ใจไหม" เขาจะไม่กล้ากดแล้วปล่อยเลขผิดไว้อย่างนั้น
+  const removeRecord = (l: (typeof lifts)[number]) => {
+    const probe = structuredClone(data);
+    deleteBestRecord(probe, l.name, l.weight, l.date);
+    const after = bestLifts(probe).find((x) => normName(x.name) === normName(l.name));
+    const nextLine = after
+      ? t(`สถิติใหม่จะเป็น ${after.weight} ${after.unit} × ${after.reps}`, `New best becomes ${after.weight} ${after.unit} × ${after.reps}`)
+      : t("ท่านี้จะไม่มีสถิติเหลือ (หลุดออกจากรายการ)", "This exercise will have no record left and drops off the list");
+
+    if (!confirm(`${t(`ลบสถิติ ${l.name} ${l.weight} ${l.unit} × ${l.reps}?`, `Delete ${l.name} ${l.weight} ${l.unit} × ${l.reps}?`)}\n\n${nextLine}`)) return;
+
+    update((d) => deleteBestRecord(d, l.name, l.weight, l.date));
+    toast(t("ลบสถิตินั้นแล้ว", "Record deleted"));
   };
 
   return (
@@ -128,13 +147,22 @@ export default function RankCard() {
         {t("สถิติสูงสุดที่เคยทำ", "All-time bests")}
       </div>
       {(all ? lifts : lifts.slice(0, SHOW)).map((l) => (
-        <div key={l.name} className="flex items-baseline justify-between gap-2 py-[3px] text-[12px]">
-          <span className="truncate" style={{ color: "var(--ink)" }}>
+        <div key={l.name} className="flex items-baseline gap-2 py-[3px] text-[12px]">
+          <span className="truncate flex-1 min-w-0" style={{ color: "var(--ink)" }}>
             {l.name}
           </span>
           <span className="font-mono2 text-[10.5px] shrink-0" style={{ color: "var(--acc)" }}>
             {l.weight} {l.unit} × {l.reps} · {setsText(l.sets)}
           </span>
+          {/* ลบสถิติที่กรอกผิดออกทีละอัน — ไม่ต้องทิ้งประวัติทั้งท่าเหมือนเมื่อก่อน */}
+          <button
+            className="shrink-0 px-1 leading-none"
+            style={{ color: "var(--dim)", background: "none", border: "none" }}
+            aria-label={t(`ลบสถิติ ${l.name}`, `Delete ${l.name} record`)}
+            onClick={() => removeRecord(l)}
+          >
+            ✕
+          </button>
         </div>
       ))}
       {lifts.length > SHOW && (

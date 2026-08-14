@@ -35,7 +35,8 @@ const ex = { id: "x", name: "Squat", day: "mon", type: "weight", sets: 3, rmin: 
 const mkDate = (offsetDays) => {
   const d = new Date();
   d.setDate(d.getDate() - offsetDays);
-  return d.toISOString().slice(0, 10);
+  // วันที่ท้องถิ่นเหมือนที่แอปใช้ — toISOString() เป็น UTC จะเพี้ยนช่วงเที่ยงคืนถึง 7 โมง
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 const hist = [28, 21, 14, 7, 0].map((off, i) => ({
   date: mkDate(off),

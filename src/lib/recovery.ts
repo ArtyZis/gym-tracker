@@ -113,7 +113,8 @@ export function nutritionStreak(data: Data): number {
   const today = new Date();
   let streak = 0;
   for (let i = 0; i < 400; i++) {
-    const d = new Date(today.getTime() - i * MS_DAY).toISOString().slice(0, 10);
+    // ต้องเป็นวันที่ท้องถิ่น ไม่ใช่ UTC — ไม่งั้นช่วงเที่ยงคืนถึง 7 โมงจะไปเทียบกับเมื่อวาน
+    const d = todayStr(new Date(today.getTime() - i * MS_DAY));
     const hit = map.get(d);
     if (hit === true) streak++;
     else if (hit === false) break;

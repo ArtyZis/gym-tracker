@@ -12,7 +12,8 @@ let pass = 0, fail = 0;
 const ok = (n, c, extra = "") => { if (c) { pass++; console.log(`  ✅ ${n}`); } else { fail++; console.log(`  ❌ ${n}${extra ? "  << " + extra : ""}`); } };
 const eq = (n, got, want) => ok(n, got === want, `ได้ ${JSON.stringify(got)} ต้องการ ${JSON.stringify(want)}`);
 
-const dk = (b) => { const d = new Date(); d.setDate(d.getDate() - b); return d.toISOString().slice(0, 10); };
+const _ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const dk = (b) => { const d = new Date(); d.setDate(d.getDate() - b); return _ymd(d); };
 const T = (name, over = {}) => ({ name, type: "weight", sets: 3, rmin: 8, rmax: 12, unit: "kg", inc: 2.5, ...over });
 
 function base() {

@@ -32,7 +32,8 @@ globalThis.document = {
   createElement: () => ({ width: 0, height: 0, getContext: makeCtx }),
 };
 
-const dk = (back) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toISOString().slice(0, 10); };
+const _ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const dk = (back) => { const d = new Date(); d.setDate(d.getDate() - back); return _ymd(d); };
 
 // ท่าหลัก 4 ท่า (ครบทุก LIFT_STANDARDS) + ท่าเสริมอีก 7 = สถิติ 11 ท่า
 const MAIN = ["Barbell Squat", "Barbell Bench Press", "Deadlift", "Overhead Press"];

@@ -17,7 +17,8 @@ const ok = (name, cond, extra = "") => {
 const mkEx = (name, day, sets, rmin, rmax, order, extra = {}) => ({
   id: uid() + Math.random(), name, day, type: "weight", sets, rmin, rmax, inc: 2.5, unit: "kg", order, ...extra,
 });
-const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const _ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return _ymd(d); };
 
 // ตารางจริงของผู้ใช้ — PPL x2 หนัก/ปริมาณ พักศุกร์
 function realProgram() {

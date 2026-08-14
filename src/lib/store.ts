@@ -254,7 +254,20 @@ export const JS_DAYS: DayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat
 
 export const uid = () => "ex_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-export const todayStr = () => new Date().toISOString().slice(0, 10);
+/**
+ * วันที่วันนี้ตาม "เวลาที่นาฬิกาผู้ใช้บอก" — ห้ามใช้ toISOString() เด็ดขาด
+ *
+ * ของเดิมใช้ `new Date().toISOString().slice(0,10)` ซึ่งเป็นวันที่แบบ UTC
+ * ไทยอยู่ UTC+7 แปลว่าตั้งแต่เที่ยงคืนถึง 7 โมงเช้า แอปคิดว่ายังเป็น "เมื่อวาน" อยู่
+ * คนที่ตื่นไปยิมเช้าตี 5 จึงถูกบันทึกเซตลงวันก่อนหน้า แล้วสตรีคขาดทั้งที่ไปฝึกจริง
+ * (heatmap ก็ลงจุดผิดวัน และหน้าวันนี้ไม่ขึ้นว่าทำครบแล้ว)
+ *
+ * ที่อื่นในระบบใช้เวลาท้องถิ่นอยู่แล้ว — dateKey() ในสตรีค และ getDay() ที่หัวแอป
+ * ตัวนี้จึงเป็นตัวเดียวที่ไม่ตรงกับเพื่อน · ข้อมูลเก่าที่บันทึกผิดวันไปแล้วแก้ย้อนหลังไม่ได้
+ * (ไม่รู้ว่าอันไหนบันทึกตอนกี่โมง) แต่ตั้งแต่นี้ไปจะตรงกับที่ผู้ใช้เห็นเสมอ
+ */
+export const todayStr = (d = new Date()): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 // เปิดแอปครั้งแรก = ว่างเปล่า ไม่มีท่าและไม่มีชื่อวัน
 //
@@ -635,6 +648,47 @@ export const swapIdFor = (origId: string, name: string) => origId + "~" + normNa
 
 export function activeSwapMap(data: Data): Record<string, SwapTarget> {
   return data.swaps && data.swaps.date === todayStr() ? data.swaps.map : {};
+}
+
+/**
+ * ลบ "สถิติสูงสุด" ของท่าหนึ่งทิ้ง — ลบเฉพาะเซตที่ทำสถิตินั้น ไม่ใช่ประวัติทั้งท่า
+ *
+ * ใช้ตอนกรอกเลขผิดแล้วสถิติเพี้ยน (พิมพ์ 200 แทน 100) ซึ่งพังสองอย่างพร้อมกัน:
+ * การ์ดแชร์โชว์เลขที่ไม่จริง และแรงค์ถูกดันสูงเกินเพราะคิดจาก 1RM ของท่าหลัก
+ * ทางเลือกเดิมมีแค่ "ลบประวัติท่านี้" ทั้งก้อน ซึ่งทิ้งข้อมูลดีๆ ไปด้วยทั้งหมด
+ *
+ * ต้องลบ 3 ที่ให้ครบ ไม่งั้นเลขผีกลับมา:
+ *   1. history ของทุก id ที่ชื่อตรงกัน — ท่าเดียวกันที่อยู่หลายวันใช้คนละ id
+ *      และท่าที่เพิ่มชั่วคราว/ใช้แทน ก็มี id คนละชุด (x~... / origId~...)
+ *   2. historyArchive[ชื่อ] — เงาที่เก็บไว้กู้ตอนท่าชื่อเดิมกลับมา ถ้าไม่ลบด้วย
+ *      พอลบท่าแล้วเพิ่มใหม่ restoreHistory จะดึงสถิติผิดกลับมาให้
+ *   3. เซสชันที่เซตหมดเกลี้ยง ต้องเอาออกด้วย ไม่งั้นเหลือวันเปล่าค้างในกราฟ
+ */
+export function deleteBestRecord(d: Data, name: string, weight: number, date: string) {
+  const key = normName(name);
+  // ชื่อที่ผูกกับ id นี้ — ดูทั้งท่าในโปรแกรมและท่านอกโปรแกรมที่จำชื่อไว้
+  const nameOf = (exId: string): string | undefined =>
+    d.exercises.find((e) => e.id === exId)?.name ?? d.exNames?.[exId]?.name;
+
+  const strip = (sessions: SessionLog[]): SessionLog[] =>
+    sessions
+      .map((s) => (s.date !== date ? s : { ...s, sets: s.sets.map((st) => (st?.weight === weight ? null : st)) }))
+      .filter((s) => s.sets.some(Boolean));
+
+  for (const exId of Object.keys(d.history)) {
+    const n = nameOf(exId);
+    if (!n || normName(n) !== key) continue;
+    const left = strip(d.history[exId]);
+    if (left.length) d.history[exId] = left;
+    else delete d.history[exId];
+  }
+
+  const arch = d.historyArchive?.[key];
+  if (arch?.length) {
+    const left = strip(arch);
+    if (left.length) d.historyArchive![key] = left;
+    else delete d.historyArchive![key];
+  }
 }
 
 export type EffectiveExercise = Exercise & { origId: string; swapped: boolean; extra?: boolean; makeupOf?: DayKey };
