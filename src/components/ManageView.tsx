@@ -27,7 +27,6 @@ export default function ManageView() {
   const [moveTo, setMoveTo] = useState<DayKey>("fri");
   const [transferCode, setTransferCode] = useState("");
   const [barInput, setBarInput] = useState(String(data.settings.barWeight ?? 20));
-  const [targetInput, setTargetInput] = useState("60");
 
   function reorder(ex: Exercise, dir: number) {
     update((d) => {
@@ -43,32 +42,17 @@ export default function ManageView() {
     });
   }
 
-  // ปิดโหมดนับบาร์ = ตัวเลขที่กรอกคือแผ่นล้วน จึงหารสองตรงๆ ไม่ต้องลบบาร์ออกก่อน
-  const countBar = data.settings.countBarWeight === true;
-  const bar = countBar ? parseFloat(barInput) || 20 : 0;
-  const target = parseFloat(targetInput) || 0;
-  const plates = plateCalc(target, bar);
   const inputCls = "w-full px-3.5 py-2.5 text-[14px]";
 
   return (
     <div className="rise">
       {isPro && <UpgradeCard />}
 
-      <ImportProgramCard />
-
-      <SavedProgramsCard />
-
-      <LoopCard />
-
-      <SeedWeightsCard />
-
-
-      <TrainingSettingsCard />
-
-      <AppearanceCard />
-
+      {/* เรียงจาก "ใช้บ่อย" ไป "ตั้งครั้งเดียวแล้วลืม"
+          เดิมของที่ตั้งครั้งเดียว (นำเข้าโปรแกรม ตารางแบบรอบ ประเมินน้ำหนัก) อยู่บนสุด
+          คนที่แค่จะเพิ่มท่าต้องเลื่อนผ่าน 6 การ์ดทุกครั้ง */}
       <div className="glass p-4 mb-3">
-        <Kicker>ปรับแต่งโปรแกรม</Kicker>
+        <Kicker>เพิ่ม / แก้ท่า</Kicker>
         {!draft && (
           <button
             className="btn-cy w-full !text-[13px]"
@@ -466,22 +450,15 @@ export default function ManageView() {
           }
         />
 
-        <div className="hairline mt-3 pt-3">
-          <Kicker>คำนวณแผ่นน้ำหนัก · Plate Calc</Kicker>
-        </div>
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div>
-            <FieldLabel>น้ำหนักเป้า (kg)</FieldLabel>
-            <input type="number" className={inputCls} value={targetInput} onChange={(e) => setTargetInput(e.target.value)} />
-          </div>
-          <div>
-            <FieldLabel>แกนบาร์ (kg)</FieldLabel>
+        {/* เครื่องคิดแผ่นย้ายไปหน้าวันนี้แล้ว — ที่นี่เหลือแค่ "ตั้งค่าว่ายิมมีแผ่นอะไร"
+            ซึ่งเป็นของที่ตั้งครั้งเดียว ไม่ใช่ของที่หยิบใช้ระหว่างเล่น */}
+        {data.settings.countBarWeight === true && (
+          <div className="mt-2">
+            <FieldLabel>น้ำหนักแกนบาร์ (kg)</FieldLabel>
             <input
               type="number"
               className={inputCls}
               value={barInput}
-              disabled={data.settings.countBarWeight !== true}
-              style={data.settings.countBarWeight !== true ? { opacity: 0.45 } : undefined}
               onChange={(e) => {
                 setBarInput(e.target.value);
                 update((d) => {
@@ -490,40 +467,20 @@ export default function ManageView() {
               }}
             />
           </div>
-        </div>
-        {target > bar ? (
-          <div>
-            <div className="text-[12px] mb-2" style={{ color: "var(--mut)" }}>
-              ใส่ต่อข้าง:
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {plates.list.map((p, i) => (
-                <span
-                  key={i}
-                  className="font-mono2 text-[13px] font-bold px-3 py-2 rounded-xl"
-                  style={{ background: "var(--acc-12)", border: "1px solid color-mix(in srgb, var(--acc) 30%, transparent)", color: "var(--acc)" }}
-                >
-                  {p}
-                </span>
-              ))}
-              {plates.list.length === 0 && (
-                <span className="text-[12px]" style={{ color: plates.barOnly ? "var(--acc)" : "var(--dim)" }}>
-                  {plates.barOnly ? `บาร์เปล่า (${bar} kg)` : "ไม่ต้องใส่แผ่น"}
-                </span>
-              )}
-            </div>
-            {plates.leftover > 0.01 && (
-              <p className="text-[11px] mt-2" style={{ color: "var(--warn)" }}>
-                เหลือเศษ {plates.leftover.toFixed(2)} kg/ข้าง ที่แผ่นมาตรฐานทำไม่ได้พอดี
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-[12px]" style={{ color: "var(--dim)" }}>
-            ใส่น้ำหนักเป้าที่มากกว่าแกนบาร์
-          </p>
         )}
       </div>
+
+      <TrainingSettingsCard />
+
+      <AppearanceCard />
+
+      <LoopCard />
+
+      <SeedWeightsCard />
+
+      <ImportProgramCard />
+
+      <SavedProgramsCard />
 
       <div className="glass p-4 mb-3">
         <Kicker>ย้ายข้อมูลข้ามเครื่อง</Kicker>
