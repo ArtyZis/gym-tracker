@@ -677,14 +677,11 @@ export function adherence(data: Data): Adherence {
 
 // เรียง tier S ก่อนเสมอ — ท่าคุ้มค่าที่สุดควรถูกเสนอก่อนท่าเสริม
 //
-// โหมด tierSOnly กรองเหลือ S เท่านั้น **ยกเว้น** กล้ามเนื้อที่ไม่มีท่า S เลย
-// (ไหล่ข้าง/ไหล่หลัง/น่อง/ปลายแขน ต้องใช้ท่า isolation ซึ่งส่วนใหญ่เป็น tier A)
-// ยึดกฎจนตารางขาดกล้ามเนื้อไปทั้งมัด = แย่กว่าไม่มีโหมดนี้เลย
-export function candidatesFor(muscle: MuscleKey, tierSOnly = false): SuggestionTemplate[] {
-  const all = EXERCISE_DB.filter((t) => t.pri.includes(muscle));
-  const sOnly = all.filter((t) => tierOf(t.name) === "S");
-  const pool = tierSOnly && sOnly.length ? sOnly : all;
-  return pool
+// เคยมีโหมด "เสนอเฉพาะท่า tier S" แต่ถอดออกแล้ว: กล้ามเนื้อหลายมัด (ไหล่ข้าง ไหล่หลัง
+// น่อง ปลายแขน) ไม่มีท่า tier S เลยเพราะต้องใช้ท่า isolation โหมดนั้นจึงต้องมีข้อยกเว้น
+// เต็มไปหมดจนสับสนว่าตกลงเสนออะไรให้ — การเรียง S ขึ้นก่อนตลอดให้ผลดีกว่าและเข้าใจง่ายกว่า
+export function candidatesFor(muscle: MuscleKey): SuggestionTemplate[] {
+  return EXERCISE_DB.filter((t) => t.pri.includes(muscle))
     .sort(
       (a, b) =>
         TIER_RANK[tierOf(a.name)] - TIER_RANK[tierOf(b.name)] ||
@@ -881,7 +878,6 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   const recs: Recommendation[] = [];
   const existing = new Set(data.exercises.map((e) => normName(e.name)));
   const target = getVolumeTarget(data);
-  const tierSOnly = data.settings.tierSOnly === true;
   let n = 0;
   const mkId = () => "rec" + n++;
 
@@ -996,7 +992,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
 
   for (const need of patternNeeds) {
     if (recs.length >= MAX_RECOMMENDATIONS) break;
-    const cands = candidatesFor(need.muscle, tierSOnly).filter((c) => !existing.has(normName(c.name)) && c.tpl?.pattern === need.pattern);
+    const cands = candidatesFor(need.muscle).filter((c) => !existing.has(normName(c.name)) && c.tpl?.pattern === need.pattern);
     let bestPat: { rec: Recommendation; predicted: number } | null = null;
     for (const c of cands) {
       if (!c.tpl) continue;
@@ -1034,7 +1030,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
 
   for (const s of gaps) {
     if (recs.length >= MAX_RECOMMENDATIONS) break;
-    const cands = candidatesFor(s.muscle, tierSOnly).filter((c) => !existing.has(normName(c.name)));
+    const cands = candidatesFor(s.muscle).filter((c) => !existing.has(normName(c.name)));
     const blockedReasons: FilterVerdict[] = [];
 
     // สามทางเลือก: (1) เพิ่มท่าใหม่ในวันเดิม (2) เพิ่มเซตท่าที่มีอยู่ (3) เปิดวันใหม่

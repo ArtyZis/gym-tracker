@@ -18,6 +18,7 @@ import {
 import ExercisePicker from "./ExercisePicker";
 import { Icon } from "./ui";
 import DayNote from "./DayNote";
+import PlateCard from "./PlateCard";
 import { plateText, restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progression";
 import { haptics } from "../lib/haptics";
 import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
@@ -737,6 +738,9 @@ export default function TodayView() {
           </div>
         );
       })}
+
+      {/* เครื่องคิดแผ่น — ต้องอยู่หน้านี้เพราะใช้ตอนยืนหน้าแร็ค ไม่ใช่ตอนนั่งตั้งค่า */}
+      {isToday && exs.length > 0 && <PlateCard />}
 
       {/* ชดเชยวันที่ข้าม — ดึง "ทั้งตาราง" ของวันอื่นมาเล่นวันนี้
           ต่างจากการเพิ่มท่าทีละท่าตรงที่ระบบรู้ว่ากำลังชดเชยวันไหนอยู่

@@ -9,7 +9,6 @@ import SavedProgramsCard from "./SavedProgramsCard";
 import SeedWeightsCard from "./SeedWeightsCard";
 import LoopCard from "./LoopCard";
 import { activeDays as slotsOf, slotName } from "../lib/loop";
-import RecoveryCard from "./RecoveryCard";
 import { Kicker } from "./ui";
 import { ACCENTS, accentUnlocked, resolveAccent } from "../lib/accent";
 import { computeStreak } from "../lib/streak";
@@ -63,7 +62,6 @@ export default function ManageView() {
 
       <SeedWeightsCard />
 
-      <RecoveryCard />
 
       <TrainingSettingsCard />
 
@@ -613,7 +611,6 @@ function TrainingSettingsCard() {
   const { data, update, toast } = useApp();
   const soundOn = data.settings.soundEnabled !== false;
   const smartOn = data.settings.smartRest !== false;
-  const tierS = data.settings.tierSOnly === true;
   return (
     <div className="glass p-4 mb-3">
       <Kicker>ตั้งค่าการฝึก</Kicker>
@@ -637,17 +634,6 @@ function TrainingSettingsCard() {
             d.settings.smartRest = !smartOn;
           });
           toast(smartOn ? "ใช้เวลาพักค่าเดียวแล้ว" : "เปิดเวลาพักอัตโนมัติแล้ว");
-        }}
-      />
-      <ToggleRow
-        label="เน้นท่า tier S"
-        desc="เสนอเฉพาะท่าที่คุ้มค่าที่สุด — ยกเว้นกล้ามเนื้อที่ไม่มีท่า tier S (ไหล่ข้าง น่อง ปลายแขน) จะยังเสนอท่าเสริมให้ ไม่งั้นตารางจะขาดทั้งมัด"
-        on={tierS}
-        onToggle={() => {
-          update((d) => {
-            d.settings.tierSOnly = !tierS;
-          });
-          toast(tierS ? "กลับไปเสนอทุกท่า" : "เน้นท่า tier S แล้ว");
         }}
       />
     </div>

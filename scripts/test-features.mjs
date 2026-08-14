@@ -154,16 +154,17 @@ console.log("\n═══ ฟีเจอร์ 6: การนอน ═══")
   ok("นอนพอแล้ว -> กลับมาเสนอได้ตามปกติ", sleepSummary(d).underRecovered === false);
 }
 
-console.log("\n═══ ฟีเจอร์ 7: โหมด tier S ═══");
+console.log("\n═══ ฟีเจอร์ 7: ลำดับท่าที่เสนอ ═══");
 {
-  const all = candidatesFor("chest", false);
-  const sOnly = candidatesFor("chest", true);
-  ok("โหมด S กรองให้เหลือน้อยลง", sOnly.length < all.length, `${sOnly.length} vs ${all.length}`);
-  ok("โหมด S เหลือแต่ tier S จริง", sOnly.every((c) => tierOf(c.name) === "S"));
+  // ถอดโหมด "เสนอเฉพาะท่า tier S" ออกแล้ว — หลายมัดไม่มีท่า tier S เลยเพราะต้องใช้ isolation
+  // โหมดนั้นจึงต้องมีข้อยกเว้นเต็มไปหมดจนสับสน · เหลือแค่เรียง S ขึ้นก่อนซึ่งได้ผลดีกว่า
+  const all = candidatesFor("chest");
+  ok("เสนอท่าอกได้หลายตัวเลือก", all.length > 3, `ได้ ${all.length} ท่า`);
+  ok("ท่าแรกที่เสนอเป็น tier S", tierOf(all[0].name) === "S", `${all[0].name} = ${tierOf(all[0].name)}`);
 
-  // ไหล่ข้างไม่มีท่า tier S เลย (ต้องใช้ isolation) — ห้ามกรองจนไม่เหลือ
-  const side = candidatesFor("side_delts", true);
-  ok("กล้ามเนื้อที่ไม่มีท่า tier S ยังได้ท่าเสนอ (ไม่ยึดกฎจนตารางขาด)", side.length > 0, `ได้ ${side.length} ท่า`);
+  // ไหล่ข้างไม่มีท่า tier S เลย (ต้องใช้ isolation) — ต้องยังเสนอท่าให้ได้
+  const side = candidatesFor("side_delts");
+  ok("กล้ามเนื้อที่ไม่มีท่า tier S ยังได้ท่าเสนอ", side.length > 0, `ได้ ${side.length} ท่า`);
 }
 
 console.log("\n═══ ฟีเจอร์ 8: ความสม่ำเสมอ ═══");
