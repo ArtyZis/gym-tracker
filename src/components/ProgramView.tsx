@@ -96,7 +96,7 @@ export default function ProgramView() {
           {outsideDays.map((d) => (
             <div key={d} className="mb-2 last:mb-0">
               <div className="font-mono2 text-[10px] mb-1" style={{ color: "var(--warn)" }}>
-                วันที่ {DAYS.indexOf(d) + 1}
+                {t(`วันที่ ${DAYS.indexOf(d) + 1}`, `Day ${DAYS.indexOf(d) + 1}`)}
               </div>
               {exercisesForDay(data, d).map((ex) => (
                 <div key={ex.id} className="flex items-baseline justify-between gap-2 py-[3px] text-[12px]">

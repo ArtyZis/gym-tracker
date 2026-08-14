@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useApp } from "../AppContext";
 import { computeStreak, heatmapGrid } from "../lib/streak";
-import { plural, t } from "../lib/i18n";
+import { plural, setsText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 // ระดับความเข้มของ heatmap อิงสี accent (color-mix ให้เปลี่ยนสีตามธีม)
@@ -124,7 +124,7 @@ export default function StreakCard() {
                   }}
                 >
                   <title>
-                    {cell.date} · {cell.count} เซต
+                    {cell.date} · {setsText(cell.count)}
                   </title>
                 </rect>
               ),
@@ -133,11 +133,11 @@ export default function StreakCard() {
         </svg>
       </div>
       <div className="flex items-center justify-end gap-1.5 mt-2 font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>
-        น้อย
+        {t("น้อย", "Less")}
         {LEVEL_FILL.map((f, i) => (
           <span key={i} className="inline-block w-[10px] h-[10px] rounded-[3px]" style={{ background: f }} />
         ))}
-        มาก
+        {t("มาก", "More")}
       </div>
     </div>
   );

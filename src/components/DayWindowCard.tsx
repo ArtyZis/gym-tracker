@@ -11,6 +11,7 @@ import type { DayKey } from "../lib/store";
 import { DAYS, dayName, exercisesForDay } from "../lib/store";
 import { estimateMinutes, trainingDays } from "../lib/analyzer";
 import { getTimeCap, windowMinutes } from "../lib/profile";
+import { minText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 // ตัวเลือกเวลาที่กดง่ายบนมือถือ (พิมพ์เวลาบนมือถือช้าและพลาดง่าย)
@@ -61,16 +62,19 @@ export default function DayWindowCard() {
       <Kicker
         right={
           <span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>
-            ค่ากลาง {getTimeCap(data)} นาที
+            {t(`ค่ากลาง ${getTimeCap(data)} นาที`, `Default ${minText(getTimeCap(data))}`)}
           </span>
         }
       >
-        เวลาเข้ายิมแต่ละวัน
+        {t("เวลาเข้ายิมแต่ละวัน", "Gym time per day")}
       </Kicker>
       <p className="text-[11.5px] -mt-1 mb-3 leading-relaxed" style={{ color: "var(--mut)" }}>
-        บอกว่าวันไหนมีเวลาแค่ไหน — ระบบจะไม่เสนอเพิ่มท่าในวันที่ทำจริงไม่ทัน
+        {t("บอกว่าวันไหนมีเวลาแค่ไหน — ระบบจะไม่เสนอเพิ่มท่าในวันที่ทำจริงไม่ทัน", "Tell it how long you have each day — it won't suggest adding lifts to a day you can't finish")}
         {!data.dayWindows && (
-          <span style={{ color: "var(--warn)" }}> (ยังไม่ได้ตั้ง — ตอนนี้ใช้ค่ากลาง {getTimeCap(data)} นาทีทุกวัน)</span>
+          <span style={{ color: "var(--warn)" }}>
+            {" "}
+            {t(`(ยังไม่ได้ตั้ง — ตอนนี้ใช้ค่ากลาง ${getTimeCap(data)} นาทีทุกวัน)`, `(not set — using the ${minText(getTimeCap(data))} default every day)`)}
+          </span>
         )}
       </p>
 
@@ -100,15 +104,16 @@ export default function DayWindowCard() {
                 {dayName(day)}
               </span>
               <span className="flex-1 min-w-0 text-[12px] truncate" style={{ color: w ? "var(--ink)" : "var(--dim)" }}>
-                {w ? `${w.start}–${w.end}` : "ยังไม่ตั้ง (ใช้ค่ากลาง)"}
+                {w ? `${w.start}–${w.end}` : t("ยังไม่ตั้ง (ใช้ค่ากลาง)", "Not set (using default)")}
                 {usable != null && (
                   <span className="font-mono2 text-[10px] ml-1.5" style={{ color: tight ? "var(--warn)" : "var(--mut)" }}>
-                    ยกได้ {usable} น.{isTrain ? ` · ใช้ ${used} น.` : ""}
+                    {t(`ยกได้ ${usable} น.`, `${usable} min usable`)}
+                    {isTrain ? t(` · ใช้ ${used} น.`, ` · ${used} min used`) : ""}
                   </span>
                 )}
               </span>
               <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--acc)" }}>
-                {open ? "ปิด" : w ? "แก้" : "ตั้ง"}
+                {open ? t("ปิด", "Close") : w ? t("แก้", "Edit") : t("ตั้ง", "Set")}
               </span>
             </button>
 
@@ -116,7 +121,7 @@ export default function DayWindowCard() {
               <div className="glass-inset mt-1 p-3">
                 <div className="flex items-center gap-2 flex-wrap mb-2.5">
                   <span className="font-mono2 text-[10px] w-9" style={{ color: "var(--mut)" }}>
-                    เข้า
+                    {t("เข้า", "In")}
                   </span>
                   <TimePick
                     value={w?.start ?? "17:00"}
@@ -128,7 +133,7 @@ export default function DayWindowCard() {
                     }
                   />
                   <span className="font-mono2 text-[10px] w-9 text-right" style={{ color: "var(--mut)" }}>
-                    ออก
+                    {t("ออก", "Out")}
                   </span>
                   <TimePick
                     value={w?.end ?? "18:30"}
@@ -142,13 +147,13 @@ export default function DayWindowCard() {
                 </div>
 
                 <p className="text-[10.5px] leading-relaxed mb-2" style={{ color: "var(--mut)" }}>
-                  หักเวลาเดินทางในยิม/เปลี่ยนชุด/รอเครื่องออก {w?.bufferMin ?? 10} นาทีอัตโนมัติ
-                  {usable != null && ` → เหลือยกจริง ${usable} นาที`}
+                  {t(`หักเวลาเดินทางในยิม/เปลี่ยนชุด/รอเครื่องออก ${w?.bufferMin ?? 10} นาทีอัตโนมัติ`, `Automatically subtracts ${minText(w?.bufferMin ?? 10)} for changing, walking, and waiting on machines`)}
+                  {usable != null && t(` → เหลือยกจริง ${usable} นาที`, ` → ${minText(usable)} of actual lifting`)}
                 </p>
 
                 {tight && (
                   <p className="text-[11px] leading-relaxed mb-2" style={{ color: "var(--warn)" }}>
-                    ตอนนี้ท่าใน{dayName(day)}ใช้เวลาราว {used} นาที เกินที่มี {usable} นาที — ลดเซตหรือย้ายท่าท้ายไปวันอื่น
+                    {t(`ตอนนี้ท่าใน${dayName(day)}ใช้เวลาราว ${used} นาที เกินที่มี ${usable} นาที — ลดเซตหรือย้ายท่าท้ายไปวันอื่น`, `${dayName(day)} currently runs about ${used} min but you only have ${usable} — cut sets or move the tail to another day`)}
                   </p>
                 )}
 
@@ -162,10 +167,10 @@ export default function DayWindowCard() {
                         delete d.dayWindows[day];
                         if (!Object.keys(d.dayWindows).length) d.dayWindows = undefined;
                       });
-                      toast(`${dayName(day)}: กลับไปใช้ค่ากลาง`);
+                      toast(t(`${dayName(day)}: กลับไปใช้ค่ากลาง`, `${dayName(day)}: back to the default`));
                     }}
                   >
-                    ล้างค่าวันนี้
+                    {t("ล้างค่าวันนี้", "Clear this day")}
                   </button>
                 )}
               </div>

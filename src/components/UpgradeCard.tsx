@@ -2,16 +2,31 @@ import { useState } from "react";
 import { useApp } from "../AppContext";
 import { BUY_CONTACT, PLANS, clearKey, formatKey, licenseStatus, saveKey, savedKey } from "../lib/license";
 import { TRIAL_DAYS, isPaid, trialDaysLeft } from "../lib/premium";
+import { daysText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 // ฟีเจอร์ที่ต้องจ่าย — ข้อความเดียวกันใช้ทั้งตอนทดลอง (โชว์ว่ากำลังใช้อยู่)
 // และตอนหมดอายุ (โชว์ว่าเสียอะไรไป) เพราะความเสียดายขายของได้ดีกว่าความอยากได้
-const PERKS = [
-  ["🎯", "บอกน้ำหนักครั้งหน้า", "ดูจากที่ทำได้ครั้งก่อน แล้วบอกว่าวันนี้ขึ้นน้ำหนักหรือดันเรปต่อ"],
-  ["📊", "วิเคราะห์โปรแกรม", "ให้คะแนนความสมดุลกล้ามเนื้อ + บอกว่าต้องแก้ตรงไหน กดทำตามได้เลย"],
-  ["🔥", "warm-up อัตโนมัติ", "คำนวณเซตอุ่นเครื่องให้ตามน้ำหนักจริงของวันนั้น"],
-  ["📈", "พยากรณ์ PR", "อีก 2-4 สัปดาห์จะยกได้เท่าไหร่ จากแนวโน้มของคุณเอง"],
-] as const;
+//
+// เป็นฟังก์ชันเพราะต้องอ่านภาษา ณ ตอน render ไม่ใช่ตอนโหลดโมดูล
+const perks = () =>
+  [
+    [
+      "🎯",
+      t("บอกน้ำหนักครั้งหน้า", "Your next weight"),
+      t(
+        "ดูจากที่ทำได้ครั้งก่อน แล้วบอกว่าวันนี้ขึ้นน้ำหนักหรือดันเรปต่อ",
+        "Reads what you did last time and tells you whether to add weight or chase reps",
+      ),
+    ],
+    [
+      "📊",
+      t("วิเคราะห์โปรแกรม", "Program analysis"),
+      t("ให้คะแนนความสมดุลกล้ามเนื้อ + บอกว่าต้องแก้ตรงไหน กดทำตามได้เลย", "Scores your muscle balance and tells you what to fix — one tap to apply"),
+    ],
+    ["🔥", t("warm-up อัตโนมัติ", "Automatic warm-ups"), t("คำนวณเซตอุ่นเครื่องให้ตามน้ำหนักจริงของวันนั้น", "Builds warm-up sets from the real weight you're lifting that day")],
+    ["📈", t("พยากรณ์ PR", "PR forecast"), t("อีก 2-4 สัปดาห์จะยกได้เท่าไหร่ จากแนวโน้มของคุณเอง", "What you'll be lifting in 2-4 weeks, from your own trend")],
+  ] as const;
 
 export default function UpgradeCard() {
   const { data, toast } = useApp();
@@ -22,25 +37,30 @@ export default function UpgradeCard() {
 
   function apply() {
     if (!input.trim()) {
-      toast("ใส่รหัสก่อน");
+      toast(t("ใส่รหัสก่อน", "Enter a key first"));
       return;
     }
     if (!saveKey(input)) {
-      toast("รหัสไม่ถูกต้อง — ตรวจตัวอักษรอีกครั้ง");
+      toast(t("รหัสไม่ถูกต้อง — ตรวจตัวอักษรอีกครั้ง", "That key isn't valid — check the characters again"));
       return;
     }
     const s = licenseStatus();
     // รหัสที่ถูกต้องแต่หมดอายุแล้ว ต้องไม่ปลดล็อก และต้องบอกเหตุผลตรงๆ
     // ไม่งั้นลูกค้าเห็น "รหัสไม่ถูกต้อง" แล้วคิดว่าพิมพ์ผิด วนแก้อยู่นั่น
     if (s.kind === "expired") {
-      toast(`รหัสนี้หมดอายุไปแล้วเมื่อสิ้นเดือน ${s.until}`, false);
+      toast(t(`รหัสนี้หมดอายุไปแล้วเมื่อสิ้นเดือน ${s.until}`, `This key expired at the end of ${s.until}`), false);
       setLic(s);
       return;
     }
     setLic(s);
     setPaid(true);
     setInput("");
-    toast(s.kind === "active" ? `ปลดล็อกแล้ว ใช้ได้ถึงสิ้นเดือน ${s.until} 🎉` : "ปลดล็อกถาวรแล้ว ขอบคุณครับ 🎉", true);
+    toast(
+      s.kind === "active"
+        ? t(`ปลดล็อกแล้ว ใช้ได้ถึงสิ้นเดือน ${s.until} 🎉`, `Unlocked — good through the end of ${s.until} 🎉`)
+        : t("ปลดล็อกถาวรแล้ว ขอบคุณครับ 🎉", "Unlocked for good. Thank you 🎉"),
+      true,
+    );
   }
 
   if (paid)
@@ -49,16 +69,19 @@ export default function UpgradeCard() {
         <Kicker
           right={
             <span className="font-mono2 text-[9.5px]" style={{ color: "var(--good)" }}>
-              {lic.kind === "active" ? `เหลือ ${lic.daysLeft} วัน ✓` : "ปลดล็อกถาวร ✓"}
+              {lic.kind === "active" ? t(`เหลือ ${lic.daysLeft} วัน ✓`, `${daysText(lic.daysLeft)} left ✓`) : t("ปลดล็อกถาวร ✓", "Lifetime ✓")}
             </span>
           }
         >
-          เวอร์ชันเต็ม
+          {t("เวอร์ชันเต็ม", "Full version")}
         </Kicker>
         <p className="text-[12.5px] -mt-1" style={{ color: "var(--mut)" }}>
           {lic.kind === "active"
-            ? `ใช้ได้ทุกฟีเจอร์ถึงสิ้นเดือน ${lic.until} — ต่ออายุด้วยรหัสใบใหม่ได้ตลอด`
-            : "ใช้ได้ทุกฟีเจอร์ ไม่มีวันหมดอายุ"}
+            ? t(
+                `ใช้ได้ทุกฟีเจอร์ถึงสิ้นเดือน ${lic.until} — ต่ออายุด้วยรหัสใบใหม่ได้ตลอด`,
+                `Everything unlocked through the end of ${lic.until} — renew any time with a new key`,
+              )
+            : t("ใช้ได้ทุกฟีเจอร์ ไม่มีวันหมดอายุ", "Everything unlocked, no expiry")}
         </p>
         <div className="glass-inset font-mono2 text-[12px] px-3 py-2.5 mt-2.5" style={{ color: "var(--mut)" }}>
           {formatKey(savedKey() ?? "")}
@@ -66,14 +89,14 @@ export default function UpgradeCard() {
         <button
           className="btn-gh w-full !py-2 !text-[11.5px] mt-2"
           onClick={() => {
-            if (!confirm("เอารหัสออกจากเครื่องนี้? (ประวัติการฝึกยังอยู่ครบ)")) return;
+            if (!confirm(t("เอารหัสออกจากเครื่องนี้? (ประวัติการฝึกยังอยู่ครบ)", "Remove the key from this device? Your training history stays."))) return;
             clearKey();
             setPaid(false);
             setLic({ kind: "none" });
-            toast("เอารหัสออกแล้ว");
+            toast(t("เอารหัสออกแล้ว", "Key removed"));
           }}
         >
-          เอารหัสออกจากเครื่องนี้
+          {t("เอารหัสออกจากเครื่องนี้", "Remove key from this device")}
         </button>
       </div>
     );
@@ -88,21 +111,27 @@ export default function UpgradeCard() {
       <Kicker
         right={
           <span className="font-mono2 text-[9.5px]" style={{ color: trialing ? "var(--acc)" : "var(--warn)" }}>
-            {trialing ? `เหลือ ${left} วัน` : "หมดช่วงทดลอง"}
+            {trialing ? t(`เหลือ ${left} วัน`, `${daysText(left)} left`) : t("หมดช่วงทดลอง", "Trial over")}
           </span>
         }
       >
-        {trialing ? "กำลังทดลองใช้ฟรี" : "ปลดล็อกเวอร์ชันเต็ม"}
+        {trialing ? t("กำลังทดลองใช้ฟรี", "Free trial") : t("ปลดล็อกเวอร์ชันเต็ม", "Unlock the full version")}
       </Kicker>
 
       <p className="text-[12.5px] -mt-1 leading-relaxed" style={{ color: "var(--mut)" }}>
         {trialing
-          ? `ทดลอง ${TRIAL_DAYS} วัน ตอนนี้ใช้ได้ครบทุกอย่าง — หลังหมดช่วงทดลองยังบันทึกฝึกและดูประวัติได้ฟรีตลอด แต่ 4 อย่างนี้จะถูกล็อก`
-          : "บันทึกฝึก ประวัติ สตรีค แรงค์ และการ์ดแชร์ ยังใช้ฟรีเหมือนเดิม — สมัครเพื่อเปิด 4 อย่างนี้กลับมา"}
+          ? t(
+              `ทดลอง ${TRIAL_DAYS} วัน ตอนนี้ใช้ได้ครบทุกอย่าง — หลังหมดช่วงทดลองยังบันทึกฝึกและดูประวัติได้ฟรีตลอด แต่ 4 อย่างนี้จะถูกล็อก`,
+              `A ${TRIAL_DAYS}-day trial with everything open. When it ends, logging and history stay free forever — these four get locked.`,
+            )
+          : t(
+              "บันทึกฝึก ประวัติ สตรีค แรงค์ และการ์ดแชร์ ยังใช้ฟรีเหมือนเดิม — สมัครเพื่อเปิด 4 อย่างนี้กลับมา",
+              "Logging, history, streaks, rank, and share cards stay free — buy a key to get these four back.",
+            )}
       </p>
 
       <div className="flex flex-col gap-2 mt-3">
-        {PERKS.map(([icon, title, desc]) => (
+        {perks().map(([icon, title, desc]) => (
           <div key={title} className="glass-inset flex items-start gap-2.5 px-3 py-2.5">
             <span className="text-[14px] leading-none mt-[2px]">{icon}</span>
             <span className="min-w-0">
@@ -134,14 +163,14 @@ export default function UpgradeCard() {
                 }}
               >
                 <div className="font-mono2 text-[9px] uppercase tracking-[.16em]" style={{ color: "var(--mut)" }}>
-                  {p.label}
+                  {p.label()}
                 </div>
                 <div className="font-disp font-bold text-[24px] leading-none mt-1" style={{ color: best ? "var(--acc)" : "var(--ink)" }}>
                   {p.price}฿
                 </div>
                 {p.note && (
                   <div className="text-[10px] mt-1 leading-snug" style={{ color: best ? "var(--acc)" : "var(--dim)" }}>
-                    {p.note}
+                    {p.note()}
                   </div>
                 )}
               </div>
@@ -149,8 +178,10 @@ export default function UpgradeCard() {
           })}
         </div>
         <p className="text-[11.5px] leading-relaxed mb-2.5" style={{ color: "var(--mut)" }}>
-          {BUY_CONTACT ? `ทักมาที่ ${BUY_CONTACT} เพื่อรับรหัส` : "ทักมาขอรหัสได้จากช่องทางที่ประกาศไว้"} — หมดอายุแล้วต่อได้ด้วยรหัสใบใหม่
-          ประวัติการฝึกไม่หายไปไหน
+          {BUY_CONTACT
+            ? t(`ทักมาที่ ${BUY_CONTACT} เพื่อรับรหัส`, `Message ${BUY_CONTACT} to get a key`)
+            : t("ทักมาขอรหัสได้จากช่องทางที่ประกาศไว้", "Message us on the channel we've listed to get a key")}{" "}
+          {t("— หมดอายุแล้วต่อได้ด้วยรหัสใบใหม่ ประวัติการฝึกไม่หายไปไหน", "— when it expires, a new key renews it. Your training history is never touched.")}
         </p>
         <div className="flex gap-2">
           <input
@@ -163,7 +194,7 @@ export default function UpgradeCard() {
             className="flex-1 min-w-0 px-3.5 py-2.5 text-[13px]"
           />
           <button className="btn-cy !py-2.5 !px-4 !text-[12.5px] shrink-0" onClick={apply}>
-            ใช้รหัส
+            {t("ใช้รหัส", "Apply")}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 import { todayStr } from "../lib/store";
+import { t } from "../lib/i18n";
 import { Spark } from "./ProgressView";
 
 // บันทึกผลสแกนร่างกาย (Inbody / Accuniq) — กล้ามเนื้อลาย, %ไขมัน + FFMI อัตโนมัติ
@@ -24,7 +25,7 @@ export default function BodyCompCard() {
     const f = parseFloat(fat);
     const m = parseFloat(muscle);
     if (!w && !f && !m) {
-      toast("ใส่ค่าจากเครื่องสแกนก่อน");
+      toast(t("ใส่ค่าจากเครื่องสแกนก่อน", "Enter the numbers from your scan first"));
       return;
     }
     update((d) => {
@@ -47,7 +48,7 @@ export default function BodyCompCard() {
     setWeight("");
     setFat("");
     setMuscle("");
-    toast("บันทึกผลสแกนแล้ว");
+    toast(t("บันทึกผลสแกนแล้ว", "Scan saved"));
   }
 
   const musclePts = scans.filter((s) => s.muscleKg).map((s) => s.muscleKg!);
@@ -57,33 +58,33 @@ export default function BodyCompCard() {
   return (
     <div className="glass p-4 mb-3">
       <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-2.5" style={{ color: "var(--cyan-dim)" }}>
-        สแกนร่างกาย · Body Composition
+        {t("สแกนร่างกาย · Body Composition", "Body composition scan")}
       </div>
       <p className="text-[11.5px] mb-2.5" style={{ color: "var(--mut)" }}>
-        กรอกจากเครื่องสแกน (Inbody, Accuniq ฯลฯ) — เก็บแยกจากน้ำหนักตัวเฉยๆ
+        {t("กรอกจากเครื่องสแกน (Inbody, Accuniq ฯลฯ) — เก็บแยกจากน้ำหนักตัวเฉยๆ", "From a body scanner (InBody, Accuniq, etc.) — kept separate from plain bodyweight")}
       </p>
       <div className="grid grid-cols-2 gap-2 mb-2">
         <div>
-          <Label>น้ำหนัก (kg)</Label>
+          <Label>{t("น้ำหนัก (kg)", "Weight (kg)")}</Label>
           <input type="number" step="0.1" className={inputCls} value={weight} placeholder={last?.weightKg ? String(last.weightKg) : "61.0"} onChange={(e) => setWeight(e.target.value)} />
         </div>
         <div>
-          <Label>ไขมัน (%)</Label>
+          <Label>{t("ไขมัน (%)", "Body fat (%)")}</Label>
           <input type="number" step="0.1" className={inputCls} value={fat} placeholder={last?.fatPct ? String(last.fatPct) : "18.5"} onChange={(e) => setFat(e.target.value)} />
         </div>
         <div>
-          <Label>กล้ามเนื้อลาย (kg)</Label>
+          <Label>{t("กล้ามเนื้อลาย (kg)", "Skeletal muscle (kg)")}</Label>
           <input type="number" step="0.1" className={inputCls} value={muscle} placeholder={last?.muscleKg ? String(last.muscleKg) : "27.0"} onChange={(e) => setMuscle(e.target.value)} />
         </div>
         <div>
-          <Label>ส่วนสูง (cm)</Label>
+          <Label>{t("ส่วนสูง (cm)", "Height (cm)")}</Label>
           <input type="number" className={inputCls} value={height} placeholder="170" onChange={(e) => setHeight(e.target.value)} />
         </div>
       </div>
       {ffmi != null && (
         <div className="glass-inset px-3 py-2 mb-2 flex items-baseline justify-between">
           <span className="text-[12px]" style={{ color: "var(--mut)" }}>
-            FFMI (คำนวณอัตโนมัติ)
+            {t("FFMI (คำนวณอัตโนมัติ)", "FFMI (calculated)")}
           </span>
           <span className="font-mono2 text-[15px] font-bold" style={{ color: "var(--cyan)" }}>
             {ffmi}
@@ -91,13 +92,13 @@ export default function BodyCompCard() {
         </div>
       )}
       <button className="btn-cy w-full !py-2.5 !text-[12.5px] mb-3" onClick={save}>
-        บันทึกผลสแกนวันนี้
+        {t("บันทึกผลสแกนวันนี้", "Save today's scan")}
       </button>
 
       {musclePts.length > 0 && (
         <div className="mb-2">
           <div className="flex justify-between font-mono2 text-[10px] mb-1">
-            <span style={{ color: "var(--mut)" }}>กล้ามเนื้อลาย</span>
+            <span style={{ color: "var(--mut)" }}>{t("กล้ามเนื้อลาย", "Skeletal muscle")}</span>
             <span style={{ color: "var(--good)" }}>{musclePts[musclePts.length - 1]} kg</span>
           </div>
           <Spark pts={musclePts.slice(-12)} color="#4ADE9C" />
@@ -106,7 +107,7 @@ export default function BodyCompCard() {
       {fatPts.length > 0 && (
         <div>
           <div className="flex justify-between font-mono2 text-[10px] mb-1">
-            <span style={{ color: "var(--mut)" }}>ไขมัน</span>
+            <span style={{ color: "var(--mut)" }}>{t("ไขมัน", "Body fat")}</span>
             <span style={{ color: "var(--warn)" }}>{fatPts[fatPts.length - 1]}%</span>
           </div>
           <Spark pts={fatPts.slice(-12)} color="#FFC15E" />
@@ -114,7 +115,7 @@ export default function BodyCompCard() {
       )}
       {scans.length === 0 && (
         <p className="text-center text-[11.5px] py-1" style={{ color: "var(--dim)" }}>
-          ยังไม่มีผลสแกน — บันทึกครั้งแรกเพื่อเริ่มดูแนวโน้ม
+          {t("ยังไม่มีผลสแกน — บันทึกครั้งแรกเพื่อเริ่มดูแนวโน้ม", "No scans yet — save your first one to start seeing a trend")}
         </p>
       )}
     </div>

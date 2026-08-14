@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 // ช่องทางซื้อ — ใส่ไลน์ไอดี/เบอร์พร้อมเพย์ของคุณตรงนี้ ว่างไว้ = แสดงข้อความกลางๆ
 export const BUY_CONTACT = "";
 
@@ -33,8 +35,9 @@ const EPOCH_MONTH = 1;
 export interface Plan {
   months: number;
   price: number;
-  label: string;
-  note?: string;
+  /** ฟังก์ชันเพราะต้องอ่านภาษา ณ ตอนเรียก ไม่ใช่ตอนโหลดโมดูล */
+  label: () => string;
+  note?: () => string;
 }
 
 // แพ็กเกจขาย — แก้ตรงนี้ที่เดียว มีผลทุกที่ที่โชว์ราคา
@@ -42,8 +45,8 @@ export interface Plan {
 // ขายเป็นก้อน 3/12 เดือนแทนรายเดือน เพราะระบบไม่มี backend ตัดบัตรอัตโนมัติ
 // รายเดือนแปลว่าต้องส่งรหัสใหม่เองทุกเดือนต่อลูกค้าหนึ่งคน ซึ่งพังทันทีที่มีลูกค้าหลายสิบราย
 export const PLANS: Plan[] = [
-  { months: 3, price: 249, label: "3 เดือน", note: "83฿/เดือน" },
-  { months: 12, price: 690, label: "1 ปี", note: "58฿/เดือน · คุ้มสุด" },
+  { months: 3, price: 249, label: () => t("3 เดือน", "3 months"), note: () => t("83฿/เดือน", "฿83/month") },
+  { months: 12, price: 690, label: () => t("1 ปี", "1 year"), note: () => t("58฿/เดือน · คุ้มสุด", "฿58/month · best value") },
 ];
 
 export const PRICE_THB = PLANS[0].price; // ราคาต่ำสุดที่เริ่มต้น — ใช้โชว์ "เริ่มที่ N฿"

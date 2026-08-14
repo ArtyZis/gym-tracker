@@ -6,6 +6,7 @@ import { trainingDays } from "../lib/analyzer";
 import type { EquipTag, Experience, Goal, InjuryKey } from "../lib/muscles";
 import { EQUIP_PRESETS, VOLUME_TARGETS, equipName, experienceDesc, experienceName, goalName, injuryName } from "../lib/muscles";
 import { ALL_EQUIP, equipPresetLabel, getDayEquip, getExperience, getGoal, getInjuries, getMaxSetsPerSession, getTimeCap } from "../lib/profile";
+import { minText, setsText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 const EXPERIENCES: Experience[] = ["beginner", "intermediate", "advanced"];
@@ -46,11 +47,11 @@ export default function ProfileCard() {
 
   return (
     <div className="glass p-4 mb-3">
-      <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>ใช้ตอนวิเคราะห์</span>}>
-        โปรไฟล์การฝึก
+      <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>{t("ใช้ตอนวิเคราะห์", "used by the analyzer")}</span>}>
+        {t("โปรไฟล์การฝึก", "Training profile")}
       </Kicker>
 
-      <div className="text-[12.5px] mb-1.5" style={{ color: "var(--ink)" }}>ระดับประสบการณ์</div>
+      <div className="text-[12.5px] mb-1.5" style={{ color: "var(--ink)" }}>{t("ระดับประสบการณ์", "Experience level")}</div>
       <div className="flex flex-wrap gap-1.5 mb-1">
         {EXPERIENCES.map((e) => (
           <Pick key={e} on={exp === e} onClick={() => update((d) => { d.profile = { ...d.profile, experience: e }; })}>
@@ -59,10 +60,14 @@ export default function ProfileCard() {
         ))}
       </div>
       <p className="text-[11px] mb-3" style={{ color: "var(--mut)" }}>
-        {experienceDesc(exp)} · เป้าหมาย <b style={{ color: "var(--acc)" }}>{target.min}-{target.max} เซต/สัปดาห์</b> ต่อกล้ามเนื้อ
+        {experienceDesc(exp)} · {t("เป้าหมาย", "target")}{" "}
+        <b style={{ color: "var(--acc)" }}>
+          {t(`${target.min}-${target.max} เซต/สัปดาห์`, `${target.min}-${target.max} sets/week`)}
+        </b>{" "}
+        {t("ต่อกล้ามเนื้อ", "per muscle")}
       </p>
 
-      <div className="text-[12.5px] mb-1.5" style={{ color: "var(--ink)" }}>เป้าหมาย</div>
+      <div className="text-[12.5px] mb-1.5" style={{ color: "var(--ink)" }}>{t("เป้าหมาย", "Goal")}</div>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {GOALS.map((g) => (
           <Pick key={g} on={goal === g} onClick={() => update((d) => { d.profile = { ...d.profile, goal: g }; })}>
@@ -71,9 +76,12 @@ export default function ProfileCard() {
         ))}
       </div>
 
-      <div className="text-[12.5px] mb-1" style={{ color: "var(--ink)" }}>อาการบาดเจ็บ (ถ้ามี)</div>
+      <div className="text-[12.5px] mb-1" style={{ color: "var(--ink)" }}>{t("อาการบาดเจ็บ (ถ้ามี)", "Injuries (if any)")}</div>
       <p className="text-[11px] mb-1.5" style={{ color: "var(--mut)" }}>
-        ระบบจะไม่เสนอท่าที่เสี่ยงซ้ำเติม — แต่ควรปรึกษาแพทย์/นักกายภาพก่อนฝึกต่อ
+        {t(
+          "ระบบจะไม่เสนอท่าที่เสี่ยงซ้ำเติม — แต่ควรปรึกษาแพทย์/นักกายภาพก่อนฝึกต่อ",
+          "We won't suggest lifts that could make it worse — but see a doctor or physio before training on it",
+        )}
       </p>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {INJURIES.map((k) => {
@@ -97,10 +105,10 @@ export default function ProfileCard() {
       </div>
 
       <div className="hairline pt-3">
-        <div className="text-[12.5px] mb-2" style={{ color: "var(--ink)" }}>ข้อจำกัดต่อครั้ง</div>
+        <div className="text-[12.5px] mb-2" style={{ color: "var(--ink)" }}>{t("ข้อจำกัดต่อครั้ง", "Per-session limits")}</div>
         <div className="flex gap-2">
           <label className="flex-1">
-            <span className="block font-mono2 text-[9.5px] mb-1" style={{ color: "var(--mut)" }}>เวลาสูงสุด (นาที)</span>
+            <span className="block font-mono2 text-[9.5px] mb-1" style={{ color: "var(--mut)" }}>{t("เวลาสูงสุด (นาที)", "Max time (min)")}</span>
             <input
               type="number"
               className="w-full px-3 py-2 text-[14px]"
@@ -114,7 +122,7 @@ export default function ProfileCard() {
             />
           </label>
           <label className="flex-1">
-            <span className="block font-mono2 text-[9.5px] mb-1" style={{ color: "var(--mut)" }}>เซตสูงสุด</span>
+            <span className="block font-mono2 text-[9.5px] mb-1" style={{ color: "var(--mut)" }}>{t("เซตสูงสุด", "Max sets")}</span>
             <input
               type="number"
               className="w-full px-3 py-2 text-[14px]"
@@ -132,10 +140,10 @@ export default function ProfileCard() {
           className="btn-gh w-full !py-2 !text-[11.5px] mt-2.5"
           onClick={() => {
             update((d) => { d.profile = undefined; d.constraints = undefined; });
-            toast("คืนค่าเริ่มต้นแล้ว");
+            toast(t("คืนค่าเริ่มต้นแล้ว", "Reset to defaults"));
           }}
         >
-          คืนค่าเริ่มต้น
+          {t("คืนค่าเริ่มต้น", "Reset to defaults")}
         </button>
       </div>
     </div>
@@ -153,21 +161,38 @@ export function DayEquipmentCard() {
   if (!days.length)
     return (
       <div className="glass p-4 mb-3">
-        <Kicker>อุปกรณ์แต่ละวัน</Kicker>
+        <Kicker>{t("อุปกรณ์แต่ละวัน", "Equipment by day")}</Kicker>
         <p className="text-[12px] -mt-1" style={{ color: "var(--mut)" }}>
-          ยังไม่มีวันฝึก — เพิ่มท่าก่อนแล้วค่อยกลับมาตั้งว่าวันไหนใช้อุปกรณ์อะไรได้บ้าง
+          {t(
+            "ยังไม่มีวันฝึก — เพิ่มท่าก่อนแล้วค่อยกลับมาตั้งว่าวันไหนใช้อุปกรณ์อะไรได้บ้าง",
+            "No training days yet — add some exercises first, then come back and set what's available each day",
+          )}
         </p>
       </div>
     );
 
   return (
     <div className="glass p-4 mb-3">
-      <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>{days.length} วันฝึก</span>}>
-        อุปกรณ์แต่ละวัน
+      <Kicker
+        right={
+          <span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>
+            {t(`${days.length} วันฝึก`, `${days.length} training ${days.length === 1 ? "day" : "days"}`)}
+          </span>
+        }
+      >
+        {t("อุปกรณ์แต่ละวัน", "Equipment by day")}
       </Kicker>
       <p className="text-[11.5px] -mt-1 mb-3 leading-relaxed" style={{ color: "var(--mut)" }}>
-        บอกว่าวันไหนอยู่ยิม วันไหนอยู่บ้าน — ระบบจะไม่เสนอท่าที่วันนั้นไม่มีอุปกรณ์ทำ
-        {!data.dayEquip && <span style={{ color: "var(--warn)" }}> (ยังไม่ได้ตั้ง — ตอนนี้ถือว่ามีครบทุกวัน)</span>}
+        {t(
+          "บอกว่าวันไหนอยู่ยิม วันไหนอยู่บ้าน — ระบบจะไม่เสนอท่าที่วันนั้นไม่มีอุปกรณ์ทำ",
+          "Tell it which days you're at the gym and which you're home — it won't suggest lifts you can't do that day",
+        )}
+        {!data.dayEquip && (
+          <span style={{ color: "var(--warn)" }}>
+            {" "}
+            {t("(ยังไม่ได้ตั้ง — ตอนนี้ถือว่ามีครบทุกวัน)", "(not set — assuming you have everything, every day)")}
+          </span>
+        )}
       </p>
 
       {days.map((day) => {
@@ -187,17 +212,17 @@ export function DayEquipmentCard() {
                 {dayName(day)}
               </span>
               <span className="flex-1 min-w-0 text-[12px] truncate" style={{ color: isDefault ? "var(--dim)" : "var(--ink)" }}>
-                {isDefault ? "มีครบทุกอย่าง (ค่าเริ่มต้น)" : equipPresetLabel(equip)}
+                {isDefault ? t("มีครบทุกอย่าง (ค่าเริ่มต้น)", "Everything available (default)") : equipPresetLabel(equip)}
               </span>
               <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--acc)" }}>
-                {open ? "ปิด" : "แก้"}
+                {open ? t("ปิด", "Close") : t("แก้", "Edit")}
               </span>
             </button>
 
             {open && (
               <div className="glass-inset mt-1 p-3">
                 <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-2" style={{ color: "var(--mut)" }}>
-                  เลือกชุดสำเร็จรูป
+                  {t("เลือกชุดสำเร็จรูป", "Pick a preset")}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {EQUIP_PRESETS.map((p) => (
@@ -217,7 +242,7 @@ export function DayEquipmentCard() {
                 </div>
 
                 <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-2" style={{ color: "var(--mut)" }}>
-                  หรือเลือกเอง
+                  {t("หรือเลือกเอง", "Or pick your own")}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {EQUIP_ORDER.map((e) => {
@@ -248,10 +273,10 @@ export function DayEquipmentCard() {
                       update((d) => {
                         if (d.dayEquip) delete d.dayEquip[day];
                       });
-                      toast(`${dayName(day)}: กลับเป็นค่าเริ่มต้น`);
+                      toast(t(`${dayName(day)}: กลับเป็นค่าเริ่มต้น`, `${dayName(day)}: back to default`));
                     }}
                   >
-                    คืนค่าเริ่มต้นวันนี้
+                    {t("คืนค่าเริ่มต้นวันนี้", "Reset this day")}
                   </button>
                 )}
               </div>

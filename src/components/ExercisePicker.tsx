@@ -3,8 +3,9 @@ import { equipName, muscleName } from "../lib/muscles";
 import { useApp } from "../AppContext";
 import type { EffectiveExercise, SwapTarget } from "../lib/store";
 import { addExtra, clearSwap, dayName, normName, removeExtra, setSwap } from "../lib/store";
-import { MUSCLE_TH, muscleMap } from "../lib/analyzer";
-import { EQUIP_TH, incFor, isMachineEx, searchExercises, tierOf, unitFor } from "../lib/exerciseDB";
+import { muscleMap } from "../lib/analyzer";
+import { incFor, isMachineEx, searchExercises, subName, tierOf, tipOf, unitFor } from "../lib/exerciseDB";
+import { t } from "../lib/i18n";
 
 interface Option extends SwapTarget {
   from: string; // มาจากไหน — วันในโปรแกรม หรืออุปกรณ์ที่ใช้ (ท่าจากคลัง)
@@ -59,33 +60,38 @@ export default function ExercisePicker({
     }
 
     // 2) คลังท่าหลักทั้งหมด — ค้นได้ทั้งชื่อไทยและอังกฤษ
-    for (const t of searchExercises(q, 80)) {
-      if (seen.has(normName(t.name))) continue;
-      seen.add(normName(t.name));
+    for (const tpl of searchExercises(q, 80)) {
+      if (seen.has(normName(tpl.name))) continue;
+      seen.add(normName(tpl.name));
       out.push({
-        name: t.name,
-        type: t.type,
-        sets: ex && mode === "swap" ? ex.sets : t.sets,
-        rmin: t.rmin,
-        rmax: t.rmax,
-        unit: unitFor(t),
-        inc: incFor(t),
-        machine: isMachineEx(t) || undefined,
-        amrap: t.amrap,
-        from: t.equip.map((e) => equipName(e)).slice(0, 2).join("+"),
-        muscles: t.pri.map((m) => muscleName(m)).slice(0, 2).join("/"),
-        th: t.th,
-        tip: t.tip,
+        name: tpl.name,
+        type: tpl.type,
+        sets: ex && mode === "swap" ? ex.sets : tpl.sets,
+        rmin: tpl.rmin,
+        rmax: tpl.rmax,
+        unit: unitFor(tpl),
+        inc: incFor(tpl),
+        machine: isMachineEx(tpl) || undefined,
+        amrap: tpl.amrap,
+        from: tpl.equip.map((e) => equipName(e)).slice(0, 2).join("+"),
+        muscles: tpl.pri.map((m) => muscleName(m)).slice(0, 2).join("/"),
+        // โหมดอังกฤษไม่ต้องมีบรรทัดชื่อไทย ชื่อหลักเป็นอังกฤษอยู่แล้ว
+        th: subName(tpl) || undefined,
+        tip: tipOf(tpl),
       });
     }
 
     return out.slice(0, 60);
   }, [data.exercises, ex, mode, q]);
 
-  function pick(t: SwapTarget) {
-    const target: SwapTarget = { ...t, sets: ex && mode === "swap" ? ex.sets : t.sets };
+  function pick(picked: SwapTarget) {
+    const target: SwapTarget = { ...picked, sets: ex && mode === "swap" ? ex.sets : picked.sets };
     update((d) => (mode === "swap" && ex ? setSwap(d, ex.origId, target) : addExtra(d, target)));
-    toast(mode === "swap" ? `วันนี้เปลี่ยนเป็น ${t.name}` : `เพิ่ม ${t.name} เข้าวันนี้แล้ว`);
+    toast(
+      mode === "swap"
+        ? t(`วันนี้เปลี่ยนเป็น ${picked.name}`, `Swapped to ${picked.name} for today`)
+        : t(`เพิ่ม ${picked.name} เข้าวันนี้แล้ว`, `Added ${picked.name} to today`),
+    );
     onClose();
   }
 
@@ -93,25 +99,27 @@ export default function ExercisePicker({
     <div className="glass-inset p-3 mb-3 rise">
       <div className="flex items-center justify-between mb-2">
         <div className="font-mono2 text-[9px] uppercase tracking-[.18em]" style={{ color: "var(--cyan-dim)" }}>
-          {mode === "swap" ? "เปลี่ยนท่าเฉพาะวันนี้" : "เพิ่มท่าเข้าวันนี้"}
+          {mode === "swap" ? t("เปลี่ยนท่าเฉพาะวันนี้", "Swap for today only") : t("เพิ่มท่าเข้าวันนี้", "Add to today")}
         </div>
         <button className="font-mono2 text-[10px]" style={{ color: "var(--dim)" }} onClick={onClose}>
-          ปิด ✕
+          {t("ปิด ✕", "Close ✕")}
         </button>
       </div>
       <p className="text-[11px] mb-2" style={{ color: "var(--mut)" }}>
         {mode === "swap" ? (
           <>
-            แทน <b style={{ color: "var(--ink)" }}>{ex?.name}</b> เฉพาะวันนี้ — พรุ่งนี้กลับไปใช้ท่าเดิมเอง
+            {t("แทน", "Replaces")} <b style={{ color: "var(--ink)" }}>{ex?.name}</b>{" "}
+            {t("เฉพาะวันนี้ — พรุ่งนี้กลับไปใช้ท่าเดิมเอง", "for today only — tomorrow it's back to normal")}
           </>
         ) : (
-          <>เลือกจากคลังท่าหรือท่าในโปรแกรม — เพิ่มเฉพาะวันนี้ พรุ่งนี้หายไปเอง</>
+          <>{t("เลือกจากคลังท่าหรือท่าในโปรแกรม — เพิ่มเฉพาะวันนี้ พรุ่งนี้หายไปเอง", "Pick from the library or your own program — today only, gone tomorrow")}</>
         )}
       </p>
 
       <input
         className="w-full px-3 py-2 text-[13px] mb-2"
-        placeholder="ค้นหาท่า — พิมพ์ไทยหรืออังกฤษ เช่น สควอท, อก, bench, ดัมเบล"
+        /* ตัวอย่างฝั่งอังกฤษจงใจมีไทยติดไว้ ให้รู้ว่ายังพิมพ์ไทยค้นได้ */
+        placeholder={t("ค้นหาท่า — พิมพ์ไทยหรืออังกฤษ เช่น สควอท, อก, bench, ดัมเบล", "Search — English or Thai, e.g. squat, bench, อก, ดัมเบล")} // i18n-ok
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -131,7 +139,7 @@ export default function ExercisePicker({
                   </span>
                 )}
                 <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
-                  {o.from} · {o.muscles} · {o.sets}×{o.amrap ? "สุดแรง" : `${o.rmin}-${o.rmax}`}
+                  {o.from} · {o.muscles} · {o.sets}×{o.amrap ? t("สุดแรง", "AMRAP") : `${o.rmin}-${o.rmax}`}
                 </span>
               </button>
               {o.tip && (
@@ -142,7 +150,7 @@ export default function ExercisePicker({
                     border: "1px solid var(--edge)",
                     color: openTip === o.name ? "var(--acc)" : "var(--dim)",
                   }}
-                  aria-label="วิธีเล่น"
+                  aria-label={t("วิธีเล่น", "How to do it")}
                   onClick={() => setOpenTip(openTip === o.name ? null : o.name)}
                 >
                   ?
@@ -153,7 +161,7 @@ export default function ExercisePicker({
                 style={{ color: "var(--acc)" }}
                 onClick={() => pick(o)}
               >
-                {mode === "swap" ? "ใช้แทน" : "+ เพิ่ม"}
+                {mode === "swap" ? t("ใช้แทน", "Use") : t("+ เพิ่ม", "+ Add")}
               </button>
             </div>
             {openTip === o.name && o.tip && (
@@ -168,7 +176,7 @@ export default function ExercisePicker({
         ))}
         {options.length === 0 && (
           <p className="text-[11.5px] py-2" style={{ color: "var(--dim)" }}>
-            ไม่เจอท่านี้ในคลัง — กด "ใช้ชื่อนี้" ด้านล่างเพื่อเพิ่มเองได้
+            {t('ไม่เจอท่านี้ในคลัง — กด "ใช้ชื่อนี้" ด้านล่างเพื่อเพิ่มเองได้', 'Not in the library — hit "Use this name" below to add it yourself')}
           </p>
         )}
       </div>
@@ -179,7 +187,7 @@ export default function ExercisePicker({
           onClick={() => {
             const name = q.trim();
             if (name.length < 2) {
-              toast("พิมพ์ชื่อท่าในช่องค้นหาก่อน");
+              toast(t("พิมพ์ชื่อท่าในช่องค้นหาก่อน", "Type a name in the search box first"));
               return;
             }
             pick({
@@ -195,7 +203,7 @@ export default function ExercisePicker({
             });
           }}
         >
-          ใช้ชื่อ "{q.trim() || "…"}" เป็นท่าใหม่
+          {t(`ใช้ชื่อ "${q.trim() || "…"}" เป็นท่าใหม่`, `Use "${q.trim() || "…"}" as a new exercise`)}
         </button>
       </div>
 
@@ -204,11 +212,11 @@ export default function ExercisePicker({
           className="btn-gh w-full !py-2 !text-[11.5px] mt-2.5"
           onClick={() => {
             update((d) => clearSwap(d, ex.origId));
-            toast("กลับไปใช้ท่าเดิมแล้ว");
+            toast(t("กลับไปใช้ท่าเดิมแล้ว", "Back to the original exercise"));
             onClose();
           }}
         >
-          ↩ คืนท่าเดิมตามโปรแกรม
+          {t("↩ คืนท่าเดิมตามโปรแกรม", "↩ Restore the programmed exercise")}
         </button>
       )}
       {mode === "swap" && ex?.extra && (
@@ -217,11 +225,11 @@ export default function ExercisePicker({
           style={{ color: "var(--bad)", borderColor: "rgba(255,107,107,.35)" }}
           onClick={() => {
             update((d) => removeExtra(d, ex.name));
-            toast("เอาท่าออกจากวันนี้แล้ว");
+            toast(t("เอาท่าออกจากวันนี้แล้ว", "Removed from today"));
             onClose();
           }}
         >
-          ✕ เอาท่านี้ออกจากวันนี้
+          {t("✕ เอาท่านี้ออกจากวันนี้", "✕ Remove from today")}
         </button>
       )}
     </div>

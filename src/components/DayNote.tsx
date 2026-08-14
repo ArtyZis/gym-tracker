@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../AppContext";
 import { todayStr } from "../lib/store";
+import { t } from "../lib/i18n";
 import { Icon } from "./ui";
 
 const SAVE_DELAY_MS = 400;
@@ -27,10 +28,10 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const write = (raw: string) => {
-    const t = raw.trim().slice(0, 2000);
+    const body = raw.trim().slice(0, 2000);
     update((d) => {
       const notes = { ...(d.dayNotes ?? {}) };
-      if (t) notes[date] = t;
+      if (body) notes[date] = body;
       else delete notes[date];
       d.dayNotes = Object.keys(notes).length ? notes : undefined;
     });
@@ -63,7 +64,7 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
   if (!open)
     return (
       <button className="btn-gh w-full !py-2.5 !text-[12px] mb-2.5" onClick={() => setOpen(true)}>
-        {saved ? "ดู / แก้โน้ตของวันนี้" : "+ เพิ่มโน้ตของวันนี้"}
+        {saved ? t("ดู / แก้โน้ตของวันนี้", "View / edit today's note") : t("+ เพิ่มโน้ตของวันนี้", "+ Add a note for today")}
       </button>
     );
 
@@ -72,7 +73,7 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
       <div className="panel-head">
         <span className="mark" />
         <span className="font-mono2 text-[8.5px] uppercase tracking-[.28em] shrink-0" style={{ color: "#c9d6ff" }}>
-          โน้ตของวัน
+          {t("โน้ตของวัน", "Session note")}
         </span>
         <span className="flex-1 min-w-[6px]" />
         <span className="font-mono2 text-[8.5px]" style={{ color: "var(--dim)" }}>
@@ -83,9 +84,9 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
           <button
             className="ml-2 shrink-0 flex items-center"
             style={{ color: "var(--bad)", background: "none", border: "none", padding: "2px" }}
-            aria-label="ลบโน้ตของวันนี้"
+            aria-label={t("ลบโน้ตของวันนี้", "Delete today's note")}
             onClick={() => {
-              if (confirm("ลบโน้ตของวันนี้? กู้กลับไม่ได้")) remove();
+              if (confirm(t("ลบโน้ตของวันนี้? กู้กลับไม่ได้", "Delete today's note? This can't be undone."))) remove();
             }}
           >
             <Icon name="trash" size={12} />
@@ -95,7 +96,7 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
         <button
           className="ml-1.5 shrink-0 flex items-center"
           style={{ color: "var(--dim)", background: "none", border: "none", padding: "2px" }}
-          aria-label="ปิดช่องพิมพ์โน้ต"
+          aria-label={t("ปิดช่องพิมพ์โน้ต", "Close the note box")}
           onClick={() => {
             commit();
             setOpen(false);
@@ -109,12 +110,18 @@ export default function DayNote({ date = todayStr() }: { date?: string }) {
         style={{ minHeight: 76, resize: "vertical" }}
         value={text}
         maxLength={2000}
-        placeholder="วันนี้เป็นยังไง — แรงดี/ล้า เจ็บตรงไหน เครื่องเต็มไหม กินมาพอหรือเปล่า"
+        placeholder={t(
+          "วันนี้เป็นยังไง — แรงดี/ล้า เจ็บตรงไหน เครื่องเต็มไหม กินมาพอหรือเปล่า",
+          "How did today go — strong or flat? Anything hurting? Gym packed? Eaten enough?",
+        )}
         onChange={(e) => onChange(e.target.value)}
         onBlur={commit}
       />
       <p className="text-[10.5px] mt-1.5 leading-relaxed" style={{ color: "var(--dim)" }}>
-        บันทึกอัตโนมัติระหว่างพิมพ์ · ปิดช่องได้โดยโน้ตไม่หาย · ย้อนดูได้ที่แท็บก้าวหน้า
+        {t(
+          "บันทึกอัตโนมัติระหว่างพิมพ์ · ปิดช่องได้โดยโน้ตไม่หาย · ย้อนดูได้ที่แท็บก้าวหน้า",
+          "Saves as you type · closing the box keeps the note · read them back on the Progress tab",
+        )}
       </p>
     </div>
   );

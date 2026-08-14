@@ -3,6 +3,7 @@ import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
 import { DAYS, applyProgram, dayName, repTargetText } from "../lib/store";
 import { clearProgramFromUrl, decodeProgram } from "../lib/programLink";
+import { exText, t } from "../lib/i18n";
 
 // ลูกเทรนกดลิงก์จากโค้ช -> เด้งหน้านี้ให้ดูก่อนว่าได้อะไรบ้าง แล้วค่อยกดรับ
 // การรับ = แทนที่โปรแกรมเดิมทั้งหมด จึงต้องเห็นของจริงก่อนเสมอ ไม่รับให้อัตโนมัติ
@@ -30,7 +31,7 @@ export default function IncomingProgram({ code, onClose }: { code: string; onClo
     update((d) => applyProgram(d, program.exercises, program.dayLabels));
     clearProgramFromUrl();
     onClose();
-    toast("รับโปรแกรมแล้ว เริ่มฝึกได้เลย 💪", true);
+    toast(t("รับโปรแกรมแล้ว เริ่มฝึกได้เลย 💪", "Program loaded — go lift 💪"), true);
   }
 
   const hadProgram = data.exercises.length > 0;
@@ -50,18 +51,18 @@ export default function IncomingProgram({ code, onClose }: { code: string; onClo
       >
         <div className="px-5 pt-5 pb-3">
           <div className="font-mono2 text-[9px] uppercase tracking-[.2em] mb-1.5" style={{ color: "var(--acc)" }}>
-            โปรแกรมจากโค้ช
+            {t("โปรแกรมจากโค้ช", "Program from your coach")}
           </div>
           {program ? (
             <>
               <h2 className="font-disp font-bold text-[19px] leading-tight">{program.title}</h2>
               <p className="text-[12px] mt-1.5 leading-relaxed" style={{ color: "var(--mut)" }}>
-                {program.exercises.length} ท่า · {byDay.length} วันฝึก/สัปดาห์
+                {exText(program.exercises.length)} · {t(`${byDay.length} วันฝึก/สัปดาห์`, `${byDay.length} training days/week`)}
               </p>
             </>
           ) : (
             <h2 className="font-disp font-bold text-[17px] leading-snug" style={{ color: "var(--warn)" }}>
-              ลิงก์นี้อ่านไม่ออก
+              {t("ลิงก์นี้อ่านไม่ออก", "This link can't be read")}
             </h2>
           )}
         </div>
@@ -78,7 +79,7 @@ export default function IncomingProgram({ code, onClose }: { code: string; onClo
                     ) : null}
                   </span>
                   <span className="font-mono2 text-[9.5px]" style={{ color: "var(--dim)" }}>
-                    {exs.length} ท่า
+                    {exText(exs.length)}
                   </span>
                 </div>
                 {exs.map((ex, i) => (
@@ -97,23 +98,29 @@ export default function IncomingProgram({ code, onClose }: { code: string; onClo
 
             {hadProgram && (
               <p className="text-[11.5px] leading-relaxed mb-2 px-1" style={{ color: "var(--warn)" }}>
-                ⚠️ รับแล้วโปรแกรมเดิมของคุณจะถูกแทนที่ — ประวัติการฝึกเก่ายังอยู่ ถ้าท่าชื่อเดิมกลับมาในโปรแกรมใหม่
+                {t(
+                  "⚠️ รับแล้วโปรแกรมเดิมของคุณจะถูกแทนที่ — ประวัติการฝึกเก่ายังอยู่ ถ้าท่าชื่อเดิมกลับมาในโปรแกรมใหม่",
+                  "⚠️ Accepting replaces your current program — old history stays and comes back if the same exercise names appear again",
+                )}
               </p>
             )}
           </div>
         ) : (
           <p className="px-5 text-[12.5px] leading-relaxed" style={{ color: "var(--mut)" }}>
-            ลิงก์อาจถูกตัดตอนส่ง ลองให้โค้ชส่งใหม่อีกครั้ง แล้วกดเปิดจากลิงก์เต็มๆ
+            {t(
+              "ลิงก์อาจถูกตัดตอนส่ง ลองให้โค้ชส่งใหม่อีกครั้ง แล้วกดเปิดจากลิงก์เต็มๆ",
+              "The link may have been truncated in transit — ask your coach to resend it and open the full link",
+            )}
           </p>
         )}
 
         <div className="px-5 pt-3 flex gap-2">
           <button className="btn-gh !py-3 !px-4 !text-[12.5px] shrink-0" onClick={dismiss}>
-            ไม่รับ
+            {t("ไม่รับ", "Decline")}
           </button>
           {program && (
             <button className="btn-cy flex-1 !py-3 !text-[13px]" onClick={accept}>
-              รับโปรแกรมนี้
+              {t("รับโปรแกรมนี้", "Accept program")}
             </button>
           )}
         </div>

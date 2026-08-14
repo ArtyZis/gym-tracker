@@ -6,6 +6,8 @@
 //            บันทึกฝึก/ประวัติ/สตรีค/การ์ดสรุป ใช้ฟรีตลอดชีพเสมอ
 //
 // ค่าเริ่มต้นคือ personal เสมอ: build เดิมจึงได้ผลลัพธ์เหมือนก่อนมีไฟล์นี้ทุกประการ
+import { t } from "./i18n";
+
 export type Edition = "personal" | "pro";
 
 export const EDITION: Edition = import.meta.env.VITE_EDITION === "pro" ? "pro" : "personal";
@@ -16,4 +18,7 @@ export const APP_NAME = "RANKFORGE";
 
 // ชื่อแท็บ — ต่อท้ายด้วยรุ่นเฉพาะรุ่นที่ขาย เพื่อให้เปิดสองรุ่นพร้อมกันแล้วแยกออก
 // (เดิมใช้ APP_NAME เฉยๆ ซึ่งเท่ากันทั้งสองรุ่น เลยไม่ได้แยกอะไรจริง)
-export const APP_TITLE = isPro ? `${APP_NAME} PRO — ตารางเวท ระบบแรงค์` : `${APP_NAME} — ตารางเวท ระบบแรงค์`;
+//
+// เป็นฟังก์ชันเพราะต้องอ่านภาษาหลัง setLang ทำงานแล้ว — ตอนโหลดโมดูลยังไม่รู้ว่าผู้ใช้ตั้งภาษาอะไร
+// main.tsx ตั้งครั้งแรกด้วยค่าเริ่มต้น แล้ว App ตั้งซ้ำใน effect เมื่อรู้ค่าจริง
+export const appTitle = (): string => `${APP_NAME}${isPro ? " PRO" : ""} — ${t("ตารางเวท ระบบแรงค์", "Lifting log with a rank system")}`;

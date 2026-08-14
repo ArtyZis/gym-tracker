@@ -16,7 +16,9 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(HERE, "..", "src");
-const hasThai = (s) => /[฀-๿]/.test(s);
+// ฿ (U+0E3F) อยู่ในบล็อกยูนิโคดไทยแต่เป็นสัญลักษณ์สกุลเงิน ไม่ใช่ตัวอักษรไทย
+// ถ้านับเป็นไทยด้วย ฝั่งอังกฤษที่เขียน "฿83/month" จะถูกมองว่ายังไม่ได้แปล
+const hasThai = (s) => /[฀-฾เ-๿]/.test(s);
 
 // ไฟล์ข้อมูลอ้างอิง — ชื่อไทยในนี้เป็น "ข้อมูล" ที่ตัวค้นหาต้องใช้เสมอ ไม่ใช่ข้อความ UI
 // (คนไทยที่สลับเป็นอังกฤษก็ยังพิมพ์ "อก" ค้นท่าอกได้) การแปลจัดการผ่าน accessor แทน
@@ -39,7 +41,7 @@ function walk(dir) {
  * เจอ ${ ตอนอยู่ใน ` -> push "code" (กลับไปอ่านเป็นโค้ด)
  * เจอ } ตอนอยู่ใน code ที่ซ้อนอยู่ -> pop กลับไปอ่านเป็นข้อความต่อ
  */
-function scan(src) {
+function scan(src, isJsx) {
   const out = []; // { kind, value, line, start, end }
   const bare = []; // สำเนาที่คอมเมนต์+ข้อความถูกกลบ — ใช้หา JSX text
   const n = src.length;
@@ -148,9 +150,18 @@ function scan(src) {
     i++;
   }
 
-  // ข้อความ JSX: >ข้อความ<  (ไม่มี < > { } คั่น)
+  // ข้อความ JSX — ขอบเขตเป็น < > { } อย่างใดก็ได้ทั้งสองฝั่ง
+  //
+  // เดิมจับแค่ >ข้อความ< ทำให้พลาดเคสที่ข้อความชนกับ expression เช่น
+  //   <div>น้อย{LEVEL.map(...)}มาก</div>
+  // ซึ่งหลุดไปขึ้นจอจริงในโหมดอังกฤษ
+  //
+  // ทำเฉพาะ .tsx เพราะ scanner ไม่ได้แยก regex literal ออกจากโค้ด — ใน .ts มี
+  // /จันทร์|monday/ ที่เป็นตัวจับคำ ไม่ใช่ข้อความบนจอ ถ้าสแกนด้วยจะฟ้องผิดทุกตัว
+  // (.ts ไม่มี JSX อยู่แล้ว ข้อความที่ขึ้นจอเป็น string literal ซึ่งจับครบตั้งแต่ต้น)
+  if (!isJsx) return out;
   const bareSrc = bare.join("");
-  for (const m of bareSrc.matchAll(/>([^<>{}]*[฀-๿][^<>{}]*)</g)) {
+  for (const m of bareSrc.matchAll(/[>}]([^<>{}]*[฀-๿][^<>{}]*)[<{]/g)) {
     out.push({ kind: "jsx", value: m[1].trim(), line: bareSrc.slice(0, m.index).split("\n").length, start: m.index, end: m.index });
   }
   return out;
@@ -160,7 +171,7 @@ const findings = [];
 for (const f of walk(SRC)) {
   if (DATA_FILES.has(path.basename(f))) continue;
   const src = fs.readFileSync(f, "utf8");
-  const items = scan(src);
+  const items = scan(src, f.endsWith(".tsx"));
 
   // ก้อนไทยตัวไหนตามด้วย , "อังกฤษ" ทันที = แปลแล้ว
   //

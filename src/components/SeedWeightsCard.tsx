@@ -9,7 +9,8 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 import type { LiftKey, OneRMInput } from "../lib/progression";
-import { LIFT_TH, epley1RM, estimate1RMs, seedTargets } from "../lib/progression";
+import { epley1RM, estimate1RMs, liftName, seedTargets } from "../lib/progression";
+import { exText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 const LIFTS: LiftKey[] = ["bench", "squat", "deadlift", "ohp"];
@@ -46,19 +47,22 @@ export default function SeedWeightsCard() {
       <Kicker
         right={
           <span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>
-            {untouched.length} ท่ายังไม่มีน้ำหนัก
+            {t(`${untouched.length} ท่ายังไม่มีน้ำหนัก`, `${untouched.length} without a starting weight`)}
           </span>
         }
       >
-        ตั้งน้ำหนักเริ่มต้น
+        {t("ตั้งน้ำหนักเริ่มต้น", "Set starting weights")}
       </Kicker>
       <p className="text-[11.5px] -mt-1 mb-3 leading-relaxed" style={{ color: "var(--mut)" }}>
-        กรอกท่าหลักที่ยกได้จริง 4 ท่า แล้วระบบจะประเมินจุดตั้งต้นให้ท่าอื่นๆ — ไม่ต้องเดาเองทีละท่า
+        {t(
+          "กรอกท่าหลักที่ยกได้จริง 4 ท่า แล้วระบบจะประเมินจุดตั้งต้นให้ท่าอื่นๆ — ไม่ต้องเดาเองทีละท่า",
+          "Enter what you actually lift on the 4 main lifts and it estimates a starting point for everything else — no guessing lift by lift",
+        )}
       </p>
 
       {!open ? (
         <button className="btn-gh w-full !py-2.5 !text-[12px]" onClick={() => setOpen(true)}>
-          เริ่มตั้งน้ำหนัก
+          {t("เริ่มตั้งน้ำหนัก", "Start")}
         </button>
       ) : (
         <>
@@ -69,14 +73,14 @@ export default function SeedWeightsCard() {
               return (
                 <div key={k} className="flex items-center gap-2 mb-2 last:mb-0">
                   <span className="text-[12px] flex-1 min-w-0 truncate" style={{ color: "var(--ink)" }}>
-                    {LIFT_TH[k]}
+                    {liftName(k)}
                   </span>
                   <input
                     className={numCls}
                     style={numStyle}
                     type="number"
                     inputMode="decimal"
-                    placeholder="กก."
+                    placeholder={t("กก.", "kg")}
                     onChange={(e) => setField(k, "weight", parseFloat(e.target.value) || 0)}
                   />
                   <span className="font-mono2 text-[10px]" style={{ color: "var(--dim)" }}>
@@ -87,7 +91,7 @@ export default function SeedWeightsCard() {
                     style={numStyle}
                     type="number"
                     inputMode="numeric"
-                    placeholder="ครั้ง"
+                    placeholder={t("ครั้ง", "reps")}
                     onChange={(e) => setField(k, "reps", parseInt(e.target.value, 10) || 0)}
                   />
                   <span className="font-mono2 text-[10px] w-[62px] text-right shrink-0" style={{ color: est ? "var(--acc)" : "var(--dim)" }}>
@@ -97,14 +101,17 @@ export default function SeedWeightsCard() {
               );
             })}
             <p className="font-mono2 text-[9.5px] mt-1.5" style={{ color: "var(--dim)" }}>
-              ขวาสุด = 1RM ที่ประเมินได้ (สูตร Epley) กรอกเท่าที่รู้ ไม่ต้องครบทั้ง 4
+              {t(
+                "ขวาสุด = 1RM ที่ประเมินได้ (สูตร Epley) กรอกเท่าที่รู้ ไม่ต้องครบทั้ง 4",
+                "Right column = estimated 1RM (Epley formula) · fill in what you know, all four aren't required",
+              )}
             </p>
           </div>
 
           {preview.length > 0 && (
             <div className="glass-inset p-3 mb-3">
               <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-2" style={{ color: "var(--mut)" }}>
-                จะตั้งให้ {preview.length} ท่า
+                {t(`จะตั้งให้ ${preview.length} ท่า`, `Will set ${exText(preview.length)}`)}
               </div>
               <div style={{ maxHeight: 168, overflowY: "auto" }}>
                 {preview.map((p) => (
@@ -119,8 +126,12 @@ export default function SeedWeightsCard() {
                 ))}
               </div>
               <p className="text-[10.5px] mt-2 leading-relaxed" style={{ color: "var(--warn)" }}>
-                ทั้งหมดนี้เป็น<strong>ค่าประมาณ</strong>จากสัดส่วนเฉลี่ย ไม่ใช่ตัวเลขที่รู้แน่ —
-                สัปดาห์แรกให้ลองเซตแรกแล้วปรับตามจริง ระบบจะจำค่าจริงแทนทันทีที่คุณติ๊กเซต
+                {t("ทั้งหมดนี้เป็น", "These are all ")}
+                <strong>{t("ค่าประมาณ", "estimates")}</strong>
+                {t(
+                  "จากสัดส่วนเฉลี่ย ไม่ใช่ตัวเลขที่รู้แน่ — สัปดาห์แรกให้ลองเซตแรกแล้วปรับตามจริง ระบบจะจำค่าจริงแทนทันทีที่คุณติ๊กเซต",
+                  " based on population averages, not numbers we know. Try a set in week one and adjust — real values replace them the moment you tick a set.",
+                )}
               </p>
             </div>
           )}
@@ -133,7 +144,7 @@ export default function SeedWeightsCard() {
                 setInputs({});
               }}
             >
-              ยกเลิก
+              {t("ยกเลิก", "Cancel")}
             </button>
             <button
               className="btn flex-1 !py-2.5 !text-[12px]"
@@ -147,12 +158,12 @@ export default function SeedWeightsCard() {
                     if (ex) ex.seededTarget = p.weight;
                   }
                 });
-                toast(`ตั้งค่าประมาณให้ ${preview.length} ท่าแล้ว`, true);
+                toast(t(`ตั้งค่าประมาณให้ ${preview.length} ท่าแล้ว`, `Estimated starting weights for ${exText(preview.length)}`), true);
                 setOpen(false);
                 setInputs({});
               }}
             >
-              ตั้งให้ {preview.length} ท่า
+              {t(`ตั้งให้ ${preview.length} ท่า`, `Set ${exText(preview.length)}`)}
             </button>
           </div>
         </>

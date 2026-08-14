@@ -116,7 +116,7 @@ export function drawWeeklyCard(stats: WeeklyStats, accent = "#4fd8ff"): HTMLCanv
   ctx.shadowColor = "rgba(79,216,255,.55)";
   ctx.shadowBlur = 26;
   ctx.font = `700 76px ${disp}`;
-  ctx.fillText("สรุปสัปดาห์", 80, 216);
+  ctx.fillText(t("สรุปสัปดาห์", "Weekly recap"), 80, 216);
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#7E93AC";
   ctx.font = `500 36px ${thai}`;
@@ -140,13 +140,13 @@ export function drawWeeklyCard(stats: WeeklyStats, accent = "#4fd8ff"): HTMLCanv
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#7E93AC";
   ctx.font = `500 40px ${thai}`;
-  ctx.fillText("kg ที่ยกทั้งสัปดาห์", 84, 608);
+  ctx.fillText(t("kg ที่ยกทั้งสัปดาห์", "kg lifted this week"), 84, 608);
 
   // กล่องสถิติ 3 ช่อง
   const boxes = [
-    { label: "เซตที่ทำ", value: String(stats.setsDone) },
-    { label: "วันที่ฝึก", value: String(stats.daysTrained) },
-    { label: "สตรีค (วัน)", value: String(stats.streak) },
+    { label: t("เซตที่ทำ", "Sets done"), value: String(stats.setsDone) },
+    { label: t("วันที่ฝึก", "Days trained"), value: String(stats.daysTrained) },
+    { label: t("สตรีค (วัน)", "Streak (days)"), value: String(stats.streak) },
   ];
   const bw = (W - 160 - 2 * 24) / 3;
   boxes.forEach((b, i) => {
@@ -193,7 +193,7 @@ export function drawWeeklyCard(stats: WeeklyStats, accent = "#4fd8ff"): HTMLCanv
   } else {
     ctx.fillStyle = "#3E5068";
     ctx.font = `500 34px ${thai}`;
-    ctx.fillText("สัปดาห์นี้ยังไม่มี PR ใหม่ — สัปดาห์หน้าจัดไป", 80, y);
+    ctx.fillText(t("สัปดาห์นี้ยังไม่มี PR ใหม่ — สัปดาห์หน้าจัดไป", "No new PRs this week — next week then"), 80, y);
   }
 
   // footer
@@ -212,7 +212,7 @@ export async function shareWeeklyCard(data: Data): Promise<"shared" | "downloade
   const file = new File([blob], "rankforge-week.png", { type: "image/png" });
   try {
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: "สรุปสัปดาห์ RANKFORGE" });
+      await navigator.share({ files: [file], title: t("สรุปสัปดาห์ RANKFORGE", "RANKFORGE weekly recap") });
       return "shared";
     }
   } catch (e: any) {
@@ -238,7 +238,7 @@ export async function shareWeeklyCard(data: Data): Promise<"shared" | "downloade
 
 import type { BestLift, Rank, RankResult } from "./rank";
 import { RANKS } from "./rank";
-import { RANK_COLOR, RANK_COLOR2, RANK_STARS, RANK_TH, bestLifts, computeRank } from "./rank";
+import { RANK_COLOR, RANK_COLOR2, RANK_STARS, bestLifts, computeRank, rankName } from "./rank";
 
 
 // วาดตราแรงค์บน canvas — ต้องให้ออกมาเหมือน RankEmblem.tsx เพราะเป็นตราเดียวกัน
@@ -443,12 +443,12 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
 
   ctx.fillStyle = "#e7edfb";
   ctx.font = "600 42px 'Chakra Petch', sans-serif";
-  ctx.fillText(res.rank ? RANK_TH[res.rank] : "ข้อมูลยังไม่พอ", W / 2, nameY);
+  ctx.fillText(res.rank ? rankName(res.rank) : t("ข้อมูลยังไม่พอ", "Not enough data"), W / 2, nameY);
 
   if (res.bodyweight) {
     ctx.fillStyle = "#6d7fa8";
     ctx.font = "400 24px 'JetBrains Mono', monospace";
-    ctx.fillText(`เทียบน้ำหนักตัว ${res.bodyweight} kg`, W / 2, bodyY);
+    ctx.fillText(t(`เทียบน้ำหนักตัว ${res.bodyweight} kg`, `Against ${res.bodyweight} kg bodyweight`), W / 2, bodyY);
   }
 
   // เส้นคั่น
@@ -465,7 +465,7 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   if (res.lifts.length) {
     ctx.fillStyle = "#8fa4d4";
     ctx.font = "500 22px 'JetBrains Mono', monospace";
-    ctx.fillText("ท่าหลัก (1RM ประเมิน / น้ำหนักตัว)", 90, y);
+    ctx.fillText(t("ท่าหลัก (1RM ประเมิน / น้ำหนักตัว)", "Main lifts (est. 1RM / bodyweight)"), 90, y);
     y += HEAD_GAP;
     for (const l of res.lifts) {
       ctx.fillStyle = "#dbe4f7";
@@ -493,12 +493,12 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   ctx.textAlign = "center";
   ctx.fillStyle = "#8fa4d4";
   ctx.font = "500 21px 'JetBrains Mono', monospace";
-  ctx.fillText("หลักฐานการฝึก", W / 2, proofTop + 40);
+  ctx.fillText(t("หลักฐานการฝึก", "Training proof"), W / 2, proofTop + 40);
 
   const cells: [string, string][] = [
-    [String(proof.days), "วันที่ฝึกจริง"],
-    [proof.months ? `${proof.months}` : "—", "เดือนที่ผ่านมา"],
-    [String(proof.sets), "เซตที่บันทึก"],
+    [String(proof.days), t("วันที่ฝึกจริง", "Days trained")],
+    [proof.months ? `${proof.months}` : "—", t("เดือนที่ผ่านมา", "Months in")],
+    [String(proof.sets), t("เซตที่บันทึก", "Sets logged")],
   ];
   cells.forEach(([big, small], i) => {
     const cx = W / 2 + (i - 1) * 290;
@@ -513,12 +513,12 @@ export function drawRankCard(data: Data): HTMLCanvasElement {
   if (proof.firstDate) {
     ctx.fillStyle = "#4a5a7d";
     ctx.font = "400 22px 'JetBrains Mono', monospace";
-    ctx.fillText(`บันทึกครั้งแรก ${proof.firstDate}`, W / 2, proofTop + 228);
+    ctx.fillText(t(`บันทึกครั้งแรก ${proof.firstDate}`, `First logged ${proof.firstDate}`), W / 2, proofTop + 228);
   }
 
   ctx.fillStyle = "#4a5a7d";
   ctx.font = "400 20px 'JetBrains Mono', monospace";
-  ctx.fillText("แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงทั่วไป", W / 2, H - 110);
+  ctx.fillText(t("แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงทั่วไป", "Rank is an estimate from common strength standards"), W / 2, H - 110);
   ctx.fillStyle = "#6d7fa8";
   ctx.font = "600 26px 'Chakra Petch', sans-serif";
   ctx.fillText("RANKFORGE", W / 2, H - 62);
@@ -581,7 +581,7 @@ export function drawBestLiftsCard(data: Data): HTMLCanvasElement {
   ctx.fillText("P E R S O N A L   B E S T", W / 2, 120);
   ctx.fillStyle = "#e7edfb";
   ctx.font = "600 46px 'Chakra Petch', sans-serif";
-  ctx.fillText("สถิติสูงสุดที่เคยทำ", W / 2, 186);
+  ctx.fillText(t("สถิติสูงสุดที่เคยทำ", "All-time bests"), W / 2, 186);
 
   const line = ctx.createLinearGradient(120, 0, W - 120, 0);
   line.addColorStop(0, "transparent");
@@ -605,7 +605,7 @@ export function drawBestLiftsCard(data: Data): HTMLCanvasElement {
     ctx.textAlign = "right";
     ctx.fillStyle = theme;
     ctx.font = "600 30px 'JetBrains Mono', monospace";
-    ctx.fillText(`${l.weight} ${l.unit} × ${l.reps} · ${l.sets} เซต`, W - 90, y);
+    ctx.fillText(`${l.weight} ${l.unit} × ${l.reps} · ${setsText(l.sets)}`, W - 90, y);
     ctx.textAlign = "left";
     y += ROW;
   });
@@ -613,13 +613,13 @@ export function drawBestLiftsCard(data: Data): HTMLCanvasElement {
   if (more > 0) {
     ctx.fillStyle = "#4a5a7d";
     ctx.font = "400 24px 'Chakra Petch', sans-serif";
-    ctx.fillText(`และอีก ${more} ท่า`, 90, y);
+    ctx.fillText(t(`และอีก ${more} ท่า`, `and ${more} more`), 90, y);
   }
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#6d7fa8";
   ctx.font = "400 24px 'JetBrains Mono', monospace";
-  ctx.fillText(`ฝึกจริง ${proof.days} วัน · ${proof.sets} เซต`, W / 2, H - 118);
+  ctx.fillText(t(`ฝึกจริง ${proof.days} วัน · ${proof.sets} เซต`, `${daysText(proof.days)} trained · ${setsText(proof.sets)}`), W / 2, H - 118);
   ctx.fillStyle = "#6d7fa8";
   ctx.font = "600 26px 'Chakra Petch', sans-serif";
   ctx.fillText("RANKFORGE", W / 2, H - 62);
@@ -627,10 +627,11 @@ export function drawBestLiftsCard(data: Data): HTMLCanvasElement {
   return canvas;
 }
 
-export const shareRankCard = (data: Data) => shareCanvas(drawRankCard(data), "rankforge-rank.png", "แรงค์ความแข็งแรง RANKFORGE");
+export const shareRankCard = (data: Data) =>
+  shareCanvas(drawRankCard(data), "rankforge-rank.png", t("แรงค์ความแข็งแรง RANKFORGE", "RANKFORGE strength rank"));
 
 export const shareBestLiftsCard = (data: Data) =>
-  shareCanvas(drawBestLiftsCard(data), "rankforge-best.png", "สถิติสูงสุด RANKFORGE");
+  shareCanvas(drawBestLiftsCard(data), "rankforge-best.png", t("สถิติสูงสุด RANKFORGE", "RANKFORGE personal bests"));
 
 async function shareCanvas(canvas: HTMLCanvasElement, filename: string, title: string): Promise<"shared" | "downloaded" | "failed"> {
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));

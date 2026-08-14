@@ -4,6 +4,7 @@ import { AppContext } from "./AppContext";
 import type { Data } from "./lib/store";
 import { DAYS, JS_DAYS, createDefault, dayName, store } from "./lib/store";
 import { locale, setLang, t } from "./lib/i18n";
+import { appTitle } from "./lib/edition";
 import { setSoundEnabled } from "./lib/sound";
 import { resolveAccent } from "./lib/accent";
 import { ensureStartedAt } from "./lib/premium";
@@ -96,8 +97,10 @@ export default function App() {
   }, [data]);
 
   // บอกเบราว์เซอร์/screen reader ว่าหน้านี้ภาษาอะไร — มีผลกับการตัดคำและการอ่านออกเสียง
+  // ตั้งชื่อแท็บซ้ำด้วย เพราะ main.tsx ตั้งไปตอนที่ยังไม่รู้ภาษาที่ผู้ใช้เลือก
   useEffect(() => {
     document.documentElement.lang = data.settings.lang ?? "th";
+    document.title = appTitle();
   }, [data.settings.lang]);
 
   // ตั้งวันเริ่มใช้ครั้งแรก — ใช้นับช่วงทดลองรุ่น pro
