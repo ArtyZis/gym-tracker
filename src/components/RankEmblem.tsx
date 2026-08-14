@@ -8,6 +8,7 @@
 
 import type { Rank } from "../lib/rank";
 import { RANKS, RANK_COLOR, RANK_COLOR2, RANK_STARS } from "../lib/rank";
+import { t } from "../lib/i18n";
 
 // จุดหกเหลี่ยมยอดแหลม (pointy-top) — ทรงมาตรฐานของตราในเกม
 function hexPoints(cx: number, cy: number, r: number): string {
@@ -37,7 +38,7 @@ export default function RankEmblem({ rank, size = 120 }: { rank: Rank | null; si
   const crown = idx >= 5; // S เท่านั้น
 
   return (
-    <svg width={size} height={(size * H) / W} viewBox={`0 0 ${W} ${H}`} aria-label={`แรงค์ ${rank ?? "ยังไม่มี"}`}>
+    <svg width={size} height={(size * H) / W} viewBox={`0 0 ${W} ${H}`} aria-label={t(`แรงค์ ${rank ?? "ยังไม่มี"}`, `Rank ${rank ?? "none yet"}`)}>
       <defs>
         <linearGradient id={`${uid}p`} x1="0" y1="0" x2="0.4" y2="1">
           <stop offset="0%" stopColor="#131a33" />

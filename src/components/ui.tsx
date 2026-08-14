@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useApp } from "../AppContext";
+import { t } from "../lib/i18n";
 
 // หัวข้อย่อยสไตล์หน้าต่างระบบ — label mono เว้นระยะ + เส้นเรืองแสงลากไปจนสุดแถว
 // ใช้ซ้ำทุกสกรีน (Analyze/Progress/Manage/Today) ให้หน้าตาสอดคล้องกัน
@@ -72,7 +73,7 @@ export function PremiumLock({ label, children }: { label: string; children: Reac
           {label}
         </span>
         <button className="btn-cy !py-2 !px-4 !text-[12px] mt-0.5" onClick={() => goTab("manage")}>
-          ดูวิธีปลดล็อก
+          {t("ดูวิธีปลดล็อก", "How to unlock")}
         </button>
       </div>
     </div>

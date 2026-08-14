@@ -1,6 +1,7 @@
 import { useApp } from "../AppContext";
-import { DAYS, DAY_TH_SHORT, exercisesForDay, repTargetText } from "../lib/store";
+import { DAYS, exercisesForDay, repTargetText } from "../lib/store";
 import { activeDays as slotsOf, cycleLen, slotName, slotShort } from "../lib/loop";
+import { exText, setsText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 export default function ProgramView() {
@@ -14,7 +15,7 @@ export default function ProgramView() {
   if (!activeDays.length && !outsideDays.length)
     return (
       <div className="glass p-7 text-center text-[13px] rise" style={{ color: "var(--dim)" }}>
-        ยังไม่มีท่าฝึก — เพิ่มท่าแรกได้ที่แท็บจัดการ
+        {t("ยังไม่มีท่าฝึก — เพิ่มท่าแรกได้ที่แท็บจัดการ", "No exercises yet — add your first one on the Manage tab")}
       </div>
     );
 
@@ -43,9 +44,9 @@ export default function ProgramView() {
                 </div>
               </div>
               <span className="font-mono2 text-[9.5px] text-right shrink-0 leading-snug" style={{ color: "var(--cyan-dim)" }}>
-                {exs.length} ท่า
+                {exText(exs.length)}
                 <br />
-                {sets} เซต
+                {setsText(sets)}
               </span>
             </div>
             <div className="flex flex-col">
@@ -72,7 +73,7 @@ export default function ProgramView() {
         <div className="glass-inset flex items-center justify-center gap-2" style={{ padding: "12px 14px" }}>
           <span className="text-[13px]">🌙</span>
           <span className="text-[12px]" style={{ color: "var(--mut)" }}>
-            วันพัก · <b style={{ color: "#dbe9f7" }}>{restDays.map((d) => slotName(data, d)).join(" · ")}</b>
+            {t("วันพัก", "Rest days")} · <b style={{ color: "#dbe9f7" }}>{restDays.map((d) => slotName(data, d)).join(" · ")}</b>
           </span>
         </div>
       )}
@@ -83,12 +84,14 @@ export default function ProgramView() {
           แสดงไว้ตรงนี้ให้รู้ว่ายังอยู่ พร้อมบอกวิธีเอากลับมาใช้ */}
       {outsideDays.length > 0 && (
         <div className="glass p-4 mt-3" style={{ borderColor: "rgba(255,193,94,.32)" }}>
-          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--warn)" }}>ไม่ถูกนับ</span>}>
-            ท่าที่อยู่นอกรอบ
+          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--warn)" }}>{t("ไม่ถูกนับ", "not counted")}</span>}>
+            {t("ท่าที่อยู่นอกรอบ", "Exercises outside the cycle")}
           </Kicker>
           <p className="text-[11.5px] -mt-1 mb-2.5 leading-relaxed" style={{ color: "var(--mut)" }}>
-            รอบตอนนี้ยาว {cycleLen(data)} วัน — ท่าเหล่านี้อยู่ช่องที่เกินรอบ ยังไม่หายไปไหน
-            แต่จะไม่ถูกนับในคะแนนและไม่ขึ้นในแท็บวันนี้ · ขยายรอบหรือย้ายท่าได้ที่แท็บจัดการ
+            {t(
+              `รอบตอนนี้ยาว ${cycleLen(data)} วัน — ท่าเหล่านี้อยู่ช่องที่เกินรอบ ยังไม่หายไปไหน แต่จะไม่ถูกนับในคะแนนและไม่ขึ้นในแท็บวันนี้ · ขยายรอบหรือย้ายท่าได้ที่แท็บจัดการ`,
+              `Your cycle is ${cycleLen(data)} days long — these sit in slots past the end. Nothing is deleted, but they don't count toward your score and won't show up on Today · lengthen the cycle or move them on the Manage tab.`,
+            )}
           </p>
           {outsideDays.map((d) => (
             <div key={d} className="mb-2 last:mb-0">

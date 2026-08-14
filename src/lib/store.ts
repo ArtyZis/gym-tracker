@@ -1,6 +1,7 @@
 // Data model + localStorage persistence (key: gymtracker_v1)
 
 import type { EquipTag, Experience, Goal, InjuryKey } from "./muscles";
+import { pick } from "./i18n";
 
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export type ExType = "weight" | "bodyweight" | "time";
@@ -78,6 +79,7 @@ export interface Settings {
   tierSOnly?: boolean; // โหมดเสนอเฉพาะท่า tier S — undefined = ปิด (เห็นทุกท่าเหมือนเดิม)
   smartRest?: boolean; // ใช้เวลาพักที่ระบบแนะนำต่อท่า — undefined = เปิด (default)
   accent?: string; // สีธีม (accent) — undefined = cyan #4fd8ff (ค่าเดิมของแบรนด์)
+  lang?: "th" | "en"; // ภาษา UI — undefined = ไทย (ผู้ใช้เดิมทุกคนต้องไม่เห็นอะไรเปลี่ยน)
   showCoachNotes?: boolean; // โน้ตโค้ชในการ์ดท่า — undefined = แสดง (default)
   // วันเริ่มใช้แอป (ISO) — ใช้นับช่วงทดลองรุ่น pro เท่านั้น
   // จงใจเก็บรวมในก้อนข้อมูลเดียวกับประวัติ: ใครล้างเพื่อรีเซ็ตช่วงทดลอง ประวัติฝึกจะหายไปด้วย
@@ -220,6 +222,32 @@ export const DAY_TH_SHORT: Record<DayKey, string> = {
   sat: "ส",
   sun: "อา",
 };
+
+export const DAY_EN: Record<DayKey, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+};
+
+export const DAY_EN_SHORT: Record<DayKey, string> = {
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
+};
+
+/** ชื่อวันเต็มตามภาษาปัจจุบัน */
+export const dayName = (d: DayKey): string => pick(DAY_TH, DAY_EN, d);
+
+/** ชื่อวันย่อ — ไทยสั้นมาก (จ/อ/พ) อังกฤษสั้นสุดที่อ่านออกคือ 3 ตัว */
+export const dayShort = (d: DayKey): string => pick(DAY_TH_SHORT, DAY_EN_SHORT, d);
 
 // getDay() ของ JS เริ่มที่อาทิตย์
 export const JS_DAYS: DayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];

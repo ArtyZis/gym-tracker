@@ -3,6 +3,7 @@
 import type { Data, SetLog } from "./store";
 import { computeStreak, trainingProof } from "./streak";
 import { resolveAccent } from "./accent";
+import { daysText, locale, setsText, t } from "./i18n";
 
 
 // ผสมสองสี hex — ใช้ทำพื้นหลังการ์ดให้อมสีธีมโดยไม่สว่างจนตัวหนังสืออ่านไม่ออก
@@ -78,7 +79,7 @@ export function weeklyStats(data: Data): WeeklyStats {
 }
 
 const thDate = (iso: string) =>
-  new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+  new Date(iso + "T00:00:00").toLocaleDateString(locale(), { day: "numeric", month: "short" });
 
 export function drawWeeklyCard(stats: WeeklyStats, accent = "#4fd8ff"): HTMLCanvasElement {
   const W = 1080;

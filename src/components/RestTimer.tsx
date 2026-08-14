@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { haptics } from "../lib/haptics";
 import { playRestDone, unlockAudio } from "../lib/sound";
+import { t } from "../lib/i18n";
 import { Icon } from "./ui";
 
 export interface RestTimerHandle {
@@ -47,8 +48,11 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
     try {
       if (!("Notification" in window) || Notification.permission !== "granted") return;
       if (document.visibilityState === "visible") return;
-      const title = "พักครบแล้ว 💪";
-      const opts: NotificationOptions = { body: label ? `${label} — เซตต่อไป` : "กลับไปยกเซตต่อได้เลย", tag: "rest-done" };
+      const title = t("พักครบแล้ว 💪", "Rest over 💪");
+      const opts: NotificationOptions = {
+        body: label ? t(`${label} — เซตต่อไป`, `${label} — next set`) : t("กลับไปยกเซตต่อได้เลย", "Back to the bar"),
+        tag: "rest-done",
+      };
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.getRegistration().then((reg) => {
           if (reg) reg.showNotification(title, opts);
@@ -281,7 +285,7 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
             className="ml-1.5 shrink-0 flex items-center"
             style={{ color: "var(--dim)", background: "none", border: "none", padding: "2px 2px" }}
             onClick={close}
-            aria-label="ปิดตัวจับเวลา"
+            aria-label={t("ปิดตัวจับเวลา", "Close timer")}
           >
             <Icon name="close" size={11} />
           </button>
@@ -313,7 +317,7 @@ const RestTimer = forwardRef<RestTimerHandle>((_props, ref) => {
               onClick={togglePause}
             >
               <Icon name={running ? "pause" : "play"} size={10} />
-              {running ? "หยุด" : "ไปต่อ"}
+              {running ? t("หยุด", "Pause") : t("ไปต่อ", "Resume")}
             </button>
             <button className="btn-gh flex-1 !py-2 !px-0 !text-[11px] font-mono2" onClick={addThirty}>
               +30

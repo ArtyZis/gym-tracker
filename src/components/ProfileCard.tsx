@@ -1,18 +1,10 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
-import { DAY_TH } from "../lib/store";
+import { dayName } from "../lib/store";
 import { trainingDays } from "../lib/analyzer";
 import type { EquipTag, Experience, Goal, InjuryKey } from "../lib/muscles";
-import {
-  EQUIP_PRESETS,
-  EQUIP_TH,
-  EXPERIENCE_DESC,
-  EXPERIENCE_TH,
-  GOAL_TH,
-  INJURY_TH,
-  VOLUME_TARGETS,
-} from "../lib/muscles";
+import { EQUIP_PRESETS, VOLUME_TARGETS, equipName, experienceDesc, experienceName, goalName, injuryName } from "../lib/muscles";
 import { ALL_EQUIP, equipPresetLabel, getDayEquip, getExperience, getGoal, getInjuries, getMaxSetsPerSession, getTimeCap } from "../lib/profile";
 import { Kicker } from "./ui";
 
@@ -62,19 +54,19 @@ export default function ProfileCard() {
       <div className="flex flex-wrap gap-1.5 mb-1">
         {EXPERIENCES.map((e) => (
           <Pick key={e} on={exp === e} onClick={() => update((d) => { d.profile = { ...d.profile, experience: e }; })}>
-            {EXPERIENCE_TH[e]}
+            {experienceName(e)}
           </Pick>
         ))}
       </div>
       <p className="text-[11px] mb-3" style={{ color: "var(--mut)" }}>
-        {EXPERIENCE_DESC[exp]} · เป้าหมาย <b style={{ color: "var(--acc)" }}>{target.min}-{target.max} เซต/สัปดาห์</b> ต่อกล้ามเนื้อ
+        {experienceDesc(exp)} · เป้าหมาย <b style={{ color: "var(--acc)" }}>{target.min}-{target.max} เซต/สัปดาห์</b> ต่อกล้ามเนื้อ
       </p>
 
       <div className="text-[12.5px] mb-1.5" style={{ color: "var(--ink)" }}>เป้าหมาย</div>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {GOALS.map((g) => (
           <Pick key={g} on={goal === g} onClick={() => update((d) => { d.profile = { ...d.profile, goal: g }; })}>
-            {GOAL_TH[g]}
+            {goalName(g)}
           </Pick>
         ))}
       </div>
@@ -98,7 +90,7 @@ export default function ProfileCard() {
               }
             >
               {on ? "✓ " : ""}
-              {INJURY_TH[k]}
+              {injuryName(k)}
             </Pick>
           );
         })}
@@ -192,7 +184,7 @@ export function DayEquipmentCard() {
                 className="font-mono2 text-[11px] font-bold shrink-0 rounded-lg px-2 py-1"
                 style={{ color: "#031420", background: "linear-gradient(180deg, var(--acc), var(--acc-2))" }}
               >
-                {DAY_TH[day]}
+                {dayName(day)}
               </span>
               <span className="flex-1 min-w-0 text-[12px] truncate" style={{ color: isDefault ? "var(--dim)" : "var(--ink)" }}>
                 {isDefault ? "มีครบทุกอย่าง (ค่าเริ่มต้น)" : equipPresetLabel(equip)}
@@ -211,15 +203,15 @@ export function DayEquipmentCard() {
                   {EQUIP_PRESETS.map((p) => (
                     <Pick
                       key={p.id}
-                      on={equipPresetLabel(equip) === p.label}
+                      on={equipPresetLabel(equip) === p.label()}
                       onClick={() => {
                         update((d) => {
                           d.dayEquip = { ...d.dayEquip, [day]: [...p.equip] };
                         });
-                        toast(`${DAY_TH[day]}: ${p.label}`);
+                        toast(`${dayName(day)}: ${p.label()}`);
                       }}
                     >
-                      {p.label}
+                      {p.label()}
                     </Pick>
                   ))}
                 </div>
@@ -243,7 +235,7 @@ export function DayEquipmentCard() {
                         }
                       >
                         {on ? "✓ " : ""}
-                        {EQUIP_TH[e]}
+                        {equipName(e)}
                       </Pick>
                     );
                   })}
@@ -256,7 +248,7 @@ export function DayEquipmentCard() {
                       update((d) => {
                         if (d.dayEquip) delete d.dayEquip[day];
                       });
-                      toast(`${DAY_TH[day]}: กลับเป็นค่าเริ่มต้น`);
+                      toast(`${dayName(day)}: กลับเป็นค่าเริ่มต้น`);
                     }}
                   >
                     คืนค่าเริ่มต้นวันนี้

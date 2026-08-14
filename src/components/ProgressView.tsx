@@ -4,6 +4,7 @@ import { normName, todayStr } from "../lib/store";
 import type { SetLog } from "../lib/store";
 import { forecastPR } from "../lib/forecast";
 import { shareWeeklyCard } from "../lib/share";
+import { t } from "../lib/i18n";
 import StreakCard from "./StreakCard";
 import BodyCompCard from "./BodyCompCard";
 import { Kicker } from "./ui";
@@ -62,7 +63,7 @@ export default function ProgressView() {
   function saveBodyweight() {
     const kg = parseFloat(bwInput);
     if (!kg || kg <= 0) {
-      toast("ใส่น้ำหนักก่อน");
+      toast(t("ใส่น้ำหนักก่อน", "Enter a weight first"));
       return;
     }
     update((d) => {
@@ -71,7 +72,7 @@ export default function ProgressView() {
       d.bodyweight.sort((a, b) => a.date.localeCompare(b.date));
     });
     setBwInput("");
-    toast("บันทึกน้ำหนักแล้ว");
+    toast(t("บันทึกน้ำหนักแล้ว", "Bodyweight saved"));
   }
 
   return (
@@ -85,9 +86,9 @@ export default function ProgressView() {
       <div className="glass p-4 mb-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <Kicker>การ์ดสรุปสัปดาห์</Kicker>
+            <Kicker>{t("การ์ดสรุปสัปดาห์", "Weekly recap card")}</Kicker>
             <p className="text-[11.5px] leading-relaxed -mt-1" style={{ color: "var(--mut)" }}>
-              สร้างภาพสรุป volume · PR ใหม่ · สตรีค ไว้แชร์ลง social
+              {t("สร้างภาพสรุป volume · PR ใหม่ · สตรีค ไว้แชร์ลง social", "An image with your volume · new PRs · streak, ready to post")}
             </p>
           </div>
           <button
@@ -97,17 +98,23 @@ export default function ProgressView() {
               setSharing(true);
               const r = await shareWeeklyCard(data);
               setSharing(false);
-              toast(r === "shared" ? "เปิดหน้าแชร์แล้ว" : r === "downloaded" ? "ดาวน์โหลดการ์ดแล้ว 🖼️" : "สร้างการ์ดไม่สำเร็จ");
+              toast(
+                r === "shared"
+                  ? t("เปิดหน้าแชร์แล้ว", "Share sheet opened")
+                  : r === "downloaded"
+                    ? t("ดาวน์โหลดการ์ดแล้ว 🖼️", "Card downloaded 🖼️")
+                    : t("สร้างการ์ดไม่สำเร็จ", "Couldn't build the card"),
+              );
             }}
           >
-            {sharing ? "กำลังวาด..." : "แชร์"}
+            {sharing ? t("กำลังวาด...", "Drawing…") : t("แชร์", "Share")}
           </button>
         </div>
       </div>
 
       <div className="glass p-4 mb-3">
         <Kicker right={data.bodyweight.length ? <span className="font-mono2 text-[11px]" style={{ color: "var(--acc)" }}>{bw} kg</span> : undefined}>
-          น้ำหนักตัว
+          {t("น้ำหนักตัว", "Bodyweight")}
         </Kicker>
         <div className="flex gap-2 mb-2">
           <input
@@ -119,14 +126,14 @@ export default function ProgressView() {
             className="flex-1 px-3.5 py-2.5 text-[15px]"
           />
           <button className="btn-cy !py-2.5 !px-4 !text-[12px] shrink-0" onClick={saveBodyweight}>
-            บันทึก
+            {t("บันทึก", "Save")}
           </button>
         </div>
         <Spark pts={data.bodyweight.slice(-12).map((b) => b.kg)} color="var(--acc)" />
         {data.bodyweight.length > 0 && (
           <div className="flex justify-between font-mono2 text-[10.5px] mt-1" style={{ color: "var(--mut)" }}>
             <span>{data.bodyweight.slice(-6)[0]?.date}</span>
-            <span style={{ color: "var(--cyan)" }}>{bw} kg ล่าสุด</span>
+            <span style={{ color: "var(--cyan)" }}>{t(`${bw} kg ล่าสุด`, `${bw} kg latest`)}</span>
           </div>
         )}
       </div>
@@ -135,7 +142,7 @@ export default function ProgressView() {
 
       <div className="glass p-4 mb-3">
         <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>@ {bw} kg</span>}>
-          ระดับความแข็งแรง
+          {t("ระดับความแข็งแรง", "Strength standards")}
         </Kicker>
         {Object.keys(STRENGTH_STANDARDS).map((key) => {
           const match = data.exercises.find((e) => standardKey(e.name) === key && e.type === "weight");
@@ -167,9 +174,9 @@ export default function ProgressView() {
                 />
               </div>
               <div className="flex justify-between font-mono2 text-[9px] mt-1" style={{ color: "var(--dim)" }}>
-                <span>เริ่มต้น {beg}</span>
-                <span>กลาง {mid}</span>
-                <span>สูง {adv}</span>
+                <span>{t(`เริ่มต้น ${beg}`, `Novice ${beg}`)}</span>
+                <span>{t(`กลาง ${mid}`, `Inter. ${mid}`)}</span>
+                <span>{t(`สูง ${adv}`, `Adv. ${adv}`)}</span>
               </div>
             </div>
           );
@@ -177,7 +184,7 @@ export default function ProgressView() {
       </div>
 
       <div className="glass p-4">
-        <Kicker>สถิติแต่ละท่า</Kicker>
+        <Kicker>{t("สถิติแต่ละท่า", "Per-exercise history")}</Kicker>
         <select value={exId} onChange={(e) => setExId(e.target.value)} className="w-full px-3.5 py-2.5 mb-2 text-[14px]">
           {data.exercises.map((e) => (
             <option key={e.id} value={e.id}>
@@ -189,18 +196,21 @@ export default function ProgressView() {
         {forecast && ex && (
           <div className="glass-inset px-3 py-2.5 my-2">
             <div className="font-mono2 text-[9px] uppercase tracking-[.18em] mb-1" style={{ color: "var(--cyan-dim)" }}>
-              พยากรณ์ PR · Linear Trend
+              {t("พยากรณ์ PR · Linear Trend", "PR forecast · linear trend")}
             </div>
             <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--ink)" }}>
-              โน้มไปทาง{" "}
+              {t("โน้มไปทาง", "Trending toward")}{" "}
               <b style={{ color: "var(--cyan)" }}>
                 {forecast.in2w} {ex.unit || "kg"}
               </b>{" "}
-              ในอีก 2 สัปดาห์ · <b style={{ color: "var(--cyan)" }}>{forecast.in4w}</b> ในอีก 4 สัปดาห์
+              {t("ในอีก 2 สัปดาห์ ·", "in 2 weeks ·")} <b style={{ color: "var(--cyan)" }}>{forecast.in4w}</b>{" "}
+              {t("ในอีก 4 สัปดาห์", "in 4 weeks")}
             </p>
             <p className="font-mono2 text-[10px] mt-0.5" style={{ color: "var(--dim)" }}>
-              จาก {forecast.points} เซสชันล่าสุด · แนวโน้ม {forecast.slopePerWeek >= 0 ? "+" : ""}
-              {forecast.slopePerWeek} kg/สัปดาห์
+              {t(
+                `จาก ${forecast.points} เซสชันล่าสุด · แนวโน้ม ${forecast.slopePerWeek >= 0 ? "+" : ""}${forecast.slopePerWeek} kg/สัปดาห์`,
+                `From the last ${forecast.points} sessions · trend ${forecast.slopePerWeek >= 0 ? "+" : ""}${forecast.slopePerWeek} kg/week`,
+              )}
             </p>
           </div>
         )}
@@ -211,21 +221,21 @@ export default function ProgressView() {
           >
             <span className="text-[13px]">🔒</span>
             <span className="text-[12px] flex-1 leading-snug" style={{ color: "var(--mut)" }}>
-              พยากรณ์ PR — อีก 2-4 สัปดาห์จะยกได้เท่าไหร่
+              {t("พยากรณ์ PR — อีก 2-4 สัปดาห์จะยกได้เท่าไหร่", "PR forecast — what you'll lift in 2-4 weeks")}
             </span>
             <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--acc)" }}>
-              ปลดล็อก
+              {t("ปลดล็อก", "Unlock")}
             </span>
           </button>
         )}
         {premium && !forecast && ex?.type === "weight" && sessions.length > 0 && (
           <p className="text-[11px] my-2" style={{ color: "var(--dim)" }}>
-            บันทึกให้ครบ 4 เซสชันขึ้นไป จะเริ่มพยากรณ์ PR ให้
+            {t("บันทึกให้ครบ 4 เซสชันขึ้นไป จะเริ่มพยากรณ์ PR ให้", "Log 4 or more sessions and the PR forecast kicks in")}
           </p>
         )}
         {sessions.length === 0 ? (
           <p className="text-center text-[12px] py-3" style={{ color: "var(--dim)" }}>
-            ยังไม่มีบันทึกของท่านี้
+            {t("ยังไม่มีบันทึกของท่านี้", "Nothing logged for this exercise yet")}
           </p>
         ) : (
           sessions
@@ -237,7 +247,11 @@ export default function ProgressView() {
                 <span className="flex-1 text-right" style={{ color: "var(--ink)" }}>
                   {s.sets
                     .map((st) =>
-                      ex?.type === "weight" ? `${st.weight}×${st.reps}` : ex?.type === "time" ? `${st.duration}วิ` : `${st.reps}`,
+                      ex?.type === "weight"
+                        ? `${st.weight}×${st.reps}`
+                        : ex?.type === "time"
+                          ? `${st.duration}${t("วิ", "s")}`
+                          : `${st.reps}`,
                     )
                     .join("  ")}
                 </span>
@@ -249,15 +263,23 @@ export default function ProgressView() {
             className="btn-gh w-full !py-2 !text-[11.5px] mt-2.5"
             style={{ color: "var(--bad)", borderColor: "rgba(255,107,107,.35)" }}
             onClick={() => {
-              if (!confirm(`ลบประวัติทั้งหมดของ "${ex.name}"? (ลบถาวร กู้ไม่ได้)`)) return;
+              if (
+                !confirm(
+                  t(
+                    `ลบประวัติทั้งหมดของ "${ex.name}"? (ลบถาวร กู้ไม่ได้)`,
+                    `Delete all history for "${ex.name}"? This is permanent — it cannot be undone.`,
+                  ),
+                )
+              )
+                return;
               update((d) => {
                 delete d.history[ex.id];
                 if (d.historyArchive) delete d.historyArchive[normName(ex.name)];
               });
-              toast("ลบประวัติท่านี้แล้ว");
+              toast(t("ลบประวัติท่านี้แล้ว", "History deleted"));
             }}
           >
-            🗑 ลบประวัติท่านี้
+            {t("🗑 ลบประวัติท่านี้", "🗑 Delete this exercise's history")}
           </button>
         )}
       </div>
@@ -269,7 +291,7 @@ export function Spark({ pts, color }: { pts: number[]; color: string }) {
   if (pts.length < 2)
     return (
       <div className="h-[52px] flex items-center justify-center font-mono2 text-[10px]" style={{ color: "var(--dim)" }}>
-        ยังไม่มีข้อมูลพอวาดกราฟ
+        {t("ยังไม่มีข้อมูลพอวาดกราฟ", "Not enough data to chart yet")}
       </div>
     );
   const min = Math.min(...pts);

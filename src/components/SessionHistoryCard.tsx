@@ -9,6 +9,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { Data } from "../lib/store";
+import { locale, plural, setsText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 interface NotedDay {
@@ -50,13 +51,13 @@ function collect(data: Data): NotedDay[] {
 const fmtFull = (iso: string) => {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return iso;
-  return new Date(t).toLocaleDateString("th-TH", { weekday: "short", day: "numeric", month: "short", year: "2-digit" });
+  return new Date(t).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short", year: "2-digit" });
 };
 
 const fmtChip = (iso: string) => {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return iso;
-  return new Date(t).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+  return new Date(t).toLocaleDateString(locale(), { day: "numeric", month: "short" });
 };
 
 export default function SessionHistoryCard() {
@@ -71,8 +72,14 @@ export default function SessionHistoryCard() {
 
   return (
     <div className="glass p-4 mb-3">
-      <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>{days.length} วันที่มีโน้ต</span>}>
-        ย้อนดูโน้ต
+      <Kicker
+        right={
+          <span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>
+            {t(`${days.length} วันที่มีโน้ต`, `${days.length} ${plural(days.length, "วัน", "day")} with notes`)}
+          </span>
+        }
+      >
+        {t("ย้อนดูโน้ต", "Past notes")}
       </Kicker>
 
       {/* แถบเลือกวัน — เลื่อนแนวนอน จึงสูงคงที่ไม่ว่าจะมีกี่วัน */}
@@ -104,8 +111,8 @@ export default function SessionHistoryCard() {
           </span>
           <span className="font-mono2 text-[10px]" style={{ color: "var(--mut)" }}>
             {sel.sets > 0
-              ? `${sel.sets} เซต${sel.volume > 0 ? ` · ${Math.round(sel.volume).toLocaleString()} kg` : ""}`
-              : "ไม่ได้ฝึก"}
+              ? `${setsText(sel.sets)}${sel.volume > 0 ? ` · ${Math.round(sel.volume).toLocaleString()} kg` : ""}`
+              : t("ไม่ได้ฝึก", "No training")}
           </span>
         </div>
 

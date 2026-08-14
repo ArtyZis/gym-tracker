@@ -1,6 +1,7 @@
 import { useApp } from "../AppContext";
 import type { SavedProgram } from "../lib/store";
 import { applyProgram, uid } from "../lib/store";
+import { locale, t } from "../lib/i18n";
 
 // โปรแกรมที่บันทึกไว้ — บันทึกโปรแกรมปัจจุบันเป็นชุด, สลับ/ลบได้ (ประวัติเก็บตามชื่อท่า)
 export default function SavedProgramsCard() {
@@ -70,7 +71,7 @@ export default function SavedProgramsCard() {
                 <div className="text-[13.5px] font-semibold truncate">{p.name}</div>
                 <div className="font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
                   {p.exercises.length} ท่า ·{" "}
-                  {new Date(p.savedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
+                  {new Date(p.savedAt).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "2-digit" })}
                 </div>
               </div>
               <button className="btn-gh !py-2 !px-3 !text-[11.5px] shrink-0" onClick={() => load(p)}>

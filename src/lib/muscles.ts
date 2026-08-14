@@ -2,6 +2,12 @@
 //
 // แยกออกมาเป็นไฟล์ของตัวเองเพราะเป็น "ข้อมูลอ้างอิง" ไม่ใช่ "ตรรกะวิเคราะห์"
 // เดิมอยู่ใน analyzer.ts ทำให้ exerciseDB ต้อง import จากตัววิเคราะห์ ซึ่งกลับหัวกลับหาง
+//
+// ทุกตารางมีคู่ *_TH/*_EN และ accessor (muscleName, equipName, ...) — เรียกผ่าน accessor
+// เสมอเวลาจะเอาไปขึ้นจอ ตาราง *_TH ที่ยัง export ไว้มีไว้ให้ตัวค้นหาที่ต้องแมตช์คำไทย
+// ตรงๆ ไม่ว่าผู้ใช้จะตั้งภาษาอะไร (คนไทยที่สลับเป็น en ก็ยังพิมพ์ "อก" ค้นได้)
+
+import { pick, t } from "./i18n";
 
 // ── กลุ่มกล้ามเนื้อ ──
 // แยกไหล่เป็น 3 มัด และแยกก้น/หลังขา ตามสเปค เพราะรวมกันแล้วมองไม่เห็นช่องว่าง:
@@ -56,6 +62,26 @@ export const MUSCLE_TH: Record<MuscleKey, string> = {
   calves: "น่อง",
   core: "แกนกลาง",
 };
+
+// ชื่อที่คนเล่นเวทใช้พูดกันจริง ไม่ใช่ชื่อกายวิภาค — "Lats" ไม่ใช่ "Latissimus dorsi"
+// ยกเว้น "Back" ที่ในระบบนี้หมายถึงหลังทั้งก้อน (lats+traps+rhomboids) ไม่ใช่แค่ปีก
+export const MUSCLE_EN: Record<MuscleKey, string> = {
+  chest: "Chest",
+  back: "Back",
+  front_delts: "Front delts",
+  side_delts: "Side delts",
+  rear_delts: "Rear delts",
+  biceps: "Biceps",
+  triceps: "Triceps",
+  forearms: "Forearms",
+  quads: "Quads",
+  hamstrings: "Hamstrings",
+  glutes: "Glutes",
+  calves: "Calves",
+  core: "Core",
+};
+
+export const muscleName = (k: MuscleKey): string => pick(MUSCLE_TH, MUSCLE_EN, k);
 
 // คำที่คนไทยพิมพ์ค้นจริง — ต่างจากชื่อทางการด้านบน
 export const MUSCLE_ALIAS: Record<MuscleKey, string> = {
@@ -116,6 +142,20 @@ export const PATTERN_TH: Record<Pattern, string> = {
   core: "แกนกลาง",
 };
 
+export const PATTERN_EN: Record<Pattern, string> = {
+  horizontal_push: "Horizontal push",
+  vertical_push: "Vertical push",
+  horizontal_pull: "Horizontal pull",
+  vertical_pull: "Vertical pull",
+  squat: "Squat",
+  hip_hinge: "Hip hinge",
+  lunge: "Lunge",
+  isolation: "Isolation",
+  core: "Core",
+};
+
+export const patternName = (k: Pattern): string => pick(PATTERN_TH, PATTERN_EN, k);
+
 // ── อุปกรณ์ ──
 // ต้องแยกละเอียดพอที่จะตอบได้ว่า "วันนี้ผู้ใช้ทำท่านี้ได้จริงไหม"
 // bench แยกจาก dumbbell เพราะมีดัมเบลที่บ้านแต่ไม่มีม้านั่งเป็นเรื่องปกติ
@@ -146,16 +186,33 @@ export const EQUIP_TH: Record<EquipTag, string> = {
   other: "อุปกรณ์เสริม",
 };
 
+export const EQUIP_EN: Record<EquipTag, string> = {
+  barbell: "Barbell",
+  dumbbell: "Dumbbell",
+  cable: "Cable",
+  machine: "Machine",
+  bench: "Bench",
+  rack: "Rack",
+  pullup_bar: "Pull-up bar",
+  bodyweight: "Bodyweight",
+  band: "Band",
+  kettlebell: "Kettlebell",
+  other: "Other",
+};
+
+export const equipName = (k: EquipTag): string => pick(EQUIP_TH, EQUIP_EN, k);
+
 // ชุดอุปกรณ์สำเร็จรูป — ให้ผู้ใช้กดเลือกทีเดียวแทนติ๊กทีละอัน
-export const EQUIP_PRESETS: { id: string; label: string; equip: EquipTag[] }[] = [
+// label เป็นฟังก์ชันเพราะต้องอ่านภาษาตอนเรียก ไม่ใช่ตอนโหลดโมดูล
+export const EQUIP_PRESETS: { id: string; label: () => string; equip: EquipTag[] }[] = [
   {
     id: "gym",
-    label: "ยิมเต็มรูปแบบ",
+    label: () => t("ยิมเต็มรูปแบบ", "Full gym"),
     equip: ["barbell", "dumbbell", "cable", "machine", "bench", "rack", "pullup_bar", "bodyweight", "other"],
   },
-  { id: "home_dumbbell", label: "บ้าน (มีดัมเบล)", equip: ["dumbbell", "bodyweight", "band"] },
-  { id: "home_bar", label: "บ้าน (มีบาร์โหน)", equip: ["pullup_bar", "bodyweight", "band"] },
-  { id: "bodyweight", label: "ตัวเปล่า", equip: ["bodyweight"] },
+  { id: "home_dumbbell", label: () => t("บ้าน (มีดัมเบล)", "Home (dumbbells)"), equip: ["dumbbell", "bodyweight", "band"] },
+  { id: "home_bar", label: () => t("บ้าน (มีบาร์โหน)", "Home (pull-up bar)"), equip: ["pullup_bar", "bodyweight", "band"] },
+  { id: "bodyweight", label: () => t("ตัวเปล่า", "Bodyweight only"), equip: ["bodyweight"] },
 ];
 
 // ── ต้นทุนความล้า ──
@@ -178,12 +235,28 @@ export const EXPERIENCE_TH: Record<Experience, string> = {
   advanced: "ขั้นสูง",
 };
 
+export const EXPERIENCE_EN: Record<Experience, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
+
+export const experienceName = (k: Experience): string => pick(EXPERIENCE_TH, EXPERIENCE_EN, k);
+
 // คำอธิบายให้ผู้ใช้เลือกได้ถูก — คนมักประเมินตัวเองสูงเกิน
 export const EXPERIENCE_DESC: Record<Experience, string> = {
   beginner: "ฝึกจริงจังมาไม่ถึง 1 ปี",
   intermediate: "ฝึกต่อเนื่อง 1-3 ปี น้ำหนักยังขึ้นเรื่อยๆ",
   advanced: "ฝึกเกิน 3 ปี น้ำหนักขึ้นช้าแล้ว",
 };
+
+export const EXPERIENCE_DESC_EN: Record<Experience, string> = {
+  beginner: "Under a year of serious training",
+  intermediate: "1-3 years, still adding weight",
+  advanced: "3+ years, progress has slowed",
+};
+
+export const experienceDesc = (k: Experience): string => pick(EXPERIENCE_DESC, EXPERIENCE_DESC_EN, k);
 
 export type Goal = "hypertrophy" | "strength" | "fatloss" | "general";
 
@@ -193,6 +266,15 @@ export const GOAL_TH: Record<Goal, string> = {
   fatloss: "ลดไขมัน",
   general: "สุขภาพทั่วไป",
 };
+
+export const GOAL_EN: Record<Goal, string> = {
+  hypertrophy: "Build muscle",
+  strength: "Get stronger",
+  fatloss: "Lose fat",
+  general: "General health",
+};
+
+export const goalName = (k: Goal): string => pick(GOAL_TH, GOAL_EN, k);
 
 export interface VolumeTarget {
   min: number; // ขอบล่างของช่วงเป้าหมาย
@@ -246,3 +328,13 @@ export const INJURY_TH: Record<InjuryKey, string> = {
   elbow: "ข้อศอก",
   wrist: "ข้อมือ",
 };
+
+export const INJURY_EN: Record<InjuryKey, string> = {
+  lower_back: "Lower back",
+  shoulder: "Shoulder",
+  knee: "Knee",
+  elbow: "Elbow",
+  wrist: "Wrist",
+};
+
+export const injuryName = (k: InjuryKey): string => pick(INJURY_TH, INJURY_EN, k);

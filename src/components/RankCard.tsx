@@ -6,8 +6,9 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { Rank } from "../lib/rank";
-import { RANKS, RANK_COLOR, RANK_TH, bestLifts, computeRank } from "../lib/rank";
+import { RANKS, RANK_COLOR, bestLifts, computeRank, rankName } from "../lib/rank";
 import { shareBestLiftsCard, shareRankCard } from "../lib/share";
+import { exText, setsText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 import RankEmblem from "./RankEmblem";
 import RankPeek from "./RankPeek";
@@ -30,33 +31,42 @@ export default function RankCard() {
     setBusy(true);
     const r = await (kind === "rank" ? shareRankCard(data) : shareBestLiftsCard(data));
     setBusy(false);
-    toast(r === "shared" ? "แชร์แล้ว" : r === "downloaded" ? "บันทึกรูปแล้ว" : "แชร์ไม่สำเร็จ", r !== "failed");
+    toast(
+      r === "shared" ? t("แชร์แล้ว", "Shared") : r === "downloaded" ? t("บันทึกรูปแล้ว", "Image saved") : t("แชร์ไม่สำเร็จ", "Share failed"),
+      r !== "failed",
+    );
   };
 
   return (
     <div className="glass p-4 mb-3">
-      <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>{lifts.length} ท่า</span>}>
-        แรงค์ความแข็งแรง
+      <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>{exText(lifts.length)}</span>}>
+        {t("แรงค์ความแข็งแรง", "Strength rank")}
       </Kicker>
 
       <div className="flex items-center gap-3 mb-3">
-        <button className="shrink-0" onClick={() => setPeek(res.rank ?? "E")} aria-label="ดูรายละเอียดแรงค์">
+        <button className="shrink-0" onClick={() => setPeek(res.rank ?? "E")} aria-label={t("ดูรายละเอียดแรงค์", "View rank details")}>
           <RankEmblem rank={res.rank} size={104} />
         </button>
         <div className="min-w-0 flex-1">
           {res.rank ? (
             <>
               <div className="font-disp font-bold text-[17px] leading-snug" style={{ color: "var(--ink)" }}>
-                {RANK_TH[res.rank]}
+                {rankName(res.rank)}
               </div>
               <div className="text-[11px] mt-1 leading-relaxed" style={{ color: "var(--mut)" }}>
-                เทียบน้ำหนักตัว {res.bodyweight} kg · จาก {res.lifts.length} ท่าหลัก
+                {t(
+                  `เทียบน้ำหนักตัว ${res.bodyweight} kg · จาก ${res.lifts.length} ท่าหลัก`,
+                  `Against ${res.bodyweight} kg bodyweight · from ${res.lifts.length} main lifts`,
+                )}
               </div>
             </>
           ) : (
             <div className="text-[11.5px] leading-relaxed" style={{ color: "var(--mut)" }}>
-              ยังประเมินแรงค์ไม่ได้ — ต้องมีน้ำหนักตัวและท่าหลักอย่างน้อย 2 ท่า
-              {res.missing.length > 0 && ` (ยังขาด ${res.missing.join(" · ")})`}
+              {t(
+                "ยังประเมินแรงค์ไม่ได้ — ต้องมีน้ำหนักตัวและท่าหลักอย่างน้อย 2 ท่า",
+                "Can't rank you yet — needs your bodyweight and at least 2 of the main lifts",
+              )}
+              {res.missing.length > 0 && t(` (ยังขาด ${res.missing.join(" · ")})`, ` (missing ${res.missing.join(" · ")})`)}
             </div>
           )}
         </div>
@@ -77,7 +87,7 @@ export default function RankCard() {
                 border: `1px solid ${passed ? `color-mix(in srgb, ${RANK_COLOR[r]} 40%, transparent)` : "var(--edge)"}`,
               }}
               onClick={() => setPeek(r)}
-              aria-label={`ดูแรงค์ ${r}`}
+              aria-label={t(`ดูแรงค์ ${r}`, `View rank ${r}`)}
             >
               {r}
             </button>
@@ -85,13 +95,13 @@ export default function RankCard() {
         })}
       </div>
       <p className="text-[10px] mb-3 text-center" style={{ color: "var(--dim)" }}>
-        กดที่ตัวอักษรเพื่อดูตราและเกณฑ์ของแต่ละระดับ
+        {t("กดที่ตัวอักษรเพื่อดูตราและเกณฑ์ของแต่ละระดับ", "Tap a letter to see its emblem and requirements")}
       </p>
 
       {res.lifts.length > 0 && (
         <div className="glass-inset p-3 mb-2.5">
           <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-2" style={{ color: "var(--mut)" }}>
-            ท่าหลัก · 1RM ประเมิน / น้ำหนักตัว
+            {t("ท่าหลัก · 1RM ประเมิน / น้ำหนักตัว", "Main lifts · est. 1RM / bodyweight")}
           </div>
           {res.lifts.map((l) => (
             <div key={l.key} className="flex items-baseline justify-between gap-2 py-[3px] text-[12px]">
@@ -105,14 +115,17 @@ export default function RankCard() {
       )}
 
       <button className="btn-cy w-full !py-2.5 !text-[12.5px] mb-1" onClick={() => share("rank")} disabled={busy}>
-        {busy ? "กำลังสร้างรูป…" : "แชร์แรงค์ + ท่าหลัก"}
+        {busy ? t("กำลังสร้างรูป…", "Building image…") : t("แชร์แรงค์ + ท่าหลัก", "Share rank + main lifts")}
       </button>
       <p className="text-[10px] mb-3 text-center leading-relaxed" style={{ color: "var(--dim)" }}>
-        การ์ดจะโชว์จำนวนวันที่ฝึกจริงคู่ไปด้วย — คนดูจะได้แยกออกว่าใครฝึกมาจริง
+        {t(
+          "การ์ดจะโชว์จำนวนวันที่ฝึกจริงคู่ไปด้วย — คนดูจะได้แยกออกว่าใครฝึกมาจริง",
+          "The card shows how many days you've actually trained — so people can tell the real ones apart",
+        )}
       </p>
 
       <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-1.5" style={{ color: "var(--mut)" }}>
-        สถิติสูงสุดที่เคยทำ
+        {t("สถิติสูงสุดที่เคยทำ", "All-time bests")}
       </div>
       {(all ? lifts : lifts.slice(0, SHOW)).map((l) => (
         <div key={l.name} className="flex items-baseline justify-between gap-2 py-[3px] text-[12px]">
@@ -120,28 +133,30 @@ export default function RankCard() {
             {l.name}
           </span>
           <span className="font-mono2 text-[10.5px] shrink-0" style={{ color: "var(--acc)" }}>
-            {l.weight} {l.unit} × {l.reps} · {l.sets} เซต
+            {l.weight} {l.unit} × {l.reps} · {setsText(l.sets)}
           </span>
         </div>
       ))}
       {lifts.length > SHOW && (
         <button className="btn-gh w-full !py-2 !text-[11.5px] mt-2" onClick={() => setAll((v) => !v)}>
-          {all ? "ย่อ" : `ดูทั้งหมด ${lifts.length} ท่า`}
+          {all ? t("ย่อ", "Show less") : t(`ดูทั้งหมด ${lifts.length} ท่า`, `Show all ${lifts.length}`)}
         </button>
       )}
 
       <button className="btn-gh w-full !py-2.5 !text-[12px] mt-2" onClick={() => share("best")} disabled={busy}>
-        {busy ? "กำลังสร้างรูป…" : `แชร์สถิติสูงสุด ${lifts.length} ท่า`}
+        {busy ? t("กำลังสร้างรูป…", "Building image…") : t(`แชร์สถิติสูงสุด ${lifts.length} ท่า`, `Share ${lifts.length} personal bests`)}
       </button>
 
       {!res.bodyweight && (
         <button className="btn-gh w-full !py-2 !text-[11px] mt-2" onClick={() => goTab("progress")}>
-          บันทึกน้ำหนักตัวก่อนถึงจะประเมินแรงค์ได้
+          {t("บันทึกน้ำหนักตัวก่อนถึงจะประเมินแรงค์ได้", "Log your bodyweight to get ranked")}
         </button>
       )}
       <p className="text-[10.5px] mt-2 leading-relaxed" style={{ color: "var(--dim)" }}>
-        แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงที่ใช้อ้างอิงกันทั่วไป (อิงผู้ชายเป็นหลัก)
-        ไม่ใช่การวัดที่แม่นยำ — ใช้ดูพัฒนาการของตัวเองเทียบกับตัวเองดีที่สุด
+        {t(
+          "แรงค์เป็นค่าประเมินจากมาตรฐานความแข็งแรงที่ใช้อ้างอิงกันทั่วไป (อิงผู้ชายเป็นหลัก) ไม่ใช่การวัดที่แม่นยำ — ใช้ดูพัฒนาการของตัวเองเทียบกับตัวเองดีที่สุด",
+          "Rank is an estimate based on commonly used strength standards (which skew male), not a precise measurement — it's most useful for tracking yourself against yourself.",
+        )}
       </p>
 
       {peek && <RankPeek rank={peek} res={res} onPick={setPeek} onClose={() => setPeek(null)} />}

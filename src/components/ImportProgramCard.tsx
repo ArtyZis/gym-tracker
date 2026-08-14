@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
-import { DAY_TH, applyProgram, exercisesForDay, repTargetText, restoreHistory, uid } from "../lib/store";
+import { applyProgram, dayName, exercisesForDay, repTargetText, restoreHistory, uid } from "../lib/store";
 import { parseProgram } from "../lib/programParser";
 
 const EXAMPLE = `จันทร์ - Push
@@ -124,7 +124,7 @@ export default function ImportProgramCard() {
               {byDay.map(([day, exs]) => (
                 <div key={day} className="mb-2">
                   <div className="font-disp text-[12px] mb-1" style={{ color: "var(--cyan-dim)" }}>
-                    {DAY_TH[day]}
+                    {dayName(day)}
                   </div>
                   {exs.map((ex, i) => (
                     <div key={i} className="flex items-baseline gap-2 py-0.5 text-[12px]">

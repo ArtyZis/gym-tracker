@@ -1,20 +1,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { Data, DayKey, EffectiveExercise, Exercise } from "../lib/store";
-import {
-  DAYS,
-  DAY_TH,
-  DAY_TH_SHORT,
-  JS_DAYS,
-  addMakeup,
-  effectiveExercisesForDay,
-  exercisesForDay,
-  makeupSlots,
-  removeExtra,
-  removeMakeup,
-  repTargetText,
-  todayStr,
-} from "../lib/store";
+import { DAYS, JS_DAYS, addMakeup, dayName, effectiveExercisesForDay, exercisesForDay, makeupSlots, removeExtra, removeMakeup, repTargetText, todayStr } from "../lib/store";
 import ExercisePicker from "./ExercisePicker";
 import { Icon } from "./ui";
 import DayNote from "./DayNote";
@@ -25,6 +12,7 @@ import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
 import { isPremium } from "../lib/premium";
 import { findTemplate } from "../lib/exerciseDB";
 import { activeDays, isLoop, slotName, slotShort, todaySlot } from "../lib/loop";
+import { exText, repsText, secText, setsText, t } from "../lib/i18n";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
 function restForExercise(data: Data, ex: Exercise, fallback: number): number {
@@ -33,7 +21,7 @@ function restForExercise(data: Data, ex: Exercise, fallback: number): number {
 }
 
 function formatRest(sec: number): string {
-  return sec < 60 ? `${sec} วิ` : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  return sec < 60 ? secText(sec) : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
 interface Draft {
@@ -47,7 +35,7 @@ const SEG_COUNT = 10;
 // เซตxเรปแบบย่อสำหรับแถวท่าที่ยังไม่กาง — สั้นพอให้ชื่อท่าไม่ถูกบีบ
 function setNotation(ex: Exercise): string {
   if (ex.amrap) return `${ex.sets}×AMRAP`;
-  if (ex.type === "time") return `${ex.sets}×${ex.rmin}-${ex.rmax}วิ`;
+  if (ex.type === "time") return `${ex.sets}×${ex.rmin}-${ex.rmax}${t("วิ", "s")}`;
   return `${ex.sets}×${ex.rmin === ex.rmax ? ex.rmin : `${ex.rmin}-${ex.rmax}`}`;
 }
 
@@ -239,9 +227,9 @@ export default function TodayView() {
           title: "NEW PR",
           lines: [
             { label: ex.name, value: `${top} ${ex.unit || "kg"}` },
-            { label: "สถิติเดิม", value: `${best} ${ex.unit || "kg"}` },
-            { label: "เพิ่มขึ้น", value: `+${+(top - best).toFixed(2)} ${ex.unit || "kg"}`, good: true },
-            { label: "ทำครบ", value: `${ex.sets} เซต`, good: true },
+            { label: t("สถิติเดิม", "Old best"), value: `${best} ${ex.unit || "kg"}` },
+            { label: t("เพิ่มขึ้น", "Gain"), value: `+${+(top - best).toFixed(2)} ${ex.unit || "kg"}`, good: true },
+            { label: t("ทำครบ", "Completed"), value: setsText(ex.sets), good: true },
           ],
         });
       }
@@ -251,12 +239,15 @@ export default function TodayView() {
           kind: "complete",
           title: "COMPLETE",
           lines: [
-            { label: "วัน", value: label || DAY_TH[day] },
-            { label: "ท่าทั้งหมด", value: `${exs.length} ท่า` },
-            { label: "เซตที่ทำ", value: `${totalSets} เซต`, good: true },
-            ...(volume > 0 ? [{ label: "ยกรวม", value: `${volume.toLocaleString()} kg` }] : []),
+            { label: t("วัน", "Day"), value: label || dayName(day) },
+            { label: t("ท่าทั้งหมด", "Exercises"), value: exText(exs.length) },
+            { label: t("เซตที่ทำ", "Sets done"), value: setsText(totalSets), good: true },
+            ...(volume > 0 ? [{ label: t("ยกรวม", "Total volume"), value: `${volume.toLocaleString()} kg` }] : []),
           ],
-          footer: "ครบทุกเซตตามตาราง — พักให้พอแล้วเจอกันวันฝึกถัดไป",
+          footer: t(
+            "ครบทุกเซตตามตาราง — พักให้พอแล้วเจอกันวันฝึกถัดไป",
+            "Every set on the board. Rest up — see you next session.",
+          ),
         });
       // พักอัตโนมัติด้วยเวลาที่เหมาะกับท่านั้น (ไม่พักถ้าเป็นเซตสุดท้ายของท่า)
       if (data.settings.autoRest && !lastSet) rest.current?.start(restForExercise(data, ex, restSec), ex.name);
@@ -274,12 +265,12 @@ export default function TodayView() {
         {/* หัวเควสต์ของวัน — ชื่อวันเป็นพระเอก แถบแบ่งช่องอ่านค่าจากระยะไกลง่ายกว่าวงแหวน */}
         <div className="relative">
           <div className="sys-label mb-2">
-            {exs.length ? "QUEST" : "REST DAY"} · {DAY_TH[day]}
-            {isToday ? " · วันนี้" : ""}
+            {exs.length ? "QUEST" : "REST DAY"} · {dayName(day)}
+            {isToday ? t(" · วันนี้", " · TODAY") : ""}
           </div>
           <div className="flex items-center gap-2">
             <h2 className="font-disp font-bold text-[26px] leading-none tracking-wide text-glow">
-              {exs.length ? label || slotName(data, day) : "วันพัก"}
+              {exs.length ? label || slotName(data, day) : t("วันพัก", "Rest day")}
             </h2>
             {allDone && (
               <span
@@ -291,9 +282,7 @@ export default function TodayView() {
             )}
           </div>
           <p className="text-[12px] mt-1.5" style={{ color: "var(--mut)" }}>
-            {exs.length
-              ? `${exs.length} ท่า · ${totalSets} เซต`
-              : "พักฟื้นกล้ามเนื้อ"}
+            {exs.length ? `${exText(exs.length)} · ${setsText(totalSets)}` : t("พักฟื้นกล้ามเนื้อ", "Muscle recovery")}
           </p>
 
           {exs.length > 0 && (
@@ -305,10 +294,10 @@ export default function TodayView() {
               </div>
               <div className="flex justify-between font-mono2 text-[10.5px] mt-1.5" style={{ color: "var(--mut)" }}>
                 <span>
-                  {doneSets} / {totalSets} เซต
+                  {doneSets} / {setsText(totalSets)}
                 </span>
                 <span style={{ color: volume > 0 ? "var(--acc)" : undefined }}>
-                  {volume > 0 ? `ยกไปแล้ว ${volume.toLocaleString()} kg` : ""}
+                  {volume > 0 ? t(`ยกไปแล้ว ${volume.toLocaleString()} kg`, `${volume.toLocaleString()} kg lifted`) : ""}
                 </span>
               </div>
             </>
@@ -323,7 +312,7 @@ export default function TodayView() {
                 update((d) => {
                   d.settings.autoRest = !d.settings.autoRest;
                 });
-                toast(data.settings.autoRest ? "ปิดจับเวลาอัตโนมัติ" : "เปิดจับเวลาอัตโนมัติ");
+                toast(data.settings.autoRest ? t("ปิดจับเวลาอัตโนมัติ", "Auto rest timer off") : t("เปิดจับเวลาอัตโนมัติ", "Auto rest timer on"));
               }}
             >
               AUTO {data.settings.autoRest ? "ON" : "OFF"}
@@ -352,7 +341,7 @@ export default function TodayView() {
             <button
               className="btn-cy !py-2.5 !px-4 shrink-0 flex items-center justify-center"
               onClick={() => rest.current?.start(restSec)}
-              aria-label="เริ่มจับเวลาพัก"
+              aria-label={t("เริ่มจับเวลาพัก", "Start rest timer")}
             >
               <Icon name="play" size={11} />
             </button>
@@ -411,13 +400,16 @@ export default function TodayView() {
             STANDBY
           </div>
           <div className="font-disp font-bold text-[19px] mt-2 tracking-wide" style={{ color: "var(--ink)" }}>
-            {slotName(data, day)} — พัก
+            {slotName(data, day)} — {t("พัก", "Rest")}
           </div>
           <p className="text-[11.5px] mt-2 leading-relaxed" style={{ color: "var(--mut)" }}>
-            ฟื้นตัว · กินให้ถึงเป้า · นอนให้พอ
+            {t("ฟื้นตัว · กินให้ถึงเป้า · นอนให้พอ", "Recover · Eat enough · Sleep enough")}
           </p>
           <p className="text-[10.5px] mt-1 leading-relaxed" style={{ color: "var(--dim)" }}>
-            เลือกวันอื่นด้านบนเพื่อดูตาราง · ข้ามวันไหนไปก็ดึงมาชดเชยวันนี้ได้ด้านล่าง
+            {t(
+              "เลือกวันอื่นด้านบนเพื่อดูตาราง · ข้ามวันไหนไปก็ดึงมาชดเชยวันนี้ได้ด้านล่าง",
+              "Tap another day above to see its plan · missed a day? Pull it in below to make it up",
+            )}
           </p>
         </div>
       )}
@@ -502,22 +494,22 @@ export default function TodayView() {
                     </span>
                     {ex.machine && (
                       <span className="font-mono2 text-[9.5px]" style={{ color: "var(--cyan-dim)" }}>
-                        เครื่อง
+                        {t("เครื่อง", "Machine")}
                       </span>
                     )}
                     {ex.swapped && (
                       <span className="font-mono2 text-[9.5px]" style={{ color: "var(--warn)" }}>
-                        · แทน {data.exercises.find((e) => e.id === ex.origId)?.name ?? "ท่าเดิม"}
+                        · {t("แทน", "swapped for")} {data.exercises.find((e) => e.id === ex.origId)?.name ?? t("ท่าเดิม", "original")}
                       </span>
                     )}
                     {ex.extra && (
                       <span className="font-mono2 text-[9.5px]" style={{ color: "var(--acc-2)" }}>
-                        · เพิ่มวันนี้
+                        · {t("เพิ่มวันนี้", "added today")}
                       </span>
                     )}
                     {ex.makeupOf && (
                       <span className="font-mono2 text-[9.5px]" style={{ color: "var(--warn)" }}>
-                        · ชดเชย {dayTitle(ex.makeupOf)}
+                        · {t("ชดเชย", "make-up")} {dayTitle(ex.makeupOf)}
                       </span>
                     )}
                   </span>
@@ -533,7 +525,7 @@ export default function TodayView() {
                     border: `1px solid ${ex.swapped || ex.extra ? "var(--edge-hi)" : "color-mix(in srgb, var(--acc) 24%, transparent)"}`,
                     color: "var(--acc)",
                   }}
-                  aria-label="เปลี่ยนท่าวันนี้"
+                  aria-label={t("เปลี่ยนท่าวันนี้", "Swap this exercise for today")}
                   onClick={() => {
                     setOpenId(ex.id);
                     setSwapFor(swapFor === ex.id ? null : ex.id);
@@ -549,10 +541,10 @@ export default function TodayView() {
                 <button
                   className="w-8 h-8 cut-sm shrink-0 flex items-center justify-center text-[12px]"
                   style={{ background: "rgba(255,107,107,.10)", border: "1px solid rgba(255,107,107,.3)", color: "var(--bad)" }}
-                  aria-label="เอาท่านี้ออกจากวันนี้"
+                  aria-label={t("เอาท่านี้ออกจากวันนี้", "Remove this exercise from today")}
                   onClick={() => {
                     update((d) => removeExtra(d, ex.name));
-                    toast(`เอา ${ex.name} ออกแล้ว`);
+                    toast(t(`เอา ${ex.name} ออกแล้ว`, `Removed ${ex.name}`));
                   }}
                 >
                   ✕
@@ -563,7 +555,7 @@ export default function TodayView() {
                 className="shrink-0 text-[11px] px-1 transition-transform"
                 style={{ color: "var(--dim)", transform: open ? "rotate(180deg)" : "" }}
                 onClick={() => setOpenId(open ? null : ex.id)}
-                aria-label="ขยาย"
+                aria-label={t("ขยาย", "Expand")}
               >
                 ▾
               </button>
@@ -599,10 +591,10 @@ export default function TodayView() {
                       >
                         <span className="text-[13px]">🔒</span>
                         <span className="text-[12px] flex-1 leading-snug" style={{ color: "var(--mut)" }}>
-                          เป้าหมายน้ำหนักวันนี้ + warm-up
+                          {t("เป้าหมายน้ำหนักวันนี้ + warm-up", "Today's target weight + warm-up")}
                         </span>
                         <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--acc)" }}>
-                          ปลดล็อก
+                          {t("ปลดล็อก", "Unlock")}
                         </span>
                       </button>
                     )}
@@ -618,11 +610,11 @@ export default function TodayView() {
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="text-[13px]">⏱️</span>
                     <span className="text-[12px] truncate" style={{ color: "var(--mut)" }}>
-                      พัก <b style={{ color: "var(--cyan)" }}>{formatRest(suggestRest(ex))}</b> · {restReason(ex)}
+                      {t("พัก", "Rest")} <b style={{ color: "var(--cyan)" }}>{formatRest(suggestRest(ex))}</b> · {restReason(ex)}
                     </span>
                   </span>
                   <span className="font-mono2 text-[10px] shrink-0" style={{ color: "var(--cyan-dim)" }}>
-                    ▶ เริ่มพัก
+                    ▶ {t("เริ่มพัก", "Start")}
                   </span>
                 </button>
 
@@ -648,7 +640,7 @@ export default function TodayView() {
                       className="font-mono2 text-[9px] uppercase tracking-[.18em] mb-1.5"
                       style={{ color: "var(--cyan-dim)" }}
                     >
-                      Warm-up ก่อนเซตจริง
+                      {t("Warm-up ก่อนเซตจริง", "Warm-up before working sets")}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {warmup.map((w, i) => (
@@ -681,7 +673,7 @@ export default function TodayView() {
                       )}
                       <Stepper
                         val={draft.reps}
-                        unit={ex.type === "time" ? "วิ" : "ครั้ง"}
+                        unit={ex.type === "time" ? t("วิ", "sec") : t("ครั้ง", "reps")}
                         onDelta={(d) => bump(ex, idx, "reps", d)}
                       />
                       <button
@@ -705,7 +697,7 @@ export default function TodayView() {
                 {complete && (
                   <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--edge)" }}>
                     <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-1.5" style={{ color: "var(--mut)" }}>
-                      เซตสุดท้ายเหลือแรงอีกกี่ครั้ง
+                      {t("เซตสุดท้ายเหลือแรงอีกกี่ครั้ง", "Reps left in the tank on that last set")}
                     </div>
                     <div className="flex gap-1.5">
                       {[0, 1, 2, 3, 4].map((v) => {
@@ -729,7 +721,10 @@ export default function TodayView() {
                       })}
                     </div>
                     <p className="text-[10px] mt-1.5 leading-relaxed" style={{ color: "var(--dim)" }}>
-                      0 = หมดแรงจริง · 1-2 = กำลังดี · 3+ = เบาไป ครั้งหน้าขึ้นน้ำหนักได้
+                      {t(
+                        "0 = หมดแรงจริง · 1-2 = กำลังดี · 3+ = เบาไป ครั้งหน้าขึ้นน้ำหนักได้",
+                        "0 = true failure · 1-2 = the sweet spot · 3+ = too light, go heavier next time",
+                      )}
                     </p>
                   </div>
                 )}
@@ -763,11 +758,11 @@ export default function TodayView() {
                     }}
                     onClick={() => {
                       update((d) => removeMakeup(d, s));
-                      toast(`เอาการชดเชย${dayTitle(s)}ออกแล้ว`);
+                      toast(t(`เอาการชดเชย${dayTitle(s)}ออกแล้ว`, `Removed the ${dayTitle(s)} make-up`));
                     }}
-                    aria-label={`เอาการชดเชย${dayTitle(s)}ออก`}
+                    aria-label={t(`เอาการชดเชย${dayTitle(s)}ออก`, `Remove the ${dayTitle(s)} make-up`)}
                   >
-                    ชดเชย {dayTitle(s)} {done ? "· ครบแล้ว" : ""}
+                    {t("ชดเชย", "Make-up:")} {dayTitle(s)} {done ? t("· ครบแล้ว", "· done") : ""}
                     <Icon name="close" size={9} />
                   </button>
                 );
@@ -778,11 +773,11 @@ export default function TodayView() {
           {pickMakeup ? (
             <div className="glass-inset p-2.5">
               <div className="font-mono2 text-[9px] uppercase tracking-[.16em] mb-2" style={{ color: "var(--mut)" }}>
-                ดึงตารางวันไหนมาเล่น
+                {t("ดึงตารางวันไหนมาเล่น", "Which day do you want to pull in?")}
               </div>
               {makeupCandidates.length === 0 ? (
                 <p className="text-[11px] leading-relaxed" style={{ color: "var(--dim)" }}>
-                  ไม่มีวันอื่นให้ดึงมาแล้ว
+                  {t("ไม่มีวันอื่นให้ดึงมาแล้ว", "No other days left to pull in")}
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
@@ -800,16 +795,16 @@ export default function TodayView() {
                         update((d) => addMakeup(d, s));
                         setPickMakeup(false);
                         setDay(todaySlot(data)); // ท่าที่ชดเชยโผล่ในวันนี้ ไม่ใช่วันที่กำลังดูอยู่
-                        toast(`ดึงตาราง${dayTitle(s)}มาชดเชยแล้ว`);
+                        toast(t(`ดึงตาราง${dayTitle(s)}มาชดเชยแล้ว`, `Pulled in ${dayTitle(s)} as a make-up`));
                       }}
                     >
-                      {dayTitle(s)} · {exercisesForDay(data, s).length} ท่า
+                      {dayTitle(s)} · {exText(exercisesForDay(data, s).length)}
                     </button>
                   ))}
                 </div>
               )}
               <button className="btn-gh w-full !py-1.5 !text-[11px] mt-2" onClick={() => setPickMakeup(false)}>
-                ปิด
+                {t("ปิด", "Close")}
               </button>
             </div>
           ) : (
@@ -821,7 +816,7 @@ export default function TodayView() {
                 setSwapFor(null);
               }}
             >
-              + ชดเชยวันที่ข้าม (ดึงตารางวันอื่นมา)
+              {t("+ ชดเชยวันที่ข้าม (ดึงตารางวันอื่นมา)", "+ Make up a missed day (pull in another day)")}
             </button>
           )}
         </div>
@@ -839,7 +834,7 @@ export default function TodayView() {
               setSwapFor(null);
             }}
           >
-            + เพิ่มท่าเข้าวันนี้ (ชั่วคราว)
+            {t("+ เพิ่มท่าเข้าวันนี้ (ชั่วคราว)", "+ Add an exercise to today (temporary)")}
           </button>
         ))}
     </div>

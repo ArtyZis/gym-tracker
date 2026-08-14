@@ -11,6 +11,7 @@ import type { Data, Exercise } from "./store";
 import { normName } from "./store";
 import { findTemplate } from "./exerciseDB";
 import { epley1RM } from "./progression";
+import { pick, t } from "./i18n";
 
 export type Rank = "E" | "D" | "C" | "B" | "A" | "S";
 
@@ -24,6 +25,17 @@ export const RANK_TH: Record<Rank, string> = {
   A: "แข็งแรงมาก",
   S: "ระดับแข่งขัน",
 };
+
+export const RANK_EN: Record<Rank, string> = {
+  E: "Untrained",
+  D: "Novice",
+  C: "Intermediate",
+  B: "Advanced",
+  A: "Very strong",
+  S: "Competitive",
+};
+
+export const rankName = (r: Rank): string => pick(RANK_TH, RANK_EN, r);
 
 export const RANK_COLOR: Record<Rank, string> = {
   E: "#7c8aa8",
@@ -49,11 +61,12 @@ export const RANK_STARS: Record<Rank, number> = { E: 0, D: 1, C: 2, B: 3, A: 4, 
 
 // ท่าหลักที่ใช้ตัดสินแรงค์ + เกณฑ์อัตราส่วน 1RM ต่อน้ำหนักตัว สำหรับ [D, C, B, A, S]
 // ต่ำกว่าเกณฑ์ D ทั้งหมด = E
-export const LIFT_STANDARDS: { key: string; label: string; names: string[]; ratios: [number, number, number, number, number] }[] = [
-  { key: "squat", label: "สควอท", names: ["Barbell Squat", "Front Squat", "Box Squat", "Smith Machine Squat"], ratios: [1.0, 1.25, 1.5, 2.0, 2.5] },
-  { key: "bench", label: "เบนช์", names: ["Barbell Bench Press", "Incline Barbell Press", "Close Grip Bench Press"], ratios: [0.75, 1.0, 1.25, 1.5, 2.0] },
-  { key: "deadlift", label: "เดดลิฟต์", names: ["Deadlift", "Sumo Deadlift", "Romanian Deadlift", "Stiff Leg Deadlift"], ratios: [1.25, 1.5, 1.75, 2.25, 3.0] },
-  { key: "ohp", label: "ดันบ่า", names: ["Overhead Press", "Push Press"], ratios: [0.45, 0.6, 0.75, 0.9, 1.1] },
+// label เป็นฟังก์ชันเพราะต้องอ่านภาษา ณ ตอนเรียก ไม่ใช่ตอนโหลดโมดูล
+export const LIFT_STANDARDS: { key: string; label: () => string; names: string[]; ratios: [number, number, number, number, number] }[] = [
+  { key: "squat", label: () => t("สควอท", "Squat"), names: ["Barbell Squat", "Front Squat", "Box Squat", "Smith Machine Squat"], ratios: [1.0, 1.25, 1.5, 2.0, 2.5] },
+  { key: "bench", label: () => t("เบนช์", "Bench"), names: ["Barbell Bench Press", "Incline Barbell Press", "Close Grip Bench Press"], ratios: [0.75, 1.0, 1.25, 1.5, 2.0] },
+  { key: "deadlift", label: () => t("เดดลิฟต์", "Deadlift"), names: ["Deadlift", "Sumo Deadlift", "Romanian Deadlift", "Stiff Leg Deadlift"], ratios: [1.25, 1.5, 1.75, 2.25, 3.0] },
+  { key: "ohp", label: () => t("ดันบ่า", "Overhead press"), names: ["Overhead Press", "Push Press"], ratios: [0.45, 0.6, 0.75, 0.9, 1.1] },
 ];
 
 export interface BestLift {
@@ -163,7 +176,7 @@ const rankOf = (ratio: number, ratios: [number, number, number, number, number])
 export function requirementFor(rank: Rank): { label: string; ratio: number }[] {
   const i = RANKS.indexOf(rank) - 1; // E ไม่มีเกณฑ์ (เป็นระดับเริ่มต้น)
   if (i < 0) return [];
-  return LIFT_STANDARDS.map((s) => ({ label: s.label, ratio: s.ratios[i] }));
+  return LIFT_STANDARDS.map((s) => ({ label: s.label(), ratio: s.ratios[i] }));
 }
 
 export function computeRank(data: Data): RankResult {
@@ -179,11 +192,11 @@ export function computeRank(data: Data): RankResult {
       return std.names.includes(canon);
     });
     if (!hit || !bw) {
-      missing.push(std.label);
+      missing.push(std.label());
       continue;
     }
     const ratio = hit.oneRM / bw;
-    out.push({ key: std.key, label: std.label, name: hit.name, oneRM: hit.oneRM, ratio: +ratio.toFixed(2), rank: rankOf(ratio, std.ratios) });
+    out.push({ key: std.key, label: std.label(), name: hit.name, oneRM: hit.oneRM, ratio: +ratio.toFixed(2), rank: rankOf(ratio, std.ratios) });
   }
 
   // ต้องมีอย่างน้อย 2 ท่าหลักถึงจะให้แรงค์ — ท่าเดียวตัดสินความแข็งแรงรวมไม่ได้

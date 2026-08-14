@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
+import { equipName, muscleName } from "../lib/muscles";
 import type { ReactNode } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey, Exercise, ExType } from "../lib/store";
-import { DAYS, DAY_TH, archiveOne, createEmpty, decodeTransfer, exercisesForDay, repTargetText, uid } from "../lib/store";
+import { DAYS, archiveOne, createEmpty, decodeTransfer, exercisesForDay, repTargetText, uid } from "../lib/store";
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
@@ -763,8 +764,8 @@ function ExerciseSearchField({ onPick }: { onPick: (patch: Partial<ExerciseDraft
                 {t.th}
               </span>
               <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
-                {t.pri.map((m) => MUSCLE_TH[m]).join("/")} ·{" "}
-                {t.equip.map((e) => EQUIP_TH[e]).slice(0, 2).join("+")} · {t.sets}×
+                {t.pri.map((m) => muscleName(m)).join("/")} ·{" "}
+                {t.equip.map((e) => equipName(e)).slice(0, 2).join("+")} · {t.sets}×
                 {t.amrap ? "สุดแรง" : `${t.rmin}-${t.rmax}`}
               </span>
             </button>

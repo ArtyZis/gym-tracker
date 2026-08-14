@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { equipName, muscleName } from "../lib/muscles";
 import { useApp } from "../AppContext";
 import type { EffectiveExercise, SwapTarget } from "../lib/store";
-import { DAY_TH, addExtra, clearSwap, normName, removeExtra, setSwap } from "../lib/store";
+import { addExtra, clearSwap, dayName, normName, removeExtra, setSwap } from "../lib/store";
 import { MUSCLE_TH, muscleMap } from "../lib/analyzer";
 import { EQUIP_TH, incFor, isMachineEx, searchExercises, tierOf, unitFor } from "../lib/exerciseDB";
 
@@ -33,14 +34,14 @@ export default function ExercisePicker({
     const query = q.trim().toLowerCase();
     const musclesOf = (name: string) =>
       muscleMap(name)
-        .map((h) => MUSCLE_TH[h.m])
+        .map((h) => muscleName(h.m))
         .slice(0, 2)
         .join("/") || "—";
 
     // 1) ท่าที่มีในโปรแกรมอยู่แล้ว — ขึ้นก่อนเพราะผู้ใช้คุ้นและมีประวัติสะสมไว้
     for (const o of data.exercises) {
       if (seen.has(normName(o.name))) continue;
-      if (query && !o.name.toLowerCase().includes(query) && !DAY_TH[o.day].includes(query)) continue;
+      if (query && !o.name.toLowerCase().includes(query) && !dayName(o.day).includes(query)) continue;
       seen.add(normName(o.name));
       out.push({
         name: o.name,
@@ -52,7 +53,7 @@ export default function ExercisePicker({
         inc: o.inc,
         machine: o.machine,
         amrap: o.amrap,
-        from: DAY_TH[o.day],
+        from: dayName(o.day),
         muscles: musclesOf(o.name),
       });
     }
@@ -71,8 +72,8 @@ export default function ExercisePicker({
         inc: incFor(t),
         machine: isMachineEx(t) || undefined,
         amrap: t.amrap,
-        from: t.equip.map((e) => EQUIP_TH[e]).slice(0, 2).join("+"),
-        muscles: t.pri.map((m) => MUSCLE_TH[m]).slice(0, 2).join("/"),
+        from: t.equip.map((e) => equipName(e)).slice(0, 2).join("+"),
+        muscles: t.pri.map((m) => muscleName(m)).slice(0, 2).join("/"),
         th: t.th,
         tip: t.tip,
       });

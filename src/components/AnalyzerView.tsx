@@ -9,11 +9,13 @@
 // และมีบล็อกที่แสดงเซตต่อกล้ามเนื้อซ้ำกันถึง 3 แบบในหน้าเดียว
 
 import { useMemo, useState } from "react";
+import { muscleName, patternName } from "../lib/muscles";
 import { useApp } from "../AppContext";
 import type { Recommendation } from "../lib/analyzer";
-import { MUSCLE_TH, PATTERN_TH, analyzeProgram, applyRecommendation, buildRecommendations } from "../lib/analyzer";
+import { analyzeProgram, applyRecommendation, buildRecommendations } from "../lib/analyzer";
 import { slotName } from "../lib/loop";
 import { getMaxSetsPerSession, getTimeCap, getVolumeTarget } from "../lib/profile";
+import { minText, setsText, t } from "../lib/i18n";
 import { Kicker, PremiumLock } from "./ui";
 import { isPremium } from "../lib/premium";
 
@@ -30,7 +32,7 @@ export default function AnalyzerView() {
 
   function applyRec(rec: Recommendation) {
     update((d) => applyRecommendation(d, rec));
-    toast(rec.title + " แล้ว");
+    toast(t(`${rec.title} แล้ว`, `Done — ${rec.title.toLowerCase()}`));
   }
 
   const atCeiling = analysis.execution >= analysis.ceiling - 2;
@@ -52,13 +54,16 @@ export default function AnalyzerView() {
             NO PROGRAM
           </div>
           <div className="font-disp font-bold text-[17px] mb-2" style={{ color: "var(--ink)" }}>
-            ยังไม่มีท่าให้วิเคราะห์
+            {t("ยังไม่มีท่าให้วิเคราะห์", "Nothing to analyze yet")}
           </div>
           <p className="text-[12px] leading-relaxed mb-4" style={{ color: "var(--mut)" }}>
-            เพิ่มท่าแรกหรือวางตารางที่เขียนไว้ แล้วหน้านี้จะบอกว่าตารางขาดอะไรและควรแก้ตรงไหน
+            {t(
+              "เพิ่มท่าแรกหรือวางตารางที่เขียนไว้ แล้วหน้านี้จะบอกว่าตารางขาดอะไรและควรแก้ตรงไหน",
+              "Add your first exercise or paste in a program you've already written, and this page will tell you what's missing and what to fix.",
+            )}
           </p>
           <button className="btn-cy w-full !py-2.5 !text-[12.5px]" onClick={() => goTab("manage")}>
-            ไปเพิ่มท่า
+            {t("ไปเพิ่มท่า", "Add exercises")}
           </button>
         </div>
       </div>
@@ -76,7 +81,7 @@ export default function AnalyzerView() {
             background: `radial-gradient(120px 120px at 22% 50%, color-mix(in srgb, ${scoreColor} 26%, transparent), transparent 70%)`,
           }}
         />
-        <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>เพดาน {analysis.ceiling}</span>}>
+        <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>{t(`เพดาน ${analysis.ceiling}`, `Ceiling ${analysis.ceiling}`)}</span>}>
           Program Status
         </Kicker>
         <div className="flex items-center gap-4 relative">
@@ -95,8 +100,8 @@ export default function AnalyzerView() {
             <h2 className="font-disp font-bold text-[16px] leading-snug">{analysis.headline}</h2>
             <p className="text-[11.5px] mt-1.5 leading-relaxed" style={{ color: "var(--mut)" }}>
               {atCeiling
-                ? "ตารางนี้ทำได้เต็มที่แล้วภายใต้วันฝึกและเวลาที่มี"
-                : `ยังปรับได้อีก ${analysis.ceiling - analysis.execution} คะแนน`}
+                ? t("ตารางนี้ทำได้เต็มที่แล้วภายใต้วันฝึกและเวลาที่มี", "This is as good as it gets with the days and time you have")
+                : t(`ยังปรับได้อีก ${analysis.ceiling - analysis.execution} คะแนน`, `${analysis.ceiling - analysis.execution} points still on the table`)}
             </p>
           </div>
         </div>
@@ -104,36 +109,44 @@ export default function AnalyzerView() {
 
       {/* ── 2. สิ่งที่ทำได้ตอนนี้ — ต้องอยู่บนสุดรองจากคะแนน ── */}
       {!premium ? (
-        <PremiumLock label={`เจอ ${analysis.issues.length} จุดที่ควรแก้ — ปลดล็อกเพื่อดูว่าคืออะไรและแก้ยังไง`}>
+        <PremiumLock
+          label={t(
+            `เจอ ${analysis.issues.length} จุดที่ควรแก้ — ปลดล็อกเพื่อดูว่าคืออะไรและแก้ยังไง`,
+            `${analysis.issues.length} things worth fixing — unlock to see what they are and how to fix them`,
+          )}
+        >
           <div className="glass p-4 mb-3">
-            <Kicker>ปรับตารางให้ดีขึ้น</Kicker>
+            <Kicker>{t("ปรับตารางให้ดีขึ้น", "Improve your program")}</Kicker>
             <div className="h-24" />
           </div>
         </PremiumLock>
       ) : recommendations.length > 0 ? (
         <div className="glass p-4 mb-3">
-          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>ไม่ทำก็ได้</span>}>
-            ปรับตารางให้ดีขึ้น
+          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>{t("ไม่ทำก็ได้", "optional")}</span>}>
+            {t("ปรับตารางให้ดีขึ้น", "Improve your program")}
           </Kicker>
           <p className="text-[11px] -mt-1 mb-2" style={{ color: "var(--dim)" }}>
-            ผ่านการตรวจอุปกรณ์ · เวลา · เพดานเซต · ระยะฟื้นตัว แล้วทุกข้อ
+            {t(
+              "ผ่านการตรวจอุปกรณ์ · เวลา · เพดานเซต · ระยะฟื้นตัว แล้วทุกข้อ",
+              "Every one is checked against your equipment · time · set cap · recovery gaps",
+            )}
           </p>
           {recommendations.map((rec) => {
             const accent = rec.priority === "high" ? "var(--acc)" : rec.priority === "medium" ? "var(--blue)" : "var(--warn)";
             const verb =
               rec.kind === "reduceSets"
-                ? "ลด"
+                ? t("ลด", "Cut")
                 : rec.kind === "splitDay"
-                  ? "แยกวัน"
+                  ? t("แยกวัน", "Split")
                   : rec.kind === "moveExercise"
-                    ? "ย้าย"
+                    ? t("ย้าย", "Move")
                     : rec.kind === "addDay"
-                      ? "สร้างวัน"
+                      ? t("สร้างวัน", "Add day")
                       : rec.kind === "reorder"
-                        ? "จัดใหม่"
+                        ? t("จัดใหม่", "Reorder")
                         : rec.kind === "buildProgram"
-                          ? "สร้างเลย"
-                          : "เพิ่ม";
+                          ? t("สร้างเลย", "Build it")
+                          : t("เพิ่ม", "Add");
             return (
               <div key={rec.id} className="flex items-center gap-3 py-3 hairline first:border-0">
                 <div className="flex-1 min-w-0">
@@ -165,10 +178,13 @@ export default function AnalyzerView() {
       ) : analysis.blockedInsights.length === 0 ? (
         <div className="glass p-5 mb-3 text-center">
           <div className="text-[15px] font-disp font-bold mb-1" style={{ color: "var(--good)" }}>
-            ไม่มีอะไรต้องแก้แล้ว
+            {t("ไม่มีอะไรต้องแก้แล้ว", "Nothing left to fix")}
           </div>
           <div className="text-[12px] leading-relaxed" style={{ color: "var(--mut)" }}>
-            ทุกกลุ่มอยู่ในเป้าและตารางสมดุลแล้ว — จากนี้โฟกัสที่การเพิ่มน้ำหนักต่อเนื่องแทน
+            {t(
+              "ทุกกลุ่มอยู่ในเป้าและตารางสมดุลแล้ว — จากนี้โฟกัสที่การเพิ่มน้ำหนักต่อเนื่องแทน",
+              "Every muscle group is on target and the program is balanced — from here, focus on adding weight consistently.",
+            )}
           </div>
         </div>
       ) : null}
@@ -176,7 +192,7 @@ export default function AnalyzerView() {
       {/* ── ปัญหาที่ตารางนี้แก้เองไม่ได้ — เป็นต้นเหตุจริง ไม่ใช่สิ่งที่กดปุ่มแล้วหาย ── */}
       {premium && analysis.blockedInsights.length > 0 && (
         <div className="glass p-4 mb-3" style={{ borderColor: "rgba(255,193,94,.28)" }}>
-          <Kicker>ติดข้อจำกัดของตาราง</Kicker>
+          <Kicker>{t("ติดข้อจำกัดของตาราง", "Limits of this program")}</Kicker>
           {analysis.blockedInsights.map((b, i) => (
             <div key={i} className="py-2 hairline first:border-0">
               <b className="block text-[12.5px]" style={{ color: "var(--warn)" }}>
@@ -186,7 +202,7 @@ export default function AnalyzerView() {
                 {b.whyCannotFix}
               </span>
               <span className="block text-[11.5px] mt-1 leading-relaxed" style={{ color: "var(--ink)" }}>
-                ทางแก้จริง: {b.realSolution}
+                {t("ทางแก้จริง:", "Real fix:")} {b.realSolution}
               </span>
             </div>
           ))}
@@ -196,8 +212,14 @@ export default function AnalyzerView() {
       {/* ── 3. ปริมาณต่อกล้ามเนื้อ — เห็นครบทุกมัดในตาเดียว ── */}
       {premium && (
         <div className="glass p-4 mb-3">
-          <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>เป้า {target.min}-{target.max} เซต/สัปดาห์</span>}>
-            ปริมาณต่อกล้ามเนื้อ
+          <Kicker
+            right={
+              <span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>
+                {t(`เป้า ${target.min}-${target.max} เซต/สัปดาห์`, `Target ${target.min}-${target.max} sets/week`)}
+              </span>
+            }
+          >
+            {t("ปริมาณต่อกล้ามเนื้อ", "Volume per muscle")}
           </Kicker>
           <div className="grid grid-cols-2 gap-x-4 gap-y-[9px]">
             {analysis.stats.map((s) => {
@@ -206,7 +228,7 @@ export default function AnalyzerView() {
                 <div key={s.muscle} className="min-w-0">
                   <div className="flex items-baseline justify-between gap-2 text-[11.5px]">
                     <span className="truncate" style={{ color: "var(--mut)" }}>
-                      {MUSCLE_TH[s.muscle]}
+                      {muscleName(s.muscle)}
                     </span>
                     <span className="font-mono2 text-[11px] shrink-0" style={{ color: c }}>
                       {s.sets.toFixed(1)}
@@ -234,14 +256,22 @@ export default function AnalyzerView() {
       {premium && (
         <>
           <button className="btn-gh w-full !py-2.5 !text-[12px] mb-3" onClick={() => setShowDetail((v) => !v)}>
-            {showDetail ? "ซ่อนรายละเอียด" : "ดูรายละเอียด — ภาระรายวัน · สมดุลท่า"}
+            {showDetail
+              ? t("ซ่อนรายละเอียด", "Hide details")
+              : t("ดูรายละเอียด — ภาระรายวัน · สมดุลท่า", "Show details — daily load · movement balance")}
           </button>
 
           {showDetail && (
             <>
               <div className="glass p-4 mb-3">
-                <Kicker right={<span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>สูงสุด {maxSets} เซต · {timeCap} นาที</span>}>
-                  ภาระแต่ละวัน
+                <Kicker
+                  right={
+                    <span className="font-mono2 text-[9px]" style={{ color: "var(--dim)" }}>
+                      {t(`สูงสุด ${maxSets} เซต · ${timeCap} นาที`, `Max ${maxSets} sets · ${timeCap} min`)}
+                    </span>
+                  }
+                >
+                  {t("ภาระแต่ละวัน", "Load per day")}
                 </Kicker>
                 {analysis.dayLoads.map((d) => {
                   const over = d.overSets || d.overTime;
@@ -249,7 +279,8 @@ export default function AnalyzerView() {
                     <div key={d.day} className="flex items-center justify-between gap-2 py-[5px] text-[12px]">
                       <span style={{ color: "var(--mut)" }}>{slotName(data, d.day)}</span>
                       <span className="font-mono2 text-[11px]" style={{ color: over ? "var(--warn)" : "var(--ink)" }}>
-                        {d.sets} เซต · {d.minutes} นาที{over ? " ⚠" : ""}
+                        {setsText(d.sets)} · {minText(d.minutes)}
+                        {over ? " ⚠" : ""}
                       </span>
                     </div>
                   );
@@ -257,12 +288,12 @@ export default function AnalyzerView() {
               </div>
 
               <div className="glass p-4 mb-3">
-                <Kicker>สมดุลรูปแบบการเคลื่อนไหว</Kicker>
+                <Kicker>{t("สมดุลรูปแบบการเคลื่อนไหว", "Movement pattern balance")}</Kicker>
                 {analysis.patterns.map((p) => (
                   <div key={p.pattern} className="flex items-center justify-between gap-2 py-[5px] text-[12px]">
-                    <span style={{ color: "var(--mut)" }}>{PATTERN_TH[p.pattern]}</span>
+                    <span style={{ color: "var(--mut)" }}>{patternName(p.pattern)}</span>
                     <span className="font-mono2 text-[11px]" style={{ color: "var(--ink)" }}>
-                      {p.sets} เซต
+                      {setsText(p.sets)}
                     </span>
                   </div>
                 ))}
@@ -270,7 +301,7 @@ export default function AnalyzerView() {
 
               {analysis.issues.length > 0 && (
                 <div className="glass p-4 mb-3">
-                  <Kicker>จุดที่ตรวจพบ</Kicker>
+                  <Kicker>{t("จุดที่ตรวจพบ", "What we found")}</Kicker>
                   {analysis.issues.map((s, i) => (
                     <div key={i} className="text-[11.5px] py-[5px] leading-relaxed" style={{ color: "var(--mut)" }}>
                       · {s}

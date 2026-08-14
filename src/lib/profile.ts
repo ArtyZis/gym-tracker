@@ -8,13 +8,8 @@
 
 import type { Data, DayKey } from "./store";
 import type { EquipTag, Experience, Goal, InjuryKey, VolumeTarget } from "./muscles";
-import {
-  DEFAULT_MAX_SETS_PER_SESSION,
-  DEFAULT_SESSION_TIME_CAP_MINUTES,
-  EQUIP_TH,
-  EQUIP_PRESETS,
-  VOLUME_TARGETS,
-} from "./muscles";
+import { DEFAULT_MAX_SETS_PER_SESSION, DEFAULT_SESSION_TIME_CAP_MINUTES, EQUIP_PRESETS, VOLUME_TARGETS, equipName } from "./muscles";
+import { t } from "./i18n";
 
 // อุปกรณ์ครบทุกชนิด — ใช้เป็นค่าเริ่มต้นเมื่อผู้ใช้ยังไม่ได้ระบุ
 export const ALL_EQUIP: EquipTag[] = [
@@ -92,7 +87,7 @@ export const canDoWithEquip = (need: EquipTag[], have: EquipTag[]): boolean =>
 export function equipPresetLabel(equip: EquipTag[]): string {
   const sorted = [...equip].sort().join(",");
   const hit = EQUIP_PRESETS.find((p) => [...p.equip].sort().join(",") === sorted);
-  if (hit) return hit.label;
-  if (equip.length === 0) return "ยังไม่ได้เลือก";
-  return equip.slice(0, 3).map((e) => EQUIP_TH[e]).join(", ") + (equip.length > 3 ? "…" : "");
+  if (hit) return hit.label();
+  if (equip.length === 0) return t("ยังไม่ได้เลือก", "Not set");
+  return equip.slice(0, 3).map(equipName).join(", ") + (equip.length > 3 ? "…" : "");
 }

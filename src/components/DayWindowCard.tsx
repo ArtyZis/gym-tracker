@@ -8,9 +8,8 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
-import { DAY_TH, DAYS } from "../lib/store";
+import { DAYS, dayName, exercisesForDay } from "../lib/store";
 import { estimateMinutes, trainingDays } from "../lib/analyzer";
-import { exercisesForDay } from "../lib/store";
 import { getTimeCap, windowMinutes } from "../lib/profile";
 import { Kicker } from "./ui";
 
@@ -98,7 +97,7 @@ export default function DayWindowCard() {
                     : { color: "var(--dim)", background: "rgba(10,20,31,.6)", border: "1px solid var(--edge)" }
                 }
               >
-                {DAY_TH[day]}
+                {dayName(day)}
               </span>
               <span className="flex-1 min-w-0 text-[12px] truncate" style={{ color: w ? "var(--ink)" : "var(--dim)" }}>
                 {w ? `${w.start}–${w.end}` : "ยังไม่ตั้ง (ใช้ค่ากลาง)"}
@@ -149,7 +148,7 @@ export default function DayWindowCard() {
 
                 {tight && (
                   <p className="text-[11px] leading-relaxed mb-2" style={{ color: "var(--warn)" }}>
-                    ตอนนี้ท่าใน{DAY_TH[day]}ใช้เวลาราว {used} นาที เกินที่มี {usable} นาที — ลดเซตหรือย้ายท่าท้ายไปวันอื่น
+                    ตอนนี้ท่าใน{dayName(day)}ใช้เวลาราว {used} นาที เกินที่มี {usable} นาที — ลดเซตหรือย้ายท่าท้ายไปวันอื่น
                   </p>
                 )}
 
@@ -163,7 +162,7 @@ export default function DayWindowCard() {
                         delete d.dayWindows[day];
                         if (!Object.keys(d.dayWindows).length) d.dayWindows = undefined;
                       });
-                      toast(`${DAY_TH[day]}: กลับไปใช้ค่ากลาง`);
+                      toast(`${dayName(day)}: กลับไปใช้ค่ากลาง`);
                     }}
                   >
                     ล้างค่าวันนี้

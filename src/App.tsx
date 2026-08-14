@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { AppContext } from "./AppContext";
 import type { Data } from "./lib/store";
-import { DAYS, DAY_TH, JS_DAYS, createDefault, store } from "./lib/store";
+import { DAYS, JS_DAYS, createDefault, dayName, store } from "./lib/store";
+import { locale, setLang, t } from "./lib/i18n";
 import { setSoundEnabled } from "./lib/sound";
 import { resolveAccent } from "./lib/accent";
 import { ensureStartedAt } from "./lib/premium";
@@ -21,11 +22,12 @@ import type { RestTimerHandle } from "./components/RestTimer";
 
 type TabId = "today" | "program" | "analyze" | "progress" | "manage";
 
-const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
-  { id: "today", label: "วันนี้", icon: <path d="M3 10.5 12 3l9 7.5M5 9.5V20h14V9.5" /> },
+// label เป็นฟังก์ชันเพราะต้องอ่านภาษา ณ ตอน render ไม่ใช่ตอนโหลดโมดูล
+const TABS: { id: TabId; label: () => string; icon: ReactNode }[] = [
+  { id: "today", label: () => t("วันนี้", "Today"), icon: <path d="M3 10.5 12 3l9 7.5M5 9.5V20h14V9.5" /> },
   {
     id: "program",
-    label: "ตาราง",
+    label: () => t("ตาราง", "Program"),
     icon: (
       <>
         <rect x="3" y="4" width="18" height="17" rx="2" />
@@ -35,7 +37,7 @@ const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
   },
   {
     id: "analyze",
-    label: "วิเคราะห์",
+    label: () => t("วิเคราะห์", "Analyze"),
     icon: (
       <>
         <path d="M12 3a9 9 0 1 0 9 9" />
@@ -46,7 +48,7 @@ const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
   },
   {
     id: "progress",
-    label: "ก้าวหน้า",
+    label: () => t("ก้าวหน้า", "Progress"),
     icon: (
       <>
         <path d="M3 17l5-5 4 4 8-8" />
@@ -56,7 +58,7 @@ const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
   },
   {
     id: "manage",
-    label: "จัดการ",
+    label: () => t("จัดการ", "Manage"),
     icon: (
       <>
         <circle cx="12" cy="12" r="3" />
@@ -81,9 +83,22 @@ export default function App() {
   const storageOk = useMemo(() => store.works(), []);
   // เปิดแอปมาจากลิงก์โปรแกรมของโค้ช — อ่านครั้งเดียวตอน mount
   const [incoming, setIncoming] = useState<string | null>(() => readProgramFromUrl());
+
+  // ตั้งภาษาให้โมดูล i18n ก่อนลูกทุกตัว render — ตั้งใจทำใน render body ไม่ใช่ useEffect
+  //
+  // useEffect ทำงาน "หลัง" ลูก render เสร็จ ถ้ารอ effect เฟรมแรกหลังสลับภาษาจะยังเป็น
+  // ภาษาเก่าแล้วค่อยกระพริบเปลี่ยน การเซ็ตตัวแปรค่าเดิมซ้ำๆ ไม่มีผลข้างเคียง (idempotent)
+  // จึงปลอดภัยที่จะทำตรงนี้
+  setLang(data.settings.lang ?? "th");
+
   useEffect(() => {
     store.save(data);
   }, [data]);
+
+  // บอกเบราว์เซอร์/screen reader ว่าหน้านี้ภาษาอะไร — มีผลกับการตัดคำและการอ่านออกเสียง
+  useEffect(() => {
+    document.documentElement.lang = data.settings.lang ?? "th";
+  }, [data.settings.lang]);
 
   // ตั้งวันเริ่มใช้ครั้งแรก — ใช้นับช่วงทดลองรุ่น pro
   useEffect(() => {
@@ -127,7 +142,7 @@ export default function App() {
     <AppContext.Provider value={{ data, update, toast, notice, rest, goTab }}>
       <div className="mx-auto max-w-[520px] flex flex-col relative" style={{ minHeight: "100dvh" }}>
         <header
-          className="px-4 pb-3 flex items-center justify-between gap-3"
+          className="px-4 pb-3 flex items-center justify-between gap-2"
           style={{ paddingTop: "calc(18px + env(safe-area-inset-top))" }}
         >
           <div className="min-w-0 flex-1 flex items-center gap-2.5">
@@ -155,6 +170,28 @@ export default function App() {
               </h1>
             </div>
           </div>
+          {/* สลับภาษาอยู่บนหัวแอป ไม่ได้ซ่อนในหน้าตั้งค่า —
+              คนที่เปิดมาแล้วอ่านไทยไม่ออกจะหาปุ่มที่อยู่ใต้เมนูชื่อ "จัดการ" ไม่เจอ
+              ปุ่มโชว์ภาษา "อีกอัน" ที่จะได้ กดครั้งเดียวจบ ไม่ต้องมีเมนูให้เลือก */}
+          <button
+            onClick={() =>
+              update((d) => {
+                d.settings.lang = (d.settings.lang ?? "th") === "th" ? "en" : "th";
+              })
+            }
+            className="font-mono2 text-[10px] font-bold shrink-0 px-2.5 py-[7px] tracking-wider"
+            style={{
+              clipPath: "var(--cut-path-sm)",
+              background: "rgba(10,20,31,.5)",
+              border: "1px solid var(--edge)",
+              color: "var(--mut)",
+              backdropFilter: "blur(8px)",
+            }}
+            aria-label={t("Switch to English", "เปลี่ยนเป็นภาษาไทย")}
+          >
+            {t("EN", "ไทย")}
+          </button>
+
           <div
             className="text-center shrink-0"
             style={{
@@ -166,10 +203,12 @@ export default function App() {
             }}
           >
             <div className="font-disp font-bold text-[14px] leading-none" style={{ color: "var(--ink)" }}>
-              {isLoop(data) ? `วันที่ ${DAYS.indexOf(todaySlot(data)) + 1}/${cycleLen(data)}` : DAY_TH[JS_DAYS[now.getDay()]]}
+              {isLoop(data)
+                ? t(`วันที่ ${DAYS.indexOf(todaySlot(data)) + 1}/${cycleLen(data)}`, `Day ${DAYS.indexOf(todaySlot(data)) + 1}/${cycleLen(data)}`)
+                : dayName(JS_DAYS[now.getDay()])}
             </div>
             <div className="font-mono2 text-[8.5px] mt-[3px]" style={{ color: "var(--dim)" }}>
-              {now.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
+              {now.toLocaleDateString(locale(), { day: "numeric", month: "short", year: "2-digit" })}
             </div>
           </div>
         </header>
@@ -179,7 +218,10 @@ export default function App() {
             className="mx-4 mb-2 px-4 py-2.5 rounded-xl text-[12px] leading-relaxed"
             style={{ background: "rgba(255,107,107,.10)", border: "1px solid rgba(255,107,107,.35)", color: "#FFC9C9" }}
           >
-            เบราว์เซอร์นี้เก็บข้อมูลไม่ได้ (อาจอยู่ในโหมดส่วนตัว) — ข้อมูลจะหายเมื่อปิดหน้า
+            {t(
+              "เบราว์เซอร์นี้เก็บข้อมูลไม่ได้ (อาจอยู่ในโหมดส่วนตัว) — ข้อมูลจะหายเมื่อปิดหน้า",
+              "This browser can't save data (private mode?) — everything is lost when you close the tab",
+            )}
           </div>
         )}
 
@@ -197,13 +239,13 @@ export default function App() {
 
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[520px] z-30 px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
           <div className="glass flex gap-0.5 p-[7px]">
-            {TABS.map((t) => {
-              const on = tab === t.id;
+            {TABS.map((tb) => {
+              const on = tab === tb.id;
               return (
                 <button
-                  key={t.id}
+                  key={tb.id}
                   onClick={() => {
-                    setTab(t.id);
+                    setTab(tb.id);
                     window.scrollTo({ top: 0 });
                   }}
                   className="flex-1 flex flex-col items-center gap-1 py-2 cut-sm transition-all"
@@ -226,9 +268,9 @@ export default function App() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    {t.icon}
+                    {tb.icon}
                   </svg>
-                  <span className="font-mono2 text-[8px] tracking-[.02em]">{t.label}</span>
+                  <span className="font-mono2 text-[8px] tracking-[.02em]">{tb.label()}</span>
                 </button>
               );
             })}

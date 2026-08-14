@@ -10,19 +10,7 @@
 import type { Data, DayKey, Exercise } from "./store";
 import { DAYS, archiveOne, exercisesForDay, normName, restoreHistory, uid } from "./store";
 import type { EquipTag, FatigueCost, MuscleKey, Pattern } from "./muscles";
-import {
-  HEAVY_HIT_SETS,
-  MAJOR_MUSCLES,
-  MAX_SETS_PER_MUSCLE_PER_SESSION,
-  MINUTES_PER_SET,
-  MIN_RECOVERY_HOURS,
-  MUSCLE_KEYS,
-  MUSCLE_TH,
-  PATTERN_TH,
-  INDIRECT_MUSCLES,
-  SMALL_MUSCLES,
-  VOLUME_CEILING_MUL,
-} from "./muscles";
+import { HEAVY_HIT_SETS, INDIRECT_MUSCLES, MAJOR_MUSCLES, MAX_SETS_PER_MUSCLE_PER_SESSION, MINUTES_PER_SET, MIN_RECOVERY_HOURS, MUSCLE_KEYS, MUSCLE_TH, PATTERN_TH, SMALL_MUSCLES, VOLUME_CEILING_MUL, muscleName } from "./muscles";
 import type { ExTemplate } from "./exerciseDB";
 import { EXERCISE_DB, TIER_RANK, findTemplate, incFor, isMachineEx, musclesOf, tierOf, unitFor } from "./exerciseDB";
 import type { DayType } from "./blueprint";
@@ -364,9 +352,9 @@ export function analyzeProgram(data: Data): Analysis {
     const inRange = s.status === "good";
     volHit += inRange ? 1 : s.status === "missing" ? 0 : 0.5;
     volCeil += 1; // ปริมาณเพิ่มได้เสมอถ้ามีที่ว่างในตาราง
-    if (s.status === "missing" && MAJOR_MUSCLES.includes(s.muscle)) issues.push(`ไม่มีท่าโดน${MUSCLE_TH[s.muscle]}เลย`);
-    else if (s.status === "low") issues.push(`${MUSCLE_TH[s.muscle]} ${s.sets} เซต/สัปดาห์ — ต่ำกว่าเป้า ${target.min}`);
-    else if (s.status === "high") issues.push(`${MUSCLE_TH[s.muscle]} ${s.sets} เซต/สัปดาห์ — เกินโซนคุ้มค่า`);
+    if (s.status === "missing" && MAJOR_MUSCLES.includes(s.muscle)) issues.push(`ไม่มีท่าโดน${muscleName(s.muscle)}เลย`);
+    else if (s.status === "low") issues.push(`${muscleName(s.muscle)} ${s.sets} เซต/สัปดาห์ — ต่ำกว่าเป้า ${target.min}`);
+    else if (s.status === "high") issues.push(`${muscleName(s.muscle)} ${s.sets} เซต/สัปดาห์ — เกินโซนคุ้มค่า`);
   }
   const volumeScore = scored.length ? volHit / scored.length : 1;
 
@@ -404,7 +392,7 @@ export function analyzeProgram(data: Data): Analysis {
   // การให้ 0 ทำให้ผู้ใช้เห็นคะแนนต่ำผิดจริงจนคิดว่าตารางตัวเองใช้ไม่ได้
   let recPenalty = Math.min(0.75, recovery.length * 0.15);
   for (const r of recovery)
-    issues.push(`${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${slotName(data, r.a)}และ${slotName(data, r.b)} ห่างแค่ ${r.gapHours} ชม. — ต้องการ ${MIN_RECOVERY_HOURS} ชม.`);
+    issues.push(`${muscleName(r.muscle)}โดนหนักทั้ง${slotName(data, r.a)}และ${slotName(data, r.b)} ห่างแค่ ${r.gapHours} ชม. — ต้องการ ${MIN_RECOVERY_HOURS} ชม.`);
   if (consecutive > 3) issues.push(`ฝึกติดต่อกัน ${consecutive} วันไม่พัก`);
   const recoveryScore = Math.max(0, 1 - recPenalty);
   // เพดาน: ถ้าตารางไม่เอื้อให้กระจาย 2 วัน ก็ไม่ควรหักคะแนนจนต่ำเกินจริง (สเปค 6)
@@ -452,7 +440,7 @@ export function analyzeProgram(data: Data): Analysis {
     const lowFreq = stats.filter((s) => s.status !== "missing" && s.days < 2 && MAJOR_MUSCLES.includes(s.muscle));
     if (lowFreq.length)
       blockedInsights.push({
-        issue: `${lowFreq.map((s) => MUSCLE_TH[s.muscle]).slice(0, 3).join(", ")}โดนแค่ 1 ครั้ง/สัปดาห์`,
+        issue: `${lowFreq.map((s) => muscleName(s.muscle)).slice(0, 3).join(", ")}โดนแค่ 1 ครั้ง/สัปดาห์`,
         whyCannotFix: `ฝึก ${train.map((d) => slotName(data, d)).join("+")} — วันที่มีห่างกันไม่ถึง ${MIN_RECOVERY_HOURS} ชม. จึงกระจายเป็น 2 วันไม่ได้`,
         realSolution: "เพิ่มวันฝึกกลางสัปดาห์ หรือรับปริมาณรวมในวันเดียวไปก่อน (ยังได้ผลถ้าไม่เกินเพดานต่อวัน)",
       });
@@ -602,7 +590,7 @@ export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKe
     if (cur + addSets > MAX_SETS_PER_MUSCLE_PER_SESSION)
       return {
         ok: false,
-        reason: `${MUSCLE_TH[primary]}ใน${slotName(data, day)}จะเกิน ${MAX_SETS_PER_MUSCLE_PER_SESSION} เซต`,
+        reason: `${muscleName(primary)}ใน${slotName(data, day)}จะเกิน ${MAX_SETS_PER_MUSCLE_PER_SESSION} เซต`,
         fix: "กระจายไปวันอื่นแทนการอัดเพิ่มวันเดียว",
       };
   }
@@ -618,7 +606,7 @@ export function checkFilters(data: Data, tpl: ExTemplate | undefined, day: DayKe
       if (gap < MIN_RECOVERY_HOURS)
         return {
           ok: false,
-          reason: `${MUSCLE_TH[primary]}โดนหนักอยู่แล้วใน${slotName(data, other)} ห่างกันแค่ ${gap} ชม.`,
+          reason: `${muscleName(primary)}โดนหนักอยู่แล้วใน${slotName(data, other)} ห่างกันแค่ ${gap} ชม.`,
           fix: `เว้นอย่างน้อย ${MIN_RECOVERY_HOURS} ชม. — ใส่วันอื่นหรือเพิ่มวันฝึก`,
         };
     }
@@ -961,9 +949,9 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
   // แย่กว่าปล่อยไว้เฉยๆ ตามเดิมเสียอีก
   for (const r of analysis.recovery.slice(0, 2)) {
     blockedInsight(analysis, {
-      issue: `${MUSCLE_TH[r.muscle]}โดนหนักทั้ง${slotName(data, r.a)}และ${slotName(data, r.b)} ห่างกันแค่ ${r.gapHours} ชม.`,
+      issue: `${muscleName(r.muscle)}โดนหนักทั้ง${slotName(data, r.a)}และ${slotName(data, r.b)} ห่างกันแค่ ${r.gapHours} ชม.`,
       whyCannotFix: `กล้ามเนื้อต้องการ ${MIN_RECOVERY_HOURS} ชม. ก่อนโดนหนักซ้ำ`,
-      realSolution: `ถ้าสองวันนี้เลี่ยงไม่ได้ ให้ลดเซต${MUSCLE_TH[r.muscle]}ในวันหนึ่งลง หรือสลับเป็นท่าเบากว่า`,
+      realSolution: `ถ้าสองวันนี้เลี่ยงไม่ได้ ให้ลดเซต${muscleName(r.muscle)}ในวันหนึ่งลง หรือสลับเป็นท่าเบากว่า`,
     });
   }
 
@@ -1061,7 +1049,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
         day: spot.day,
         title: `เพิ่ม ${c.name}`,
         detail: `ใส่เข้า${slotName(data, spot.day)} ${MIN_SETS_PER_EX} เซต — ${c.reason}`,
-        reason: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min}`,
+        reason: `${muscleName(s.muscle)}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min}`,
         gain: 0,
         priority: s.status === "missing" && MAJOR_MUSCLES.includes(s.muscle) ? "high" : "medium",
       };
@@ -1080,7 +1068,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
         exerciseId: bump.id,
         title: `เพิ่มเซต ${bump.name}`,
         detail: `เพิ่มจาก ${bump.sets} เป็น ${bump.sets + 1} เซต — ท่านี้มีอยู่แล้ว ยังไม่ถึงเพดานต่อท่า`,
-        reason: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min}`,
+        reason: `${muscleName(s.muscle)}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min}`,
         gain: 0,
         priority: "medium",
       };
@@ -1103,12 +1091,12 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
     // ไม่มีท่าไหนลงในตารางเดิมได้เลย — ห้ามผ่อนกฎเพื่อให้มีอะไรแสดง ให้บอกต้นเหตุแทน
     if (!placed) {
       const top = blockedReasons[0];
-      const already = analysis.blockedInsights.some((b) => b.issue.includes(MUSCLE_TH[s.muscle]));
+      const already = analysis.blockedInsights.some((b) => b.issue.includes(muscleName(s.muscle)));
       if (!already)
         blockedInsight(analysis, {
-          issue: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ (เป้า ${target.min}-${target.max})`,
+          issue: `${muscleName(s.muscle)}ได้ ${s.sets} เซต/สัปดาห์ (เป้า ${target.min}-${target.max})`,
           whyCannotFix: top?.reason ?? "วันฝึกที่มีอยู่ไม่มีที่ว่างที่เหมาะกับกล้ามเนื้อกลุ่มนี้",
-          realSolution: top?.fix ?? `เพิ่มเซต${MUSCLE_TH[s.muscle]}ในวันที่คุณว่าง หรือแทนท่าที่ซ้ำซ้อนด้วยท่าของกลุ่มนี้`,
+          realSolution: top?.fix ?? `เพิ่มเซต${muscleName(s.muscle)}ในวันที่คุณว่าง หรือแทนท่าที่ซ้ำซ้อนด้วยท่าของกลุ่มนี้`,
         });
     }
   }
@@ -1131,7 +1119,7 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
       exerciseId: cut.id,
       title: `ลดเซต ${cut.name}`,
       detail: `ลดเหลือ ${cut.sets - 1} เซต — เอาเวลาไปเติมกล้ามเนื้อที่ยังขาดคุ้มกว่า`,
-      reason: `${MUSCLE_TH[s.muscle]}ได้ ${s.sets} เซต/สัปดาห์ เกินขอบบน ${target.warnHigh}`,
+      reason: `${muscleName(s.muscle)}ได้ ${s.sets} เซต/สัปดาห์ เกินขอบบน ${target.warnHigh}`,
       gain: 4,
       priority: "low",
     };

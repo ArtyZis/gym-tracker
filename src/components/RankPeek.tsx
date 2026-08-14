@@ -7,7 +7,8 @@
 import { useEffect, useState } from "react";
 import type { Rank } from "../lib/rank";
 import type { RankResult } from "../lib/rank";
-import { RANKS, RANK_COLOR, RANK_TH, requirementFor } from "../lib/rank";
+import { RANKS, RANK_COLOR, rankName, requirementFor } from "../lib/rank";
+import { t } from "../lib/i18n";
 import RankEmblem from "./RankEmblem";
 
 export default function RankPeek({
@@ -70,11 +71,11 @@ export default function RankPeek({
             </div>
 
             <div className="font-disp font-bold text-[22px] leading-none" style={{ color: "#fff", textShadow: `0 0 22px ${c}b3` }}>
-              {RANK_TH[rank]}
+              {rankName(rank)}
             </div>
             {isMine && (
               <div className="font-mono2 text-[9px] tracking-[.2em] mt-1.5" style={{ color: c }}>
-                ระดับของคุณตอนนี้
+                {t("ระดับของคุณตอนนี้", "Your current level")}
               </div>
             )}
 
@@ -82,12 +83,12 @@ export default function RankPeek({
 
             {reqs.length === 0 ? (
               <p className="text-[11.5px] leading-relaxed" style={{ color: "var(--mut)" }}>
-                ระดับเริ่มต้น — ทุกคนเริ่มจากตรงนี้ ยังไม่มีเกณฑ์ที่ต้องผ่าน
+                {t("ระดับเริ่มต้น — ทุกคนเริ่มจากตรงนี้ ยังไม่มีเกณฑ์ที่ต้องผ่าน", "The starting level — everyone begins here. Nothing to hit yet.")}
               </p>
             ) : (
               <>
                 <div className="font-mono2 text-[8.5px] uppercase tracking-[.2em] mb-1.5 text-left" style={{ color: "var(--mut)" }}>
-                  เกณฑ์ 1RM ที่ต้องถึง
+                  {t("เกณฑ์ 1RM ที่ต้องถึง", "1RM you need to hit")}
                 </div>
                 {reqs.map((q) => {
                   const has = mine.get(q.label);
@@ -98,15 +99,23 @@ export default function RankPeek({
                       <span style={{ color: "var(--mut)" }}>{q.label}</span>
                       <span className="font-mono2 text-[11px]" style={{ color: passed ? "var(--good)" : "var(--ink)" }}>
                         {q.ratio}×{need != null && ` · ${need} kg`}
-                        {has && <span style={{ color: passed ? "var(--good)" : "var(--dim)" }}> {passed ? "✓" : `(ตอนนี้ ${has.oneRM})`}</span>}
+                        {has && (
+                          <span style={{ color: passed ? "var(--good)" : "var(--dim)" }}>
+                            {" "}
+                            {passed ? "✓" : t(`(ตอนนี้ ${has.oneRM})`, `(now ${has.oneRM})`)}
+                          </span>
+                        )}
                       </span>
                     </div>
                   );
                 })}
                 <p className="text-[10px] mt-2 leading-relaxed text-left" style={{ color: "var(--dim)" }}>
                   {bw
-                    ? `คิดจากน้ำหนักตัว ${bw} kg · แรงค์รวมใช้ค่าเฉลี่ยของท่าหลักที่มีข้อมูล ไม่ต้องผ่านครบทุกท่า`
-                    : "บันทึกน้ำหนักตัวแล้วจะเห็นเกณฑ์เป็นกิโลจริง"}
+                    ? t(
+                        `คิดจากน้ำหนักตัว ${bw} kg · แรงค์รวมใช้ค่าเฉลี่ยของท่าหลักที่มีข้อมูล ไม่ต้องผ่านครบทุกท่า`,
+                        `Based on ${bw} kg bodyweight · your overall rank averages the main lifts you've logged — you don't need to pass all of them`,
+                      )
+                    : t("บันทึกน้ำหนักตัวแล้วจะเห็นเกณฑ์เป็นกิโลจริง", "Log your bodyweight to see these targets in real kilos")}
                 </p>
               </>
             )}

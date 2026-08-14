@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useApp } from "../AppContext";
 import { computeStreak, heatmapGrid } from "../lib/streak";
+import { plural, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 // ระดับความเข้มของ heatmap อิงสี accent (color-mix ให้เปลี่ยนสีตามธีม)
@@ -23,17 +24,18 @@ export default function StreakCard() {
 
   const width = WEEKS * (CELL + GAP) + 22;
   const height = 7 * (CELL + GAP) + 18;
+  // ป้ายซ้ายของ heatmap — โชว์แค่ 4 แถวเว้นแถว ให้พออ่านออกโดยไม่เบียดตาราง
   const dayLabels: { row: number; label: string }[] = [
-    { row: 0, label: "จ" },
-    { row: 2, label: "พ" },
-    { row: 4, label: "ศ" },
-    { row: 6, label: "อา" },
+    { row: 0, label: t("จ", "M") },
+    { row: 2, label: t("พ", "W") },
+    { row: 4, label: t("ศ", "F") },
+    { row: 6, label: t("อา", "Su") },
   ];
 
   return (
     <div className="glass p-4 mb-3">
-      <Kicker right={<span className="font-mono2 text-[9.5px]" style={{ color: "var(--dim)" }}>{WEEKS} สัปดาห์ล่าสุด</span>}>
-        สตรีคการฝึก
+      <Kicker right={<span className="font-mono2 text-[9.5px]" style={{ color: "var(--dim)" }}>{t(`${WEEKS} สัปดาห์ล่าสุด`, `Last ${WEEKS} weeks`)}</span>}>
+        {t("สตรีคการฝึก", "Training streak")}
       </Kicker>
 
       <div className="flex items-center gap-4 mb-3.5">
@@ -59,18 +61,23 @@ export default function StreakCard() {
             {streak.current}
           </div>
           <div className="font-mono2 text-[9px] mt-1.5" style={{ color: "var(--mut)" }}>
-            วันต่อเนื่อง{streak.current > 0 ? " 🔥" : ""}
+            {t("วันต่อเนื่อง", "day streak")}
+            {streak.current > 0 ? " 🔥" : ""}
           </div>
         </div>
         <div className="flex-1 text-[11.5px] leading-relaxed" style={{ color: "var(--mut)" }}>
           <div>
-            สถิติสูงสุด <b style={{ color: "var(--ink)" }}>{streak.best}</b> วัน
+            {t("สถิติสูงสุด", "Best")} <b style={{ color: "var(--ink)" }}>{streak.best}</b> {plural(streak.best, "วัน", "day")}
           </div>
           <div>
-            สัปดาห์นี้ฝึกแล้ว <b style={{ color: "var(--cyan)" }}>{streak.trainedThisWeek}</b> วัน
+            {t("สัปดาห์นี้ฝึกแล้ว", "This week")} <b style={{ color: "var(--cyan)" }}>{streak.trainedThisWeek}</b>{" "}
+            {plural(streak.trainedThisWeek, "วัน", "day")}
           </div>
           <div className="text-[10px] mt-1 leading-relaxed" style={{ color: "var(--dim)" }}>
-            นับเฉพาะวันที่ฝึกจริง · วันพักไม่บวกแต่ไม่ตัด · พลาดวันฝึกแล้วชดเชยครบทีหลัง ถือว่าไม่ขาด
+            {t(
+              "นับเฉพาะวันที่ฝึกจริง · วันพักไม่บวกแต่ไม่ตัด · พลาดวันฝึกแล้วชดเชยครบทีหลัง ถือว่าไม่ขาด",
+              "Only real training days count · rest days neither add nor break it · make up a missed day in full and the streak holds",
+            )}
           </div>
         </div>
       </div>
