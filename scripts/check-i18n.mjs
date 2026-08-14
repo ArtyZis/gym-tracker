@@ -52,12 +52,24 @@ function scan(src) {
   const stack = [{ mode: "code", braces: 0 }];
   let cur = null; // เฟรมข้อความที่กำลังสะสม (ข้ามผ่าน ${} ได้)
 
+  // nested = ก้อนนี้อยู่ข้างใน ${...} ของเทมเพลตอีกชั้น
+  //
+  // ต้องรู้เพราะการจับคู่ t(th, en) ดูว่า "สองก้อนติดกันไหม" — แต่ join(", ") ที่ฝังอยู่ใน
+  // ${...} ก็เป็นก้อนหนึ่งเหมือนกัน ถ้านับด้วยจะไปคั่นระหว่างไทยกับอังกฤษจนจับคู่ไม่ติด
+  const nestedDepth = () => stack.filter((f) => f.pausedFrame).length;
+
   const openStr = (q) => {
-    cur = { quote: q, value: "", line, start: i, outer: cur };
+    const nested = nestedDepth() > 0;
+    // root = ก้อนนอกสุดที่ครอบอยู่ — ใช้ตัดสินว่าก้อนในถูกแปลไปพร้อมกับก้อนนอกแล้วหรือยัง
+    // เช่น t(`ครบทุกเซต${easy ? ` และยังเหลือแรง ${rir}` : ""}`, `...`) ก้อน " และยังเหลือแรง "
+    // ไม่ได้ลืมแปล มันถูกแปลไปกับ template ก้อนนอกซึ่งมีคู่อังกฤษของตัวเองอยู่แล้ว
+    // เฟรมที่ถูกพักไว้ตัวนอกสุดคือก้อนนอกสุดจริง (cur เป็น null อยู่ระหว่างอ่าน ${...})
+    const outermost = stack.find((f) => f.pausedFrame)?.pausedFrame;
+    cur = { quote: q, value: "", line, start: i, outer: cur, nested, root: nested ? (outermost?.root ?? outermost?.start ?? i) : i };
     stack.push({ mode: q, braces: 0 });
   };
   const closeStr = () => {
-    if (cur) out.push({ kind: "str", value: cur.value, line: cur.line, start: cur.start, end: i + 1 });
+    if (cur) out.push({ kind: "str", value: cur.value, line: cur.line, start: cur.start, end: i + 1, nested: cur.nested, root: cur.root });
     cur = cur?.outer ?? null;
     stack.pop();
   };
@@ -151,22 +163,63 @@ for (const f of walk(SRC)) {
   const items = scan(src);
 
   // ก้อนไทยตัวไหนตามด้วย , "อังกฤษ" ทันที = แปลแล้ว
-  const strs = items.filter((x) => x.kind === "str");
+  //
+  // จับคู่แยกตามชั้น: อาร์กิวเมนต์สองตัวของ t() อยู่ชั้นเดียวกันเสมอ ถ้าเอาก้อนทุกชั้น
+  // มาเรียงรวมกัน ก้อนที่ฝังใน ${...} จะไปคั่นกลางจนคู่ที่ควรเจอกันคลาดกัน
+  // (และ `${t("วิ","s")}` ที่ฝังในเทมเพลตก็ต้องนับว่าแปลแล้วเหมือนกัน)
+  const byLevel = new Map();
+  for (const x of items) {
+    if (x.kind !== "str") continue;
+    const key = x.nested ? `n${x.root}` : "top";
+    if (!byLevel.has(key)) byLevel.set(key, []);
+    byLevel.get(key).push(x);
+  }
+
   const translated = new Set();
-  for (let k = 0; k < strs.length; k++) {
-    if (!hasThai(strs[k].value)) continue;
-    const next = strs[k + 1];
-    if (!next || hasThai(next.value)) continue;
-    if (/^\s*,\s*$/.test(src.slice(strs[k].end, next.start))) translated.add(strs[k]);
+  for (const group of byLevel.values()) {
+    group.sort((a, b) => a.start - b.start);
+    for (let k = 0; k < group.length; k++) {
+      if (!hasThai(group[k].value)) continue;
+      const next = group[k + 1];
+      if (!next || hasThai(next.value)) continue;
+      if (/^\s*,\s*$/.test(src.slice(group[k].end, next.start))) translated.add(group[k]);
+    }
   }
 
   // บรรทัดที่ทำสองภาษาด้วยมือ (เช่น ternary จาก isEN()) ปิดเสียงด้วย // i18n-ok
   // ต้องเป็นการยกเว้นทีละบรรทัดเสมอ ไม่มีแบบปิดทั้งไฟล์ — ไม่งั้นของใหม่จะแอบหลุดเข้าไป
   const lines = src.split("\n");
-  const ok = (ln) => /\/\/\s*i18n-ok/.test(lines[ln - 1] ?? "");
+  // รับทั้ง // i18n-ok และ {/* i18n-ok */} (ใน JSX เขียน // ไม่ได้)
+  const ok = (ln) => /(?:\/\/|\/\*)\s*i18n-ok/.test(lines[ln - 1] ?? "");
+
+  // ตาราง *_TH คือ "ข้อมูลฝั่งไทย" ของคู่ *_TH/*_EN — เป็นไทยโดยตั้งใจ
+  // แต่ต้องมีคู่ *_EN จริงในไฟล์เดียวกัน ไม่งั้นแปลว่ายังไม่ได้ทำคู่ให้ ต้องฟ้อง
+  const skipRanges = [];
+  lines.forEach((line, i) => {
+    const m = /^\s*(?:export\s+)?const\s+(\w+)_TH(\w*)\s*(?::[^=]*)?=\s*([{[])/.exec(line);
+    if (!m) return;
+    if (!new RegExp(`\\b${m[1]}_EN${m[2]}\\b`).test(src)) return;
+    const close = m[3] === "{" ? /^\};?$/ : /^\];?$/;
+    // ตารางบรรทัดเดียว (const MONTH_TH = [...];) จบในบรรทัดตัวเอง
+    if (line.trimEnd().endsWith(";")) {
+      skipRanges.push([i + 1, i + 1]);
+      return;
+    }
+    for (let j = i; j < lines.length; j++) {
+      if (close.test(lines[j].trim())) {
+        skipRanges.push([i + 1, j + 1]);
+        break;
+      }
+    }
+  });
+  const inTable = (ln) => skipRanges.some(([a, b]) => ln >= a && ln <= b);
+
+  // ก้อนในของเทมเพลตที่ก้อนนอกแปลแล้ว = แปลแล้วเหมือนกัน
+  const translatedRoots = new Set([...translated].map((x) => x.start));
 
   for (const x of items) {
-    if (!hasThai(x.value) || translated.has(x) || ok(x.line)) continue;
+    if (!hasThai(x.value) || translated.has(x) || ok(x.line) || inTable(x.line)) continue;
+    if (x.nested && translatedRoots.has(x.root)) continue;
     findings.push({ file: path.relative(SRC, f).replace(/\\/g, "/"), line: x.line, text: x.value.trim().slice(0, 90) });
   }
 }

@@ -6,6 +6,7 @@
 
 import type { Data, DayKey } from "./store";
 import { DAYS, todayStr } from "./store";
+import { t } from "./i18n";
 
 export const MIN_DAYS_FOR_TREND = 10; // ต่ำกว่านี้ห้ามสรุปแนวโน้มน้ำหนัก
 const MS_DAY = 86400000;
@@ -52,20 +53,39 @@ export interface WeightAdvice {
 }
 
 export function weightAdvice(data: Data): WeightAdvice {
-  const t = weightTrend(data);
-  if (!t.enough)
+  const tr = weightTrend(data);
+  if (!tr.enough)
     return {
       tone: "wait",
-      msg: `ชั่งมา ${t.days} วัน — ต้องมีอย่างน้อย ${MIN_DAYS_FOR_TREND} วันถึงจะดูแนวโน้มได้ (น้ำหนักแกว่งวันละเป็นกิโลจากน้ำในตัว)`,
+      msg: t(
+        `ชั่งมา ${tr.days} วัน — ต้องมีอย่างน้อย ${MIN_DAYS_FOR_TREND} วันถึงจะดูแนวโน้มได้ (น้ำหนักแกว่งวันละเป็นกิโลจากน้ำในตัว)`,
+        `${tr.days} days logged — needs at least ${MIN_DAYS_FOR_TREND} to read a trend (water weight swings a kilo a day on its own)`,
+      ),
     };
-  if (t.kgPerWeek == null) return { tone: "wait", msg: "ยังเทียบสัปดาห์ต่อสัปดาห์ไม่ได้ — ชั่งต่ออีกสักหน่อย" };
+  if (tr.kgPerWeek == null)
+    return { tone: "wait", msg: t("ยังเทียบสัปดาห์ต่อสัปดาห์ไม่ได้ — ชั่งต่ออีกสักหน่อย", "Not enough to compare week to week yet — keep weighing in") };
 
   const [lo, hi] = targetGainRange(data);
-  if (t.kgPerWeek > hi)
-    return { tone: "fast", msg: `ขึ้น ${t.kgPerWeek} กก./สัปดาห์ เร็วกว่าเป้า ${lo}-${hi} — ไขมันอาจเพิ่มด้วย ลองลด 150 kcal` };
-  if (t.kgPerWeek < lo)
-    return { tone: "slow", msg: `ขึ้น ${t.kgPerWeek} กก./สัปดาห์ ช้ากว่าเป้า ${lo}-${hi} — ลองเพิ่ม 200 kcal` };
-  return { tone: "ok", msg: `ขึ้น ${t.kgPerWeek} กก./สัปดาห์ อยู่ในเป้า ${lo}-${hi} พอดี` };
+  if (tr.kgPerWeek > hi)
+    return {
+      tone: "fast",
+      msg: t(
+        `ขึ้น ${tr.kgPerWeek} กก./สัปดาห์ เร็วกว่าเป้า ${lo}-${hi} — ไขมันอาจเพิ่มด้วย ลองลด 150 kcal`,
+        `Up ${tr.kgPerWeek} kg/week, faster than the ${lo}-${hi} target — some of that is likely fat. Try cutting 150 kcal.`,
+      ),
+    };
+  if (tr.kgPerWeek < lo)
+    return {
+      tone: "slow",
+      msg: t(
+        `ขึ้น ${tr.kgPerWeek} กก./สัปดาห์ ช้ากว่าเป้า ${lo}-${hi} — ลองเพิ่ม 200 kcal`,
+        `Up ${tr.kgPerWeek} kg/week, slower than the ${lo}-${hi} target — try adding 200 kcal.`,
+      ),
+    };
+  return {
+    tone: "ok",
+    msg: t(`ขึ้น ${tr.kgPerWeek} กก./สัปดาห์ อยู่ในเป้า ${lo}-${hi} พอดี`, `Up ${tr.kgPerWeek} kg/week — right in the ${lo}-${hi} target.`),
+  };
 }
 
 // ── โภชนาการ ──

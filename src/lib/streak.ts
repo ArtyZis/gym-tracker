@@ -11,6 +11,7 @@
 import type { Data, DayKey } from "./store";
 import { JS_DAYS, exercisesForDay, makeupSlots } from "./store";
 import { isLoop, slotForDate } from "./loop";
+import { isEN } from "./i18n";
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -196,6 +197,8 @@ export function heatmapGrid(data: Data, weeks = 16): { grid: HeatCell[][]; month
 
   const level = (n: number): HeatCell["level"] => (n === 0 ? 0 : n <= 3 ? 1 : n <= 7 ? 2 : n <= 12 ? 3 : 4);
   const MONTH_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  const MONTH_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const MONTHS = isEN() ? MONTH_EN : MONTH_TH;
 
   const grid: HeatCell[][] = [];
   const monthLabels: { col: number; label: string }[] = [];
@@ -213,7 +216,7 @@ export function heatmapGrid(data: Data, weeks = 16): { grid: HeatCell[][]; month
     firstOfCol.setDate(start.getDate() + c * 7);
     if (firstOfCol.getMonth() !== lastMonth) {
       lastMonth = firstOfCol.getMonth();
-      monthLabels.push({ col: c, label: MONTH_TH[lastMonth] });
+      monthLabels.push({ col: c, label: MONTHS[lastMonth] });
     }
     grid.push(col);
   }

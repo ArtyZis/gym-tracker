@@ -14,7 +14,8 @@
 // ส่วนรอบยาวเกิน 7 วันแทบไม่มีใครใช้จริง จึงยอมจำกัดที่ 7 เพื่อแลกกับความปลอดภัย
 
 import type { Data, DayKey } from "./store";
-import { DAYS, dayName, todayStr } from "./store";
+import { DAYS, dayName, dayShort, todayStr } from "./store";
+import { t } from "./i18n";
 
 export const MIN_LOOP_LEN = 2;
 export const MAX_LOOP_LEN = 7;
@@ -50,11 +51,11 @@ export function slotForDate(d: Data, date: string): DayKey {
 
 /** ชื่อช่องสำหรับแสดงผล — โหมดรอบใช้ "วันที่ N" แทนชื่อวันในสัปดาห์ */
 export const slotName = (d: Data, day: DayKey): string =>
-  isLoop(d) ? `วันที่ ${DAYS.indexOf(day) + 1}` : dayName(day);
+  isLoop(d) ? t(`วันที่ ${DAYS.indexOf(day) + 1}`, `Day ${DAYS.indexOf(day) + 1}`) : dayName(day);
 
 /** ชื่อย่อสำหรับปุ่มเลือกวัน (ที่แคบ) */
 export const slotShort = (d: Data, day: DayKey): string =>
-  isLoop(d) ? String(DAYS.indexOf(day) + 1) : ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"][DAYS.indexOf(day)];
+  isLoop(d) ? String(DAYS.indexOf(day) + 1) : dayShort(day);
 
 /**
  * ตั้งว่า "วันนี้คือวันที่ N ของรอบ" แล้วคำนวณ anchor ย้อนกลับให้

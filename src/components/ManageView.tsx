@@ -15,8 +15,8 @@ import { ACCENTS, accentUnlocked, resolveAccent } from "../lib/accent";
 import { computeStreak } from "../lib/streak";
 import { isPro } from "../lib/edition";
 import UpgradeCard from "./UpgradeCard";
-import { EQUIP_TH, EXERCISE_COUNT, findTemplate, incFor, isMachineEx, searchExercises, unitFor } from "../lib/exerciseDB";
-import { MUSCLE_TH } from "../lib/analyzer";
+import { EXERCISE_COUNT, findTemplate, incFor, isMachineEx, searchExercises, tipOf, unitFor } from "../lib/exerciseDB";
+import { daysText, exText, isEN, setsText, t } from "../lib/i18n";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
 
@@ -53,7 +53,7 @@ export default function ManageView() {
           เดิมของที่ตั้งครั้งเดียว (นำเข้าโปรแกรม ตารางแบบรอบ ประเมินน้ำหนัก) อยู่บนสุด
           คนที่แค่จะเพิ่มท่าต้องเลื่อนผ่าน 6 การ์ดทุกครั้ง */}
       <div className="glass p-4 mb-3">
-        <Kicker>เพิ่ม / แก้ท่า</Kicker>
+        <Kicker>{t("เพิ่ม / แก้ท่า", "Add / edit exercises")}</Kicker>
         {!draft && (
           <button
             className="btn-cy w-full !text-[13px]"
@@ -62,7 +62,7 @@ export default function ManageView() {
               setDraft({ name: "", day: "mon", type: "weight", sets: 3, rmin: 8, rmax: 12, inc: 2.5, unit: "kg", amrap: false });
             }}
           >
-            + เพิ่มท่าใหม่
+            {t("+ เพิ่มท่าใหม่", "+ New exercise")}
           </button>
         )}
         {draft && (
@@ -75,19 +75,19 @@ export default function ManageView() {
               onPick={(patch) => setDraft({ ...draft, ...patch, day: draft.day, id: draft.id, order: draft.order })}
             />
 
-            <FieldLabel>ชื่อท่า</FieldLabel>
+            <FieldLabel>{t("ชื่อท่า", "Exercise name")}</FieldLabel>
             <input
               className={inputCls + " mb-2.5"}
               value={draft.name || ""}
-              placeholder="เช่น Cable Fly"
+              placeholder={t("เช่น Cable Fly", "e.g. Cable Fly")}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
             {findTemplate(draft.name || "") && (
               <p className="text-[11.5px] -mt-1.5 mb-2.5 leading-relaxed" style={{ color: "var(--mut)" }}>
-                💡 {findTemplate(draft.name || "")!.tip}
+                💡 {tipOf(findTemplate(draft.name || "")!)}
               </p>
             )}
-            <FieldLabel>ฝึกวันไหน</FieldLabel>
+            <FieldLabel>{t("ฝึกวันไหน", "Which day")}</FieldLabel>
             <div className="flex flex-wrap gap-1.5 mb-2.5">
               {slotsOf(data).map((d) => (
                 <Chip key={d} on={draft.day === d} onClick={() => setDraft({ ...draft, day: d })}>
@@ -95,26 +95,26 @@ export default function ManageView() {
                 </Chip>
               ))}
             </div>
-            <FieldLabel>วัดผลด้วยอะไร</FieldLabel>
+            <FieldLabel>{t("วัดผลด้วยอะไร", "Measured by")}</FieldLabel>
             <div className="flex gap-1.5 mb-2.5">
               {(
                 [
-                  ["weight", "น้ำหนัก"],
-                  ["bodyweight", "น้ำหนักตัว"],
-                  ["time", "จับเวลา"],
+                  ["weight", t("น้ำหนัก", "Weight")],
+                  ["bodyweight", t("น้ำหนักตัว", "Bodyweight")],
+                  ["time", t("จับเวลา", "Time")],
                 ] as [ExType, string][]
-              ).map(([t, label]) => (
-                <Chip key={t} on={draft.type === t} onClick={() => setDraft({ ...draft, type: t })}>
+              ).map(([kind, label]) => (
+                <Chip key={kind} on={draft.type === kind} onClick={() => setDraft({ ...draft, type: kind })}>
                   {label}
                 </Chip>
               ))}
             </div>
             {draft.type === "weight" && (
               <>
-                <FieldLabel>ประเภทน้ำหนัก</FieldLabel>
+                <FieldLabel>{t("ประเภทน้ำหนัก", "Weight type")}</FieldLabel>
                 <div className="flex gap-1.5 mb-2.5">
                   <Chip on={!draft.machine} onClick={() => setDraft({ ...draft, machine: false })}>
-                    ฟรีเวท (บาร์/ดัมเบล)
+                    {t("ฟรีเวท (บาร์/ดัมเบล)", "Free weight (bar/dumbbell)")}
                   </Chip>
                   <Chip
                     on={!!draft.machine}
@@ -122,24 +122,28 @@ export default function ManageView() {
                       setDraft({
                         ...draft,
                         machine: true,
-                        unit: draft.unit?.includes("ข้าง") ? "kg" : draft.unit || "kg",
+                        // "kg/ข้าง" คือหน่วยที่ผู้ใช้เดิมเคยพิมพ์ไว้ — เทียบข้อมูลเก่า ไม่ใช่ข้อความบนจอ
+                        unit: draft.unit?.includes("ข้าง") ? "kg" : draft.unit || "kg", // i18n-ok
                         inc: draft.inc && draft.inc !== 2.5 ? draft.inc : 5,
                       })
                     }
                   >
-                    เครื่อง (machine)
+                    {t("เครื่อง (machine)", "Machine")}
                   </Chip>
                 </div>
                 {draft.machine && (
                   <p className="text-[11px] mb-2.5 -mt-1" style={{ color: "var(--dim)" }}>
-                    เครื่อง = ใส่น้ำหนักรวมทั้งเครื่อง (ไม่ใช่ต่อข้าง) ปรับทีละ 5 ตามหมุด
+                    {t(
+                      "เครื่อง = ใส่น้ำหนักรวมทั้งเครื่อง (ไม่ใช่ต่อข้าง) ปรับทีละ 5 ตามหมุด",
+                      "Machine = log the whole stack (not per side), moving 5 at a time like the pin does",
+                    )}
                   </p>
                 )}
               </>
             )}
             <div className="grid grid-cols-2 gap-2 mb-2.5">
               <div>
-                <FieldLabel>เซต</FieldLabel>
+                <FieldLabel>{t("เซต", "Sets")}</FieldLabel>
                 <input
                   type="number"
                   className={inputCls}
@@ -149,7 +153,7 @@ export default function ManageView() {
               </div>
               {draft.type === "weight" && (
                 <div>
-                  <FieldLabel>เพิ่มทีละ</FieldLabel>
+                  <FieldLabel>{t("เพิ่มทีละ", "Increment")}</FieldLabel>
                   <input
                     type="number"
                     step="0.5"
@@ -163,7 +167,7 @@ export default function ManageView() {
             {!(draft.type === "bodyweight" && draft.amrap) && (
               <div className="grid grid-cols-2 gap-2 mb-2.5">
                 <div>
-                  <FieldLabel>{draft.type === "time" ? "วิ ต่ำสุด" : "ครั้งต่ำสุด"}</FieldLabel>
+                  <FieldLabel>{draft.type === "time" ? t("วิ ต่ำสุด", "Min seconds") : t("ครั้งต่ำสุด", "Min reps")}</FieldLabel>
                   <input
                     type="number"
                     className={inputCls}
@@ -172,7 +176,7 @@ export default function ManageView() {
                   />
                 </div>
                 <div>
-                  <FieldLabel>{draft.type === "time" ? "วิ สูงสุด" : "ครั้งสูงสุด"}</FieldLabel>
+                  <FieldLabel>{draft.type === "time" ? t("วิ สูงสุด", "Max seconds") : t("ครั้งสูงสุด", "Max reps")}</FieldLabel>
                   <input
                     type="number"
                     className={inputCls}
@@ -184,7 +188,7 @@ export default function ManageView() {
             )}
             {draft.type === "weight" && (
               <div className="mb-2.5">
-                <FieldLabel>หน่วย</FieldLabel>
+                <FieldLabel>{t("หน่วย", "Unit")}</FieldLabel>
                 <input className={inputCls} value={draft.unit || "kg"} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} />
               </div>
             )}
@@ -196,16 +200,16 @@ export default function ManageView() {
                   onChange={(e) => setDraft({ ...draft, amrap: e.target.checked })}
                   style={{ width: "auto" }}
                 />
-                ทำให้สุดแรง (ไม่กำหนดช่วงครั้ง)
+                {t("ทำให้สุดแรง (ไม่กำหนดช่วงครั้ง)", "Go to failure (no rep range)")}
               </label>
             )}
             <div className="mb-2.5">
-              <FieldLabel>เวลาพัก (วิ) — เว้นว่าง = ให้ระบบแนะนำ</FieldLabel>
+              <FieldLabel>{t("เวลาพัก (วิ) — เว้นว่าง = ให้ระบบแนะนำ", "Rest (sec) — leave blank to use the suggestion")}</FieldLabel>
               <input
                 type="number"
                 className={inputCls}
                 value={draft.restSec ?? ""}
-                placeholder="อัตโนมัติ"
+                placeholder={t("อัตโนมัติ", "Auto")}
                 onChange={(e) => {
                   const v = e.target.value.trim();
                   setDraft({ ...draft, restSec: v ? Math.max(10, +v) : undefined });
@@ -217,7 +221,7 @@ export default function ManageView() {
                 className="btn-cy flex-1 !text-[13px]"
                 onClick={() => {
                   if (!draft?.name?.trim()) {
-                    toast("ใส่ชื่อท่าก่อน");
+                    toast(t("ใส่ชื่อท่าก่อน", "Give it a name first"));
                     return;
                   }
                   update((d) => {
@@ -228,12 +232,12 @@ export default function ManageView() {
                       d.exercises.push({ ...(draft as Exercise), id: uid(), order: exercisesForDay(d, draft.day).length });
                     }
                   });
-                  toast(editingId ? "แก้ไขแล้ว" : "เพิ่มท่าแล้ว");
+                  toast(editingId ? t("แก้ไขแล้ว", "Saved") : t("เพิ่มท่าแล้ว", "Exercise added"));
                   setDraft(null);
                   setEditingId(null);
                 }}
               >
-                {editingId ? "บันทึกการแก้ไข" : "เพิ่มท่านี้"}
+                {editingId ? t("บันทึกการแก้ไข", "Save changes") : t("เพิ่มท่านี้", "Add exercise")}
               </button>
               <button
                 className="btn-gh flex-1 !text-[13px]"
@@ -242,7 +246,7 @@ export default function ManageView() {
                   setEditingId(null);
                 }}
               >
-                ยกเลิก
+                {t("ยกเลิก", "Cancel")}
               </button>
             </div>
           </div>
@@ -250,7 +254,7 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <Kicker>ท่าทั้งหมด</Kicker>
+        <Kicker>{t("ท่าทั้งหมด", "All exercises")}</Kicker>
         {slotsOf(data).map((d) => {
           const exs = exercisesForDay(data, d);
           if (!exs.length) return null;
@@ -265,7 +269,7 @@ export default function ManageView() {
                   <div className="flex-1 min-w-0">
                     <span className="block text-[13.5px] leading-snug">{ex.name}</span>
                     <span className="font-mono2 text-[9.5px]" style={{ color: "var(--dim)" }}>
-                      {ex.sets} เซต · {repTargetText(ex)}
+                      {setsText(ex.sets)} · {repTargetText(ex)}
                     </span>
                   </div>
                   <IconBtn dis={i === 0} onClick={() => reorder(ex, -1)}>
@@ -285,13 +289,13 @@ export default function ManageView() {
                   <IconBtn
                     danger
                     onClick={() => {
-                      if (confirm(`ลบ "${ex.name}" ?`)) {
+                      if (confirm(t(`ลบ "${ex.name}" ?`, `Delete "${ex.name}"?`))) {
                         update((d2) => {
                           archiveOne(d2, ex); // เก็บประวัติไว้ กู้กลับได้ถ้าเพิ่มท่าชื่อเดิม
                           d2.exercises = d2.exercises.filter((e) => e.id !== ex.id);
                           delete d2.history[ex.id];
                         });
-                        toast("ลบแล้ว (ประวัติเก็บไว้)");
+                        toast(t("ลบแล้ว (ประวัติเก็บไว้)", "Deleted — history kept"));
                       }
                     }}
                   >
@@ -305,10 +309,10 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <Kicker>ย้ายท่าทั้งวัน</Kicker>
+        <Kicker>{t("ย้ายท่าทั้งวัน", "Move a whole day")}</Kicker>
         <div className="grid grid-cols-2 gap-2 mb-2.5">
           <div>
-            <FieldLabel>จากวัน</FieldLabel>
+            <FieldLabel>{t("จากวัน", "From")}</FieldLabel>
             <select className={inputCls} value={moveFrom} onChange={(e) => setMoveFrom(e.target.value as DayKey)}>
               {slotsOf(data).map((d) => (
                 <option key={d} value={d}>
@@ -318,7 +322,7 @@ export default function ManageView() {
             </select>
           </div>
           <div>
-            <FieldLabel>ไปวัน</FieldLabel>
+            <FieldLabel>{t("ไปวัน", "To")}</FieldLabel>
             <select className={inputCls} value={moveTo} onChange={(e) => setMoveTo(e.target.value as DayKey)}>
               {slotsOf(data).map((d) => (
                 <option key={d} value={d}>
@@ -333,7 +337,7 @@ export default function ManageView() {
             className="btn-gh w-full !text-[12.5px]"
             onClick={() => {
               if (moveFrom === moveTo) {
-                toast("เลือกคนละวัน");
+                toast(t("เลือกคนละวัน", "Pick two different days"));
                 return;
               }
               let count = 0;
@@ -345,10 +349,14 @@ export default function ManageView() {
                   }
                 });
               });
-              toast(count ? `ย้าย ${count} ท่าไป${slotName(data, moveTo)}แล้ว` : "วันนั้นไม่มีท่า");
+              toast(
+                count
+                  ? t(`ย้าย ${count} ท่าไป${slotName(data, moveTo)}แล้ว`, `Moved ${exText(count)} to ${slotName(data, moveTo)}`)
+                  : t("วันนั้นไม่มีท่า", "That day has no exercises"),
+              );
             }}
           >
-            ย้ายไปทับ
+            {t("ย้ายไปทับ", "Move over")}
           </button>
           {/* สลับสองวันเข้าหากัน — ใช้บ่อยกว่าย้ายทับ เพราะตารางจริงมักแค่ "วันนี้ไม่ว่าง
               ขอสลับกับอีกวัน" ถ้าใช้ย้ายทับต้องทำ 3 ขั้น (ย้ายไปวันว่าง -> ย้ายกลับ -> ย้ายอีกที)
@@ -357,7 +365,7 @@ export default function ManageView() {
             className="btn-cy w-full !text-[12.5px]"
             onClick={() => {
               if (moveFrom === moveTo) {
-                toast("เลือกคนละวัน");
+                toast(t("เลือกคนละวัน", "Pick two different days"));
                 return;
               }
               let a = 0;
@@ -377,14 +385,21 @@ export default function ManageView() {
                 d.dayLabels[moveFrom] = d.dayLabels[moveTo] ?? "";
                 d.dayLabels[moveTo] = la;
               });
-              toast(a + b ? `สลับ${slotName(data, moveFrom)} ↔ ${slotName(data, moveTo)} แล้ว` : "ทั้งสองวันไม่มีท่า");
+              toast(
+                a + b
+                  ? t(
+                      `สลับ${slotName(data, moveFrom)} ↔ ${slotName(data, moveTo)} แล้ว`,
+                      `Swapped ${slotName(data, moveFrom)} ↔ ${slotName(data, moveTo)}`,
+                    )
+                  : t("ทั้งสองวันไม่มีท่า", "Neither day has exercises"),
+              );
             }}
           >
-            สลับกัน ⇄
+            {t("สลับกัน ⇄", "Swap ⇄")}
           </button>
         </div>
         <div className="hairline mt-4 pt-3.5">
-          <Kicker>ชื่อวันฝึก</Kicker>
+          <Kicker>{t("ชื่อวันฝึก", "Day names")}</Kicker>
           {slotsOf(data).map((d) => (
             <div key={d} className="grid grid-cols-[54px_1fr] gap-2 items-center mb-1.5">
               <span className="font-mono2 text-[11px]" style={{ color: "var(--mut)" }}>
@@ -393,7 +408,7 @@ export default function ManageView() {
               <input
                 className="px-3 py-2 text-[13px]"
                 value={data.dayLabels[d]}
-                placeholder="เช่น Push Day"
+                placeholder={t("เช่น Push Day", "e.g. Push Day")}
                 onChange={(e) =>
                   update((d2) => {
                     d2.dayLabels[d] = e.target.value;
@@ -406,11 +421,14 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <Kicker>แผ่นน้ำหนักที่ยิมคุณมี</Kicker>
+        <Kicker>{t("แผ่นน้ำหนักที่ยิมคุณมี", "Plates your gym has")}</Kicker>
         <p className="text-[11.5px] -mt-1 mb-3 leading-relaxed" style={{ color: "var(--mut)" }}>
-          ใช้กำหนดว่าระบบจะแนะนำให้ขึ้นน้ำหนักทีละเท่าไหร่ — ต้องเป็นตัวเลขที่ใส่แผ่นได้จริง
+          {t(
+            "ใช้กำหนดว่าระบบจะแนะนำให้ขึ้นน้ำหนักทีละเท่าไหร่ — ต้องเป็นตัวเลขที่ใส่แผ่นได้จริง",
+            "Sets how big a jump we suggest — it has to be a number you can actually load",
+          )}
         </p>
-        <FieldLabel>แผ่นเล็กสุดที่มี (ต่อข้าง)</FieldLabel>
+        <FieldLabel>{t("แผ่นเล็กสุดที่มี (ต่อข้าง)", "Smallest plate (per side)")}</FieldLabel>
         <div className="flex gap-1.5 mb-2">
           {[1.25, 2.5, 5].map((p) => {
             const on = (data.settings.minPlateKg ?? 1.25) === p;
@@ -436,13 +454,19 @@ export default function ManageView() {
           })}
         </div>
         <p className="text-[10.5px] mb-3 leading-relaxed" style={{ color: "var(--dim)" }}>
-          ใส่แผ่นทีละคู่เสมอ — เลือก {data.settings.minPlateKg ?? 1.25} kg แปลว่าท่าบาร์เบลขยับได้ทีละ{" "}
+          {t(
+            `ใส่แผ่นทีละคู่เสมอ — เลือก ${data.settings.minPlateKg ?? 1.25} kg แปลว่าท่าบาร์เบลขยับได้ทีละ`,
+            `Plates always go on in pairs — picking ${data.settings.minPlateKg ?? 1.25} kg means barbell lifts move in steps of`,
+          )}{" "}
           <b style={{ color: "var(--acc)" }}>{(data.settings.minPlateKg ?? 1.25) * 2} kg</b>
         </p>
 
         <ToggleRow
-          label="นับน้ำหนักบาร์ด้วย"
-          desc="ปิดไว้ = บันทึกแค่น้ำหนักแผ่นที่ใส่ (เลกเพรสก็ไม่ต้องรู้น้ำหนักเครื่อง)"
+          label={t("นับน้ำหนักบาร์ด้วย", "Count the bar's weight")}
+          desc={t(
+            "ปิดไว้ = บันทึกแค่น้ำหนักแผ่นที่ใส่ (เลกเพรสก็ไม่ต้องรู้น้ำหนักเครื่อง)",
+            "Off = log only the plates you loaded (so leg press doesn't need the machine's own weight)",
+          )}
           on={data.settings.countBarWeight === true}
           onToggle={() =>
             update((d) => {
@@ -455,7 +479,7 @@ export default function ManageView() {
             ซึ่งเป็นของที่ตั้งครั้งเดียว ไม่ใช่ของที่หยิบใช้ระหว่างเล่น */}
         {data.settings.countBarWeight === true && (
           <div className="mt-2">
-            <FieldLabel>น้ำหนักแกนบาร์ (kg)</FieldLabel>
+            <FieldLabel>{t("น้ำหนักแกนบาร์ (kg)", "Bar weight (kg)")}</FieldLabel>
             <input
               type="number"
               className={inputCls}
@@ -484,34 +508,37 @@ export default function ManageView() {
       <SavedProgramsCard />
 
       <div className="glass p-4 mb-3">
-        <Kicker>ย้ายข้อมูลข้ามเครื่อง</Kicker>
+        <Kicker>{t("ย้ายข้อมูลข้ามเครื่อง", "Move data to another device")}</Kicker>
         <p className="text-[12px] mb-2.5" style={{ color: "var(--mut)" }}>
-          ข้อมูลบันทึกในเครื่องนี้อัตโนมัติอยู่แล้ว — ใช้ส่วนนี้เมื่อต้องการย้ายไปเครื่องอื่น
+          {t(
+            "ข้อมูลบันทึกในเครื่องนี้อัตโนมัติอยู่แล้ว — ใช้ส่วนนี้เมื่อต้องการย้ายไปเครื่องอื่น",
+            "Everything already saves on this device automatically — this is only for moving it somewhere else",
+          )}
         </p>
         <div className="flex gap-2 mb-2">
           <button
             className="btn-gh flex-1 !py-2.5 !text-[12px]"
             onClick={() => {
               setTransferCode(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
-              toast("สร้างโค้ดแล้ว");
+              toast(t("สร้างโค้ดแล้ว", "Code generated"));
             }}
           >
-            สร้างโค้ด
+            {t("สร้างโค้ด", "Generate code")}
           </button>
           <button
             className="btn-gh flex-1 !py-2.5 !text-[12px]"
             onClick={() => {
               if (!transferCode) {
-                toast("กดสร้างโค้ดก่อน");
+                toast(t("กดสร้างโค้ดก่อน", "Generate a code first"));
                 return;
               }
               navigator.clipboard
                 .writeText(transferCode)
-                .then(() => toast("คัดลอกแล้ว"))
-                .catch(() => toast("คัดลอกไม่ได้"));
+                .then(() => toast(t("คัดลอกแล้ว", "Copied")))
+                .catch(() => toast(t("คัดลอกไม่ได้", "Couldn't copy")));
             }}
           >
-            คัดลอก
+            {t("คัดลอก", "Copy")}
           </button>
         </div>
         <textarea
@@ -519,7 +546,7 @@ export default function ManageView() {
           style={{ fontFamily: "JetBrains Mono" }}
           value={transferCode}
           onChange={(e) => setTransferCode(e.target.value)}
-          placeholder="โค้ดจะขึ้นที่นี่ หรือวางโค้ดจากเครื่องอื่นเพื่อกู้คืน"
+          placeholder={t("โค้ดจะขึ้นที่นี่ หรือวางโค้ดจากเครื่องอื่นเพื่อกู้คืน", "Your code appears here — or paste one from another device to restore")}
         />
         <button
           className="btn-cy w-full !text-[12.5px]"
@@ -527,32 +554,42 @@ export default function ManageView() {
             // decodeTransfer ตรวจชนิดข้อมูลผ่าน normalizeData แล้ว — คืน null = โค้ดพัง/ปลอม
             const restored = decodeTransfer(transferCode);
             if (!restored) {
-              toast("โค้ดไม่ถูกต้อง");
+              toast(t("โค้ดไม่ถูกต้อง", "That code isn't valid"));
               return;
             }
             update((d) => Object.assign(d, restored));
-            toast("กู้คืนแล้ว");
+            toast(t("กู้คืนแล้ว", "Restored"));
           }}
         >
-          กู้คืนจากโค้ด
+          {t("กู้คืนจากโค้ด", "Restore from code")}
         </button>
       </div>
 
       <div className="glass p-4">
-        <Kicker>เริ่มใหม่หมด</Kicker>
+        <Kicker>{t("เริ่มใหม่หมด", "Start over")}</Kicker>
         <p className="text-[11.5px] mb-2.5" style={{ color: "var(--mut)" }}>
-          ล้างท่า ประวัติ และข้อมูลทั้งหมดให้ว่างเปล่า (โปรแกรมที่บันทึกไว้ยังอยู่) — เริ่มสร้างโปรแกรมเองจากศูนย์
+          {t(
+            "ล้างท่า ประวัติ และข้อมูลทั้งหมดให้ว่างเปล่า (โปรแกรมที่บันทึกไว้ยังอยู่) — เริ่มสร้างโปรแกรมเองจากศูนย์",
+            "Wipes every exercise, log, and setting back to empty (saved programs stay) — build your own from scratch",
+          )}
         </p>
         <button
           className="btn-danger w-full !text-[12.5px]"
           onClick={() => {
-            if (confirm("ลบทุกอย่างให้ว่างเปล่า? ท่าและประวัติการฝึกทั้งหมดจะหาย (กู้ไม่ได้)")) {
+            if (
+              confirm(
+                t(
+                  "ลบทุกอย่างให้ว่างเปล่า? ท่าและประวัติการฝึกทั้งหมดจะหาย (กู้ไม่ได้)",
+                  "Wipe everything? Every exercise and all training history will be gone — this cannot be undone.",
+                ),
+              )
+            ) {
               update((d) => Object.assign(d, createEmpty()));
-              toast("ล้างข้อมูลหมดแล้ว");
+              toast(t("ล้างข้อมูลหมดแล้ว", "Everything cleared"));
             }
           }}
         >
-          ลบทั้งหมดให้ว่างเปล่า
+          {t("ลบทั้งหมดให้ว่างเปล่า", "Wipe everything")}
         </button>
       </div>
 
@@ -571,27 +608,30 @@ function TrainingSettingsCard() {
   const smartOn = data.settings.smartRest !== false;
   return (
     <div className="glass p-4 mb-3">
-      <Kicker>ตั้งค่าการฝึก</Kicker>
+      <Kicker>{t("ตั้งค่าการฝึก", "Training settings")}</Kicker>
       <ToggleRow
-        label="เสียงตอนกด"
-        desc="เสียงสั้นๆ ตอนติ๊กเซต ครบท่า และทำ PR"
+        label={t("เสียงตอนกด", "Tap sounds")}
+        desc={t("เสียงสั้นๆ ตอนติ๊กเซต ครบท่า และทำ PR", "A short blip when you tick a set, finish an exercise, or hit a PR")}
         on={soundOn}
         onToggle={() => {
           update((d) => {
             d.settings.soundEnabled = !soundOn;
           });
-          toast(soundOn ? "ปิดเสียงแล้ว" : "เปิดเสียงแล้ว");
+          toast(soundOn ? t("ปิดเสียงแล้ว", "Sounds off") : t("เปิดเสียงแล้ว", "Sounds on"));
         }}
       />
       <ToggleRow
-        label="เวลาพักอัตโนมัติต่อท่า"
-        desc="ให้ระบบเลือกเวลาพักที่เหมาะกับแต่ละท่า (ท่าหนักพักนาน เรปสูงพักสั้น)"
+        label={t("เวลาพักอัตโนมัติต่อท่า", "Smart rest per exercise")}
+        desc={t(
+          "ให้ระบบเลือกเวลาพักที่เหมาะกับแต่ละท่า (ท่าหนักพักนาน เรปสูงพักสั้น)",
+          "Let the app pick the rest each exercise needs (heavy lifts rest longer, high reps shorter)",
+        )}
         on={smartOn}
         onToggle={() => {
           update((d) => {
             d.settings.smartRest = !smartOn;
           });
-          toast(smartOn ? "ใช้เวลาพักค่าเดียวแล้ว" : "เปิดเวลาพักอัตโนมัติแล้ว");
+          toast(smartOn ? t("ใช้เวลาพักค่าเดียวแล้ว", "Using one fixed rest time") : t("เปิดเวลาพักอัตโนมัติแล้ว", "Smart rest on"));
         }}
       />
     </div>
@@ -613,14 +653,17 @@ function AppearanceCard() {
         right={
           isPro ? (
             <span className="font-mono2 text-[9px]" style={{ color: "var(--acc)" }}>
-              สตรีคสูงสุด {best} วัน
+              {t(`สตรีคสูงสุด ${best} วัน`, `Best streak ${daysText(best)}`)}
             </span>
           ) : undefined
         }
       >
-        หน้าตา · ธีม
+        {t("หน้าตา · ธีม", "Look · theme")}
       </Kicker>
-      <div className="text-[13.5px] mb-2.5">สีธีม (accent)</div>
+
+      <LanguageRow />
+
+      <div className="text-[13.5px] mb-2.5">{t("สีธีม (accent)", "Accent colour")}</div>
       <div className="flex gap-2.5">
         {ACCENTS.map((a) => {
           const on = a.color.toLowerCase() === current;
@@ -630,13 +673,19 @@ function AppearanceCard() {
               key={a.color}
               onClick={() => {
                 if (!open) {
-                  toast(`ฝึกต่อเนื่องให้ได้ ${a.unlockStreak} วันเพื่อปลดล็อกสี${a.label} (ตอนนี้ ${best})`, false);
+                  toast(
+                    t(
+                      `ฝึกต่อเนื่องให้ได้ ${a.unlockStreak} วันเพื่อปลดล็อกสี${a.label()} (ตอนนี้ ${best})`,
+                      `Hit a ${a.unlockStreak}-day streak to unlock ${a.label()} (you're at ${best})`,
+                    ),
+                    false,
+                  );
                   return;
                 }
                 update((d) => {
                   d.settings.accent = a.color;
                 });
-                toast(`เปลี่ยนธีมเป็นสี${a.label}`);
+                toast(t(`เปลี่ยนธีมเป็นสี${a.label()}`, `Theme set to ${a.label()}`));
               }}
               className="flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition-all"
               style={{
@@ -646,7 +695,11 @@ function AppearanceCard() {
                 opacity: open ? 1 : 0.5,
               }}
               aria-pressed={on}
-              aria-label={open ? `สี${a.label}` : `สี${a.label} — ล็อกอยู่ ต้องสตรีค ${a.unlockStreak} วัน`}
+              aria-label={
+                open
+                  ? t(`สี${a.label()}`, `${a.label()} theme`)
+                  : t(`สี${a.label()} — ล็อกอยู่ ต้องสตรีค ${a.unlockStreak} วัน`, `${a.label()} — locked, needs a ${a.unlockStreak}-day streak`)
+              }
             >
               <span
                 className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
@@ -661,7 +714,7 @@ function AppearanceCard() {
                 {open ? "" : "🔒"}
               </span>
               <span className="font-mono2 text-[9px]" style={{ color: on ? a.color : "var(--mut)" }}>
-                {open ? a.label : `${a.unlockStreak} วัน`}
+                {open ? a.label() : daysText(a.unlockStreak)}
               </span>
             </button>
           );
@@ -669,22 +722,66 @@ function AppearanceCard() {
       </div>
       {nextLock && (
         <p className="text-[10.5px] mt-2 leading-relaxed" style={{ color: "var(--dim)" }}>
-          อีก {nextLock.unlockStreak - best} วันต่อเนื่องจะปลดล็อกสี{nextLock.label} — นับจากสตรีคสูงสุดที่เคยทำได้
-          ปลดแล้วอยู่ถาวร ขาดวันก็ไม่หาย
+          {t(
+            `อีก ${nextLock.unlockStreak - best} วันต่อเนื่องจะปลดล็อกสี${nextLock.label()} — นับจากสตรีคสูงสุดที่เคยทำได้ ปลดแล้วอยู่ถาวร ขาดวันก็ไม่หาย`,
+            `${nextLock.unlockStreak - best} more days unlocks ${nextLock.label()} — counted from your best-ever streak. Once unlocked it's yours for good, even if you miss a day.`,
+          )}
         </p>
       )}
       <div className="mt-1.5">
         <ToggleRow
-          label="โน้ตโค้ชในการ์ดท่า"
-          desc="คำแนะนำเป้าหมายต่อท่า (🎯) ในหน้าวันนี้"
+          label={t("โน้ตโค้ชในการ์ดท่า", "Coach notes on exercise cards")}
+          desc={t("คำแนะนำเป้าหมายต่อท่า (🎯) ในหน้าวันนี้", "The 🎯 target line for each exercise on the Today tab")}
           on={coachOn}
           onToggle={() => {
             update((d) => {
               d.settings.showCoachNotes = !coachOn;
             });
-            toast(coachOn ? "ซ่อนโน้ตโค้ชแล้ว" : "แสดงโน้ตโค้ชแล้ว");
+            toast(coachOn ? t("ซ่อนโน้ตโค้ชแล้ว", "Coach notes hidden") : t("แสดงโน้ตโค้ชแล้ว", "Coach notes shown"));
           }}
         />
+      </div>
+    </div>
+  );
+}
+
+// ภาษา — มีที่นี่ด้วยทั้งที่ปุ่มหลักอยู่บนหัวแอป
+// คนที่หาปุ่มบนหัวไม่เจอจะมาหาในหน้าตั้งค่าเป็นที่ที่สอง เจอทั้งสองที่ดีกว่าเจอที่เดียว
+function LanguageRow() {
+  const { data, update } = useApp();
+  const cur = data.settings.lang ?? "th";
+  return (
+    <div className="flex items-center gap-3 py-2.5 mb-1 hairline first:border-0">
+      <div className="flex-1 min-w-0">
+        <div className="text-[13.5px]">{t("ภาษา", "Language")}</div>
+        <div className="text-[11px] leading-snug mt-0.5" style={{ color: "var(--dim)" }}>
+          {t("สลับได้จากปุ่มบนหัวแอปเหมือนกัน", "Also switchable from the button in the header")}
+        </div>
+      </div>
+      <div className="flex gap-1 shrink-0">
+        {(["th", "en"] as const).map((l) => {
+          const on = cur === l;
+          return (
+            <button
+              key={l}
+              onClick={() =>
+                update((d) => {
+                  d.settings.lang = l;
+                })
+              }
+              className="font-mono2 text-[11px] px-3 py-1.5"
+              style={{
+                color: on ? "#050a18" : "var(--mut)",
+                background: on ? "linear-gradient(180deg, var(--acc), var(--acc-2))" : "rgba(10,20,31,.5)",
+                border: on ? "none" : "1px solid var(--edge)",
+                clipPath: "var(--cut-path-sm)",
+              }}
+              aria-pressed={on}
+            >
+              {l === "th" ? "ไทย" : "EN"} {/* i18n-ok — ปุ่มเลือกภาษาต้องเขียนด้วยภาษาของตัวเองเสมอ */}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -724,10 +821,12 @@ function ExerciseSearchField({ onPick }: { onPick: (patch: Partial<ExerciseDraft
 
   return (
     <div className="mb-3">
-      <FieldLabel>ค้นจากคลังท่า ({EXERCISE_COUNT} ท่า)</FieldLabel>
+      <FieldLabel>{t(`ค้นจากคลังท่า (${EXERCISE_COUNT} ท่า)`, `Search the library (${EXERCISE_COUNT} exercises)`)}</FieldLabel>
       <input
         className="w-full px-3.5 py-2.5 text-[14px]"
-        placeholder="พิมพ์ไทยหรืออังกฤษ เช่น หลัง, อก, ทีบาร์, squat"
+        /* ค้นภาษาไทยได้เสมอแม้ตั้ง UI เป็นอังกฤษ — คนไทยที่สลับภาษายังพิมพ์ "อก" ค้นอยู่
+           ฝั่งอังกฤษจึงจงใจมีตัวอย่างไทยติดไว้ ให้รู้ว่ายังพิมพ์ไทยได้ */
+        placeholder={t("พิมพ์ไทยหรืออังกฤษ เช่น หลัง, อก, ทีบาร์, squat", "Type in English or Thai — e.g. squat, bench, หลัง, อก")} // i18n-ok
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -736,37 +835,41 @@ function ExerciseSearchField({ onPick }: { onPick: (patch: Partial<ExerciseDraft
       />
       {open && results.length > 0 && (
         <div className="glass-inset mt-1.5 max-h-[220px] overflow-y-auto">
-          {results.map((t) => (
+          {results.map((tpl) => (
             <button
-              key={t.name}
+              key={tpl.name}
               className="w-full text-left px-3 py-2 hairline first:border-0 active:scale-[.99] transition-transform"
               onClick={() => {
                 onPick({
-                  name: t.name,
-                  type: t.type,
-                  sets: t.sets,
-                  rmin: t.rmin,
-                  rmax: t.rmax,
-                  amrap: t.amrap ?? false,
-                  unit: unitFor(t),
-                  inc: incFor(t),
-                  machine: isMachineEx(t),
+                  name: tpl.name,
+                  type: tpl.type,
+                  sets: tpl.sets,
+                  rmin: tpl.rmin,
+                  rmax: tpl.rmax,
+                  amrap: tpl.amrap ?? false,
+                  unit: unitFor(tpl),
+                  inc: incFor(tpl),
+                  machine: isMachineEx(tpl),
                 });
                 setQ("");
                 setOpen(false);
               }}
             >
               <span className="block text-[13px]">
-                {t.name}
-                {isMachineEx(t) ? " ⚙" : ""}
+                {tpl.name}
+                {isMachineEx(tpl) ? " ⚙" : ""}
               </span>
-              <span className="block text-[11.5px]" style={{ color: "var(--mut)" }}>
-                {t.th}
-              </span>
+              {/* ชื่อไทยมีไว้ให้คนไทยรู้ว่าท่านี้คือท่าอะไร — โหมดอังกฤษไม่ต้องแสดง
+                  เพราะชื่ออังกฤษด้านบนคือชื่อจริงอยู่แล้ว บรรทัดนี้จะกลายเป็นขยะ */}
+              {!isEN() && (
+                <span className="block text-[11.5px]" style={{ color: "var(--mut)" }}>
+                  {tpl.th}
+                </span>
+              )}
               <span className="block font-mono2 text-[9.5px] mt-0.5" style={{ color: "var(--dim)" }}>
-                {t.pri.map((m) => muscleName(m)).join("/")} ·{" "}
-                {t.equip.map((e) => equipName(e)).slice(0, 2).join("+")} · {t.sets}×
-                {t.amrap ? "สุดแรง" : `${t.rmin}-${t.rmax}`}
+                {tpl.pri.map((m) => muscleName(m)).join("/")} ·{" "}
+                {tpl.equip.map((e) => equipName(e)).slice(0, 2).join("+")} · {tpl.sets}×
+                {tpl.amrap ? t("สุดแรง", "AMRAP") : `${tpl.rmin}-${tpl.rmax}`}
               </span>
             </button>
           ))}
@@ -774,7 +877,7 @@ function ExerciseSearchField({ onPick }: { onPick: (patch: Partial<ExerciseDraft
       )}
       {open && q.trim() && results.length === 0 && (
         <p className="text-[11.5px] mt-1.5" style={{ color: "var(--dim)" }}>
-          ไม่เจอในคลัง — พิมพ์ชื่อเองในช่องด้านล่างได้
+          {t("ไม่เจอในคลัง — พิมพ์ชื่อเองในช่องด้านล่างได้", "Not in the library — just type your own name below")}
         </p>
       )}
     </div>

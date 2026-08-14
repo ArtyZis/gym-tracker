@@ -15,7 +15,8 @@
 
 import type { ExType } from "./store";
 import type { EquipTag, FatigueCost, InjuryKey, MuscleKey, Pattern } from "./muscles";
-import { EQUIP_TH, MUSCLE_ALIAS, MUSCLE_TH } from "./muscles";
+import { EQUIP_TH, EQUIP_EN, MUSCLE_ALIAS, MUSCLE_EN, MUSCLE_TH } from "./muscles";
+import { isEN } from "./i18n";
 
 // re-export ให้ component ที่ทำงานกับท่า import จากที่เดียวจบ
 export { EQUIP_TH, MUSCLE_TH } from "./muscles";
@@ -37,7 +38,19 @@ export interface ExTemplate {
   amrap?: boolean;
   avoid?: InjuryKey[];
   tip: string;
+  tipEn?: string;
 }
+
+/**
+ * คำแนะนำท่าตามภาษาปัจจุบัน — ไม่มี tipEn ให้ตกกลับเป็นไทย
+ *
+ * ทำไม tipEn เป็น optional: ท่าที่เพิ่มใหม่ทีหลังจะได้ไม่พังตอนยังไม่ได้แปล
+ * เห็นเป็นไทยชั่วคราวยังดีกว่าเห็นเป็นช่องว่าง
+ */
+export const tipOf = (tpl: ExTemplate): string => (isEN() ? (tpl.tipEn ?? tpl.tip) : tpl.tip);
+
+/** ชื่อท่าที่จะแสดงใต้ชื่ออังกฤษ — โหมดอังกฤษไม่ต้องมี เพราะชื่อหลักเป็นอังกฤษอยู่แล้ว */
+export const subName = (tpl: ExTemplate): string => (isEN() ? "" : tpl.th);
 
 // prettier-ignore
 export const EXERCISE_DB: ExTemplate[] = [
@@ -273,12 +286,16 @@ for (const t of EXERCISE_DB) {
 }
 
 // คำที่ใช้ค้นได้ทั้งหมดของท่านั้น
+//
+// รวมทั้งไทยและอังกฤษเสมอ ไม่ขึ้นกับภาษาที่ตั้งไว้ — คนไทยที่สลับ UI เป็นอังกฤษ
+// ยังพิมพ์ "อก" ค้นอยู่ และคนที่ใช้ไทยก็พิมพ์ "chest" ได้ ตัดตามภาษาจะทำให้ค้นไม่เจอ
+// ทั้งที่ก่อนหน้านี้เจอ ซึ่งเป็นการถอยหลังที่ผู้ใช้ไม่เข้าใจว่าทำไม
 const searchFields = (t: ExTemplate) => ({
   en: t.name.toLowerCase(),
   th: t.th.toLowerCase(),
   alias: (t.alias ?? "").toLowerCase(),
-  muscle: t.pri.map((m) => MUSCLE_TH[m] + " " + MUSCLE_ALIAS[m]).join(" ").toLowerCase(),
-  equip: t.equip.map((e) => EQUIP_TH[e]).join(" ").toLowerCase(),
+  muscle: t.pri.map((m) => `${MUSCLE_TH[m]} ${MUSCLE_EN[m]} ${MUSCLE_ALIAS[m]}`).join(" ").toLowerCase(),
+  equip: t.equip.map((e) => `${EQUIP_TH[e]} ${EQUIP_EN[e]}`).join(" ").toLowerCase(),
 });
 
 // ค้นหาท่า — ไทย/อังกฤษ/ชื่อเล่น/กล้ามเนื้อ/อุปกรณ์

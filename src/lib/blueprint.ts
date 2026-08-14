@@ -12,6 +12,7 @@ import type { FatigueCost, MuscleKey, Pattern } from "./muscles";
 import type { ExTemplate } from "./exerciseDB";
 import { EXERCISE_DB, TIER_RANK, isMachineEx, incFor, tierOf, unitFor } from "./exerciseDB";
 import { canDoWithEquip, getDayEquip } from "./profile";
+import { pick } from "./i18n";
 
 // ฝึกเกิน 5 วัน/สัปดาห์ ไม่ได้ให้ผลดีกว่าและฟื้นตัวไม่ทันสำหรับคนทั่วไป
 // ตั้งเพดานตายตัวไว้เพื่อไม่ให้คำแนะนำลามจนกลายเป็นฝึกทุกวัน
@@ -27,6 +28,17 @@ export const DAY_TYPE_TH: Record<DayType, string> = {
   lower: "วันล่าง (ขา ก้น น่อง)",
   full: "เต็มตัว",
 };
+
+export const DAY_TYPE_EN: Record<DayType, string> = {
+  push: "Push day (chest, shoulders, triceps)",
+  pull: "Pull day (back, biceps)",
+  legs: "Leg day (quads, glutes, calves)",
+  upper: "Upper day (chest, back, shoulders, arms)",
+  lower: "Lower day (quads, glutes, calves)",
+  full: "Full body",
+};
+
+export const dayTypeName = (k: DayType): string => pick(DAY_TYPE_TH, DAY_TYPE_EN, k);
 
 export const DAY_TYPE_SHORT: Record<DayType, string> = {
   push: "Push",

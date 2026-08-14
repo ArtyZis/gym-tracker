@@ -4,9 +4,12 @@
 // ธีม SYSTEM — ม่วง monarch เป็นค่าเริ่มต้น (เดิมเป็นฟ้า #4fd8ff ซึ่งยังเลือกได้อยู่)
 export const DEFAULT_ACCENT = "#8b6bff";
 
+import { t } from "./i18n";
+
 export interface AccentOption {
   color: string;
-  label: string;
+  /** ฟังก์ชันเพราะต้องอ่านภาษา ณ ตอนเรียก ไม่ใช่ตอนโหลดโมดูล */
+  label: () => string;
   /** สตรีคสูงสุดที่ต้องเคยทำได้ถึงจะเลือกสีนี้ได้ · 0 = เปิดตั้งแต่แรก */
   unlockStreak: number;
 }
@@ -17,12 +20,12 @@ export interface AccentOption {
 // เลือกล็อก "สี" เพราะเป็นของประดับล้วน ไม่ใช่ของที่ต้องใช้ทำงาน
 // (ล็อกของจำเป็นคนเลิกใช้ ล็อกของอวดคนอยากได้ — คนละผลลัพธ์กันคนละขั้ว)
 export const ACCENTS: AccentOption[] = [
-  { color: "#8b6bff", label: "ม่วง", unlockStreak: 0 },
-  { color: "#3f8dff", label: "น้ำเงิน", unlockStreak: 0 },
-  { color: "#4fd8ff", label: "ฟ้า", unlockStreak: 7 },
-  { color: "#5fe6b0", label: "เขียว", unlockStreak: 20 },
-  { color: "#ffb454", label: "อำพัน", unlockStreak: 40 },
-  { color: "#ff5c7a", label: "แดง", unlockStreak: 75 },
+  { color: "#8b6bff", label: () => t("ม่วง", "Violet"), unlockStreak: 0 },
+  { color: "#3f8dff", label: () => t("น้ำเงิน", "Blue"), unlockStreak: 0 },
+  { color: "#4fd8ff", label: () => t("ฟ้า", "Cyan"), unlockStreak: 7 },
+  { color: "#5fe6b0", label: () => t("เขียว", "Green"), unlockStreak: 20 },
+  { color: "#ffb454", label: () => t("อำพัน", "Amber"), unlockStreak: 40 },
+  { color: "#ff5c7a", label: () => t("แดง", "Red"), unlockStreak: 75 },
 ];
 
 /**

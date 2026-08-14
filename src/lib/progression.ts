@@ -4,6 +4,7 @@ import type { Data, Exercise, SessionLog, SetLog } from "./store";
 import { todayStr } from "./store";
 import { muscleMap } from "./analyzer";
 import { findTemplate } from "./exerciseDB";
+import { pick, repsText, secText, t } from "./i18n";
 
 export interface TargetSuggestion {
   weight: number | null;
@@ -27,22 +28,39 @@ export interface LiftStyle {
 }
 
 export function liftStyle(ex: Exercise): LiftStyle {
-  const t = findTemplate(ex.name);
-  const isolation = t?.pattern === "isolation";
-  const cable = t?.equip?.includes("cable");
-  const machine = t?.equip?.includes("machine");
-  const heavy = t?.fatigue === "high";
+  const tpl = findTemplate(ex.name);
+  const isolation = tpl?.pattern === "isolation";
+  const cable = tpl?.equip?.includes("cable");
+  const machine = tpl?.equip?.includes("machine");
+  const heavy = tpl?.fatigue === "high";
 
   if (isolation && cable)
     return {
       holdRounds: 2,
       stepMul: 1,
-      note: "ท่าเดี่ยวแบบเคเบิล — คุมฟอร์มให้นิ่งแล้วดันเรปให้เต็มช่วงก่อน ยังไม่ต้องรีบเพิ่มน้ำหนัก",
+      note: t(
+        "ท่าเดี่ยวแบบเคเบิล — คุมฟอร์มให้นิ่งแล้วดันเรปให้เต็มช่วงก่อน ยังไม่ต้องรีบเพิ่มน้ำหนัก",
+        "Cable isolation — keep the form tight and fill out the rep range first; no rush to add weight.",
+      ),
     };
   if (isolation)
-    return { holdRounds: 2, stepMul: 1, note: "ท่าเดี่ยว — เพิ่มเรปให้เต็มช่วงก่อน แล้วค่อยขยับน้ำหนักทีละสเต็ปเล็ก" };
-  if (machine) return { holdRounds: 1, stepMul: 1, note: "เครื่อง — ขยับตามหมุดที่มี ถ้ากระโดดแล้วเรปตกเยอะให้กลับมาน้ำหนักเดิม" };
-  if (heavy) return { holdRounds: 1, stepMul: 1, note: "ท่าหนัก — ขึ้นทีละน้อยและคงฟอร์มไว้สำคัญกว่าตัวเลข" };
+    return {
+      holdRounds: 2,
+      stepMul: 1,
+      note: t("ท่าเดี่ยว — เพิ่มเรปให้เต็มช่วงก่อน แล้วค่อยขยับน้ำหนักทีละสเต็ปเล็ก", "Isolation — max out the rep range first, then move up in small steps."),
+    };
+  if (machine)
+    return {
+      holdRounds: 1,
+      stepMul: 1,
+      note: t("เครื่อง — ขยับตามหมุดที่มี ถ้ากระโดดแล้วเรปตกเยอะให้กลับมาน้ำหนักเดิม", "Machine — move pin by pin; if reps drop hard after a jump, go back down."),
+    };
+  if (heavy)
+    return {
+      holdRounds: 1,
+      stepMul: 1,
+      note: t("ท่าหนัก — ขึ้นทีละน้อยและคงฟอร์มไว้สำคัญกว่าตัวเลข", "Heavy lift — small jumps, and holding form matters more than the number."),
+    };
   return { holdRounds: 1, stepMul: 1 };
 }
 
@@ -115,9 +133,16 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
       return {
         weight: ex.seededTarget,
         kind: "start",
-        msg: `ค่าประมาณจากท่าหลัก ~${ex.seededTarget} ${ex.unit || "kg"} — ลองเซตแรกแล้วปรับตามจริงได้เลย`,
+        msg: t(
+          `ค่าประมาณจากท่าหลัก ~${ex.seededTarget} ${ex.unit || "kg"} — ลองเซตแรกแล้วปรับตามจริงได้เลย`,
+          `Estimated from your main lifts ~${ex.seededTarget} ${ex.unit || "kg"} — try a set and adjust from there.`,
+        ),
       };
-    return { weight: null, kind: "start", msg: "เซสชันแรก: เลือกน้ำหนักที่ทำได้ตามเป้าแบบเหลือแรง 1-2 ครั้ง" };
+    return {
+      weight: null,
+      kind: "start",
+      msg: t("เซสชันแรก: เลือกน้ำหนักที่ทำได้ตามเป้าแบบเหลือแรง 1-2 ครั้ง", "First session: pick a weight you can hit the target reps with, leaving 1-2 in the tank."),
+    };
   }
 
   if (ex.type === "weight") {
@@ -144,7 +169,10 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
         return {
           weight: target,
           kind: "settle",
-          msg: `ครั้งก่อนลดจาก ${top.weight} เหลือ ${bottom.weight} ${unit} กลางท่า — ลอง ${target} ${unit} ให้ครบ ${ex.rmax} ครั้งทั้ง ${ex.sets} เซต${tail}`,
+          msg: t(
+            `ครั้งก่อนลดจาก ${top.weight} เหลือ ${bottom.weight} ${unit} กลางท่า — ลอง ${target} ${unit} ให้ครบ ${ex.rmax} ครั้งทั้ง ${ex.sets} เซต${tail}`,
+            `Last time you dropped from ${top.weight} to ${bottom.weight} ${unit} mid-exercise — try ${target} ${unit} and hit ${ex.rmax} reps across all ${ex.sets} sets${tail}`,
+          ),
         };
       }
     }
@@ -171,14 +199,20 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
         return {
           weight: w,
           kind: "hold",
-          msg: `ก้าวถัดไป ${next} ${unit} กระโดด ${Math.round((inc / w) * 100)}% ซึ่งเยอะเกินสำหรับท่านี้ — อยู่ที่ ${w} ${unit} แล้วดันให้เกิน ${ex.rmax} ครั้ง หรือเพิ่มอีกเซตแทน${tail}`,
+          msg: t(
+            `ก้าวถัดไป ${next} ${unit} กระโดด ${Math.round((inc / w) * 100)}% ซึ่งเยอะเกินสำหรับท่านี้ — อยู่ที่ ${w} ${unit} แล้วดันให้เกิน ${ex.rmax} ครั้ง หรือเพิ่มอีกเซตแทน${tail}`,
+            `The next step, ${next} ${unit}, is a ${Math.round((inc / w) * 100)}% jump — too big for this lift. Stay at ${w} ${unit} and push past ${ex.rmax} reps, or add a set instead${tail}`,
+          ),
         };
 
       if (!easy && justFailed)
         return {
           weight: w,
           kind: "hold",
-          msg: `เคยลอง ${next} ${unit} แล้วยังไม่ถึง ${ex.rmin} ครั้ง — อยู่ที่ ${w} ${unit} ให้สบายกว่านี้ก่อน (เหลือแรง 3+) ค่อยขึ้นอีกที${tail}`,
+          msg: t(
+            `เคยลอง ${next} ${unit} แล้วยังไม่ถึง ${ex.rmin} ครั้ง — อยู่ที่ ${w} ${unit} ให้สบายกว่านี้ก่อน (เหลือแรง 3+) ค่อยขึ้นอีกที${tail}`,
+            `You tried ${next} ${unit} and couldn't reach ${ex.rmin} reps — own ${w} ${unit} more comfortably first (3+ left in the tank), then go up again${tail}`,
+          ),
         };
 
       // ท่าเดี่ยวที่ครบเป้าแบบเฉียดฉิว ให้ย้ำอีกรอบเดียว ไม่ใช่ย้ำตลอดกาล
@@ -186,13 +220,19 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
         return {
           weight: w,
           kind: "hold",
-          msg: `ครบ ${ex.rmax} ครั้งแล้วแต่เหลือแรงแค่ ${rir} — ย้ำ ${w} ${unit} อีกรอบให้สบายขึ้นก่อนค่อยเพิ่ม${tail}`,
+          msg: t(
+            `ครบ ${ex.rmax} ครั้งแล้วแต่เหลือแรงแค่ ${rir} — ย้ำ ${w} ${unit} อีกรอบให้สบายขึ้นก่อนค่อยเพิ่ม${tail}`,
+            `You hit ${ex.rmax} reps but only had ${rir} left — repeat ${w} ${unit} once more until it feels easier, then add weight${tail}`,
+          ),
         };
 
       return {
         weight: next,
         kind: "up",
-        msg: `ครั้งก่อนครบทุกเซต${easy ? ` และยังเหลือแรง ${rir}` : ""} — วันนี้ขึ้นเป็น ${next} ${unit}${tail}`,
+        msg: t(
+          `ครั้งก่อนครบทุกเซต${easy ? ` และยังเหลือแรง ${rir}` : ""} — วันนี้ขึ้นเป็น ${next} ${unit}${tail}`,
+          `You cleared every set last time${easy ? ` with ${rir} still in the tank` : ""} — go up to ${next} ${unit} today${tail}`,
+        ),
       };
     }
 
@@ -205,13 +245,19 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
         return {
           weight: w,
           kind: "hold",
-          msg: `ครั้งก่อนได้ ${worst} ครั้ง ยังไม่ถึงช่วงเป้า ${ex.rmin}-${ex.rmax} — ลอง ${w} ${unit} อีกรอบก่อน ยังไม่ต้องลด${tail}`,
+          msg: t(
+            `ครั้งก่อนได้ ${worst} ครั้ง ยังไม่ถึงช่วงเป้า ${ex.rmin}-${ex.rmax} — ลอง ${w} ${unit} อีกรอบก่อน ยังไม่ต้องลด${tail}`,
+            `You got ${worst} reps last time, short of the ${ex.rmin}-${ex.rmax} range — give ${w} ${unit} another go before dropping down${tail}`,
+          ),
         };
       const down = roundToStep(w - inc, inc);
       return {
         weight: down,
         kind: "settle",
-        msg: `ลอง ${w} ${unit} มา ${rounds} รอบแล้วยังไม่ถึง ${ex.rmin} ครั้ง — ลดเป็น ${down} ${unit} แล้วทำให้ครบก่อน${tail}`,
+        msg: t(
+          `ลอง ${w} ${unit} มา ${rounds} รอบแล้วยังไม่ถึง ${ex.rmin} ครั้ง — ลดเป็น ${down} ${unit} แล้วทำให้ครบก่อน${tail}`,
+          `${rounds} tries at ${w} ${unit} and still short of ${ex.rmin} reps — drop to ${down} ${unit} and clear it properly first${tail}`,
+        ),
       };
     }
 
@@ -223,14 +269,20 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
       return {
         weight: down,
         kind: "settle",
-        msg: `ค้างที่ ${w} ${unit} มา ${rounds} รอบแล้ว — ถอยมา ${down} ${unit} สัก 1-2 รอบให้ทำครบสบายๆ แล้วค่อยไต่กลับขึ้นไป (หรือเปลี่ยนตัวแปรอื่น เช่น ลงช้าลง เพิ่มเวลาพัก)${tail}`,
+        msg: t(
+          `ค้างที่ ${w} ${unit} มา ${rounds} รอบแล้ว — ถอยมา ${down} ${unit} สัก 1-2 รอบให้ทำครบสบายๆ แล้วค่อยไต่กลับขึ้นไป (หรือเปลี่ยนตัวแปรอื่น เช่น ลงช้าลง เพิ่มเวลาพัก)${tail}`,
+          `Stuck at ${w} ${unit} for ${rounds} rounds — back off to ${down} ${unit} for a round or two until it's comfortable, then climb back up (or change something else: slower negatives, longer rest)${tail}`,
+        ),
       };
     }
 
     return {
       weight: w,
       kind: "hold",
-      msg: `คงน้ำหนัก ${w} ${unit} แล้วดันครั้งให้ถึง ${ex.rmax}${rir !== undefined ? ` (ครั้งก่อนเหลือแรง ${rir})` : ""}${tail}`,
+      msg: t(
+        `คงน้ำหนัก ${w} ${unit} แล้วดันครั้งให้ถึง ${ex.rmax}${rir !== undefined ? ` (ครั้งก่อนเหลือแรง ${rir})` : ""}${tail}`,
+        `Hold ${w} ${unit} and push the reps to ${ex.rmax}${rir !== undefined ? ` (${rir} left in the tank last time)` : ""}${tail}`,
+      ),
     };
   }
 
@@ -240,12 +292,12 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
       ? {
           weight: null,
           kind: "up",
-          msg: `ค้างครบแล้ว — ลองยืดเป็น ${ex.rmin + 5}-${ex.rmax + 5} วิ`,
+          msg: t(`ค้างครบแล้ว — ลองยืดเป็น ${ex.rmin + 5}-${ex.rmax + 5} วิ`, `You held the full time — stretch it to ${ex.rmin + 5}-${ex.rmax + 5}s`),
         }
       : {
           weight: null,
           kind: "push",
-          msg: `ครั้งก่อนค้างได้ ${best} วิ — เป้าวันนี้ ${ex.rmax} วิ`,
+          msg: t(`ครั้งก่อนค้างได้ ${best} วิ — เป้าวันนี้ ${ex.rmax} วิ`, `You held ${secText(best)} last time — today's target is ${secText(ex.rmax)}`),
         };
   }
 
@@ -256,13 +308,13 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
         kind: best > 20 ? "up" : "push",
         msg:
           best > 20
-            ? `ได้ ${best} ครั้งแล้ว — เพิ่มความยาก (ถ่วงน้ำหนัก/ท่ายากขึ้น)`
-            : `ครั้งก่อนได้ ${best} ครั้ง — วันนี้ลองเกินอีก 1-2`,
+            ? t(`ได้ ${best} ครั้งแล้ว — เพิ่มความยาก (ถ่วงน้ำหนัก/ท่ายากขึ้น)`, `${best} reps already — make it harder (add weight or a tougher variation)`)
+            : t(`ครั้งก่อนได้ ${best} ครั้ง — วันนี้ลองเกินอีก 1-2`, `${repsText(best)} last time — beat it by 1-2 today`),
       }
     : {
         weight: null,
         kind: "push",
-        msg: `ครั้งก่อนได้ ${best} ครั้ง — เป้าวันนี้ ${ex.rmax}`,
+        msg: t(`ครั้งก่อนได้ ${best} ครั้ง — เป้าวันนี้ ${ex.rmax}`, `${repsText(best)} last time — today's target is ${ex.rmax}`),
       };
 }
 
@@ -338,15 +390,15 @@ export function plateText(data: Data, ex: Exercise, target: number): string | nu
   if (!countsBar(data)) {
     const { list, leftover } = plateCalc(target, 0);
     if (!list.length) return null;
-    const txt = `ข้างละ ${list.join("+")} (รวมแผ่น ${target} ${unit})`;
-    return leftover > 0.01 ? `${txt} · ขาดอีก ${(leftover * 2).toFixed(1)}` : txt;
+    const txt = t(`ข้างละ ${list.join("+")} (รวมแผ่น ${target} ${unit})`, `${list.join("+")} per side (${target} ${unit} of plates)`);
+    return leftover > 0.01 ? `${txt} · ${t(`ขาดอีก ${(leftover * 2).toFixed(1)}`, `${(leftover * 2).toFixed(1)} short`)}` : txt;
   }
   const bar = barKgFor(data, ex);
   const { list, leftover, barOnly } = plateCalc(target, bar);
-  if (barOnly) return `บาร์เปล่า (${bar} ${unit})`;
+  if (barOnly) return t(`บาร์เปล่า (${bar} ${unit})`, `Empty bar (${bar} ${unit})`);
   if (!list.length) return null;
-  const txt = `บาร์ ${bar} + (${list.join("+")})×2`;
-  return leftover > 0.01 ? `${txt} · ขาดอีก ${(leftover * 2).toFixed(1)}` : txt;
+  const txt = t(`บาร์ ${bar} + (${list.join("+")})×2`, `${bar} bar + (${list.join("+")})×2`);
+  return leftover > 0.01 ? `${txt} · ${t(`ขาดอีก ${(leftover * 2).toFixed(1)}`, `${(leftover * 2).toFixed(1)} short`)}` : txt;
 }
 
 // ══════════ ประเมินน้ำหนักเริ่มต้นจากท่าหลัก ══════════
@@ -366,6 +418,15 @@ export const LIFT_TH: Record<LiftKey, string> = {
   deadlift: "เดดลิฟต์",
   ohp: "ดันบ่าเหนือหัว",
 };
+
+export const LIFT_EN: Record<LiftKey, string> = {
+  bench: "Bench press",
+  squat: "Squat",
+  deadlift: "Deadlift",
+  ohp: "Overhead press",
+};
+
+export const liftName = (k: LiftKey): string => pick(LIFT_TH, LIFT_EN, k);
 
 // ชื่อท่าในคลังที่ตรงกับท่าหลักแต่ละตัว (ใช้ prefill ถ้ามีประวัติอยู่แล้ว)
 export const LIFT_EXERCISE: Record<LiftKey, string> = {
@@ -500,13 +561,13 @@ export function suggestRest(ex: Exercise): number {
 
 // จัดข้อความสั้นบอกเหตุผลเวลาพัก
 export function restReason(ex: Exercise): string {
-  if (ex.restSec != null) return "ตั้งเอง";
-  if (ex.type === "time") return "ท่าจับเวลา";
+  if (ex.restSec != null) return t("ตั้งเอง", "your setting");
+  if (ex.type === "time") return t("ท่าจับเวลา", "timed hold");
   const compound = isCompound(ex);
   const top = ex.amrap ? 12 : ex.rmax;
-  if (top <= 5) return "ยกหนักมาก ฟื้นแรงเต็มที่";
-  if (top <= 8) return compound ? "compound หนัก" : "ยกหนัก";
-  if (top <= 12) return compound ? "compound สร้างกล้าม" : "สร้างกล้าม";
-  if (top <= 15) return "เรปสูง พักสั้น";
-  return "เรปสูงมาก พักสั้น";
+  if (top <= 5) return t("ยกหนักมาก ฟื้นแรงเต็มที่", "very heavy, full recovery");
+  if (top <= 8) return compound ? t("compound หนัก", "heavy compound") : t("ยกหนัก", "heavy lift");
+  if (top <= 12) return compound ? t("compound สร้างกล้าม", "hypertrophy compound") : t("สร้างกล้าม", "hypertrophy");
+  if (top <= 15) return t("เรปสูง พักสั้น", "high reps, short rest");
+  return t("เรปสูงมาก พักสั้น", "very high reps, short rest");
 }

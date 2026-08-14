@@ -1,7 +1,7 @@
 // Data model + localStorage persistence (key: gymtracker_v1)
 
 import type { EquipTag, Experience, Goal, InjuryKey } from "./muscles";
-import { pick } from "./i18n";
+import { pick, t } from "./i18n";
 
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export type ExType = "weight" | "bodyweight" | "time";
@@ -438,7 +438,7 @@ export function normalizeData(d: any): Data | null {
     .slice(0, 100)
     .map((p: any) => ({
       id: str(p.id, 120),
-      name: str(p.name) || "โปรแกรม",
+      name: str(p.name) || t("โปรแกรม", "Program"),
       savedAt: str(p.savedAt, 40),
       exercises: cleanExercises(p.exercises),
       dayLabels: cleanDayLabels(p.dayLabels),
@@ -579,10 +579,10 @@ export const exercisesForDay = (data: Data, day: DayKey): Exercise[] =>
 
 export function repTargetText(ex: Exercise): string {
   return ex.type === "time"
-    ? `${ex.rmin}-${ex.rmax} วิ`
+    ? t(`${ex.rmin}-${ex.rmax} วิ`, `${ex.rmin}-${ex.rmax}s`)
     : ex.type === "bodyweight" && ex.amrap
-      ? "ทำให้สุด"
-      : `${ex.rmin}-${ex.rmax} ครั้ง`;
+      ? t("ทำให้สุด", "AMRAP")
+      : t(`${ex.rmin}-${ex.rmax} ครั้ง`, `${ex.rmin}-${ex.rmax} reps`);
 }
 
 // ── ประวัติเก็บตามชื่อท่า (archive) — กู้กลับได้เมื่อท่าชื่อเดิมกลับมา ──

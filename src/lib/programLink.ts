@@ -12,6 +12,7 @@
 
 import type { DayKey, ExType, Exercise } from "./store";
 import { DAYS } from "./store";
+import { t } from "./i18n";
 
 export type SharedExercise = Omit<Exercise, "id" | "order">;
 
@@ -70,7 +71,7 @@ export function decodeProgram(code: string): SharedProgram | null {
     const lines = fromB64Url(code.trim()).split("\n");
     if (lines[0] !== VERSION || lines.length < 4) return null;
 
-    const title = lines[1] || "โปรแกรมจากโค้ช";
+    const title = lines[1] || t("โปรแกรมจากโค้ช", "Program from your coach");
 
     const dayLabels: Partial<Record<DayKey, string>> = {};
     const pairs = lines[2] ? lines[2].split("\t") : [];

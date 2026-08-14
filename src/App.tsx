@@ -187,9 +187,10 @@ export default function App() {
               color: "var(--mut)",
               backdropFilter: "blur(8px)",
             }}
-            aria-label={t("Switch to English", "เปลี่ยนเป็นภาษาไทย")}
+            /* ป้ายบอกว่ากดแล้วจะได้ภาษาอะไร จึงเขียนด้วย "ภาษาปลายทาง" ไม่ใช่ภาษาปัจจุบัน */
+            aria-label={t("Switch to English", "เปลี่ยนเป็นภาษาไทย")} // i18n-ok
           >
-            {t("EN", "ไทย")}
+            {t("EN", "ไทย")} {/* i18n-ok — ปุ่มภาษาเขียนด้วยภาษาที่จะเปลี่ยนไป */}
           </button>
 
           <div

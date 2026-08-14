@@ -10,6 +10,7 @@
 
 import type { DayKey, ExType, Exercise } from "./store";
 import { DAYS } from "./store";
+import { t } from "./i18n";
 
 export type ParsedExercise = Omit<Exercise, "id" | "order">;
 
@@ -119,7 +120,7 @@ function parseExerciseLine(raw: string): LineParse {
   let unit: string | undefined;
   if (isTime) {
     type = "time";
-    unit = "วิ";
+    unit = t("วิ", "sec");
   } else if (weight != null) {
     type = "weight";
     unit = /lbs?|ปอนด์/i.test(wMatch?.[3] || "") ? "lbs" : "kg";
@@ -142,7 +143,8 @@ function parseExerciseLine(raw: string): LineParse {
       rmax,
       amrap: type === "bodyweight" && amrap ? true : false,
       inc: type === "weight" ? (machine ? 5 : 2.5) : undefined,
-      unit: machine && unit?.includes("ข้าง") ? "kg" : unit,
+      // "kg/ข้าง" คือหน่วยที่คนพิมพ์มาในตารางที่วาง ไม่ใช่ข้อความบนจอ — ต้องจับไทยเสมอ
+      unit: machine && unit?.includes("ข้าง") ? "kg" : unit, // i18n-ok
       machine: machine || undefined,
     },
     looksLikeExercise: true,
@@ -178,7 +180,7 @@ export function parseProgram(text: string): ParsedProgram {
 
     // ไม่ใช่ท่า
     if (looksLikeExercise) {
-      warnings.push(`อ่านบรรทัดนี้ไม่ออก ข้ามไป: "${line.slice(0, 40)}"`);
+      warnings.push(t(`อ่านบรรทัดนี้ไม่ออก ข้ามไป: "${line.slice(0, 40)}"`, `Couldn't read this line, skipped: "${line.slice(0, 40)}"`));
       continue;
     }
 
@@ -194,7 +196,7 @@ export function parseProgram(text: string): ParsedProgram {
       usedDays.add(currentDay);
       dayLabels[currentDay] = line.replace(/[()#:]/g, " ").trim().slice(0, 24);
     } else {
-      warnings.push(`ข้ามบรรทัด: "${line.slice(0, 40)}"`);
+      warnings.push(t(`ข้ามบรรทัด: "${line.slice(0, 40)}"`, `Skipped line: "${line.slice(0, 40)}"`));
     }
   }
 
