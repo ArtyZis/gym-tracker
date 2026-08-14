@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { isValidKey, licenseStatus, normalizeKey, checksumOf, encodeExpiry } from "../src/lib/license";
+import { isValidKey, licenseStatus, normalizeKey, checksumOf, encodeExpiry, REVOKED } from "../src/lib/license";
 
 let pass = 0;
 let fail = 0;
@@ -110,7 +110,38 @@ try {
     ok("COACH รูปแบบเดิมยังตลอดชีพ", licenseStatus(oldLife).kind === "lifetime");
   }
 
-  console.log("\n═══ 6. เลขลูกค้าไม่ทับตำแหน่งเดือนหมดอายุ ═══");
+  console.log("\n═══ 6. ยกเลิกรหัสที่หลุด ═══");
+  {
+    // REVOKED ว่างอยู่ตอนนี้ — ยืนยันว่ากลไกทำงานและไม่ไปกระทบรหัสอื่น
+    const out = run(["3", "2", "ทดสอบยกเลิก"]);
+    const [a, b] = keysIn(out, "RF");
+    ok("รหัสที่ยังไม่ถูกยกเลิก = active", licenseStatus(a).kind === "active" && licenseStatus(b).kind === "active");
+
+    // ยกเลิกจริง แล้วดูว่าใช้ไม่ได้จริง
+    REVOKED.add(normalizeKey(a));
+    ok("รหัสที่ยกเลิกแล้ว = revoked", licenseStatus(a).kind === "revoked", licenseStatus(a).kind);
+    ok("ยกเลิกใบเดียว ไม่กระทบใบอื่น", licenseStatus(b).kind === "active", licenseStatus(b).kind);
+
+    // ต้องยกเลิกได้แม้พิมพ์มาแบบมีขีด/ตัวเล็ก (ผู้ใช้พิมพ์ยังไงก็ต้องโดน)
+    ok("ยกเลิกแล้วพิมพ์แบบมีขีดก็ยังโดน", licenseStatus(a.toLowerCase()).kind === "revoked");
+
+    // รหัสตลอดชีพก็ต้องยกเลิกได้ — ไม่งั้นใบที่หลุดจะคาตลอดกาล
+    const lifeKey = keysIn(run(["life", "1", "ทดสอบยกเลิกตลอดชีพ"]), "COACH")[0];
+    ok("ก่อนยกเลิก = lifetime", licenseStatus(lifeKey).kind === "lifetime");
+    REVOKED.add(normalizeKey(lifeKey));
+    ok("ยกเลิกรหัสตลอดชีพได้", licenseStatus(lifeKey).kind === "revoked", licenseStatus(lifeKey).kind);
+
+    // เอาออกจากรายการแล้วต้องกลับมาใช้ได้ (เผื่อใส่ผิดใบ)
+    REVOKED.delete(normalizeKey(a));
+    ok("เอาออกจากรายการยกเลิกแล้วใช้ได้อีก", licenseStatus(a).kind === "active");
+    REVOKED.delete(normalizeKey(lifeKey));
+
+    const src = fs.readFileSync(path.join(ROOT, "src", "lib", "license.ts"), "utf8");
+    ok("มีตัวอย่างพร้อมคอมเมนต์กำกับให้ลอกได้", /\/\/ "RF[A-Z0-9]+", \/\/ /.test(src));
+    ok("รายการยกเลิกต้องว่างตอนส่งมอบ", REVOKED.size === 0, `เหลือ ${REVOKED.size} ใบ`);
+  }
+
+  console.log("\n═══ 7. เลขลูกค้าไม่ทับตำแหน่งเดือนหมดอายุ ═══");
   {
     // เลขลูกค้าสูงๆ ต้องไม่ทำให้อ่านเดือนผิด (เดือนอยู่ตำแหน่ง 2-4 เสมอ)
     const out = run(["6", "1", "เลขสูง"]);

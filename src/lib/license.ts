@@ -96,8 +96,25 @@ export function isValidKey(raw: string): boolean {
   return checksumOf(rest.slice(0, 8)) === rest.slice(8);
 }
 
+/**
+ * รหัสที่ถูกยกเลิก — ใส่รหัสตรงนี้แล้ว push ขึ้น main รหัสนั้นจะใช้ไม่ได้ภายใน ~2 นาที
+ *
+ * นี่คือสิ่งเดียวที่ "ตามรอยรหัสที่หลุด" แล้วทำอะไรต่อได้จริงโดยไม่ต้องมีเซิร์ฟเวอร์
+ * ขั้นตอน: `make-license.mjs find <รหัส>` -> รู้ว่าใครปล่อย -> เอารหัสมาใส่ที่นี่ -> push
+ *
+ * เขียนแบบไม่มีขีด ตัวใหญ่ล้วน (รูปแบบเดียวกับ normalizeKey) และคอมเมนต์กำกับเสมอว่า
+ * ยกเลิกเพราะอะไร ไม่งั้นอีกหกเดือนจะไม่มีใครกล้าลบออก
+ *
+ * ⚠️ ยกเลิกแล้วกระทบทุกคนที่ถือรหัสใบนั้น รวมทั้งลูกค้าตัวจริงที่จ่ายเงินมา
+ * ถ้าเขาไม่ได้ตั้งใจปล่อย ให้ออกใบใหม่ให้เขาก่อนแล้วค่อยยกเลิกใบเก่า
+ */
+export const REVOKED = new Set<string>([
+  // "RFAWAADWPSJ2K3", // เลขที่ 3 · ดิว · หลุดในกลุ่มไลน์ 15 ส.ค. 2026 · ออกใบใหม่ให้แล้ว
+]);
+
 export type LicenseStatus =
   | { kind: "none" }
+  | { kind: "revoked" }
   | { kind: "lifetime" }
   | { kind: "active"; until: string; daysLeft: number }
   | { kind: "expired"; until: string };
@@ -110,6 +127,8 @@ function endOfMonth(year: number, month: number): Date {
 export function licenseStatus(raw = savedKey()): LicenseStatus {
   if (!raw || !isValidKey(raw)) return { kind: "none" };
   const k = normalizeKey(raw);
+  // ต้องเช็คก่อนทุกกรณี — รหัสตลอดชีพที่หลุดก็ต้องยกเลิกได้
+  if (REVOKED.has(k)) return { kind: "revoked" };
   if (k.startsWith("COACH")) return { kind: "lifetime" }; // รหัสรุ่นจ่ายครั้งเดียว
 
   const exp = decodeExpiry(k.slice(2, 4));
