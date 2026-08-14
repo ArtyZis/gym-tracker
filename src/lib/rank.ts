@@ -8,6 +8,7 @@
 // จึงบอกไว้ในการ์ดตรงๆ ว่าเป็นการประเมิน ไม่ใช่การวัดที่แม่นยำ
 
 import type { Data, Exercise } from "./store";
+import { normName } from "./store";
 import { findTemplate } from "./exerciseDB";
 import { epley1RM } from "./progression";
 
@@ -112,7 +113,20 @@ export function bestLifts(data: Data): BestLift[] {
       date: bestDate,
     });
   }
-  return out.sort((a, b) => b.oneRM - a.oneRM);
+
+  // ท่าชื่อเดียวกันต้องเหลือบรรทัดเดียว — เก็บสถิติที่ดีที่สุด
+  //
+  // ท่าที่อยู่หลายวันในตาราง (เช่น Cable Lateral Raise ทั้งวันดันหนักและวันดันปริมาณ)
+  // ใช้ id คนละตัว จึงกลายเป็นคนละแถวในสถิติ ผู้ใช้เห็นท่าเดียวโผล่ 2-3 บรรทัด
+  // ด้วยตัวเลขคนละชุดแล้วไม่รู้ว่าอันไหนคือสถิติจริง
+  const bestByName = new Map<string, BestLift>();
+  for (const b of out) {
+    const key = normName(b.name);
+    const cur = bestByName.get(key);
+    // ยึด 1RM เป็นตัวตัดสินว่าอันไหน "ดีกว่า" เพราะเทียบข้ามช่วงเรปได้
+    if (!cur || b.oneRM > cur.oneRM) bestByName.set(key, b);
+  }
+  return [...bestByName.values()].sort((a, b) => b.oneRM - a.oneRM);
 }
 
 /** น้ำหนักตัวล่าสุดที่บันทึกไว้ — ไม่มี = ประเมินแรงค์ไม่ได้ */

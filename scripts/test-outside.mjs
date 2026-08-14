@@ -65,6 +65,24 @@ console.log("\n═══ 3. ชื่อต้องรอดข้ามวั�
   ok("สถิติยังเห็นท่านั้น", bestLifts(after).some((b) => b.name === "Cable Lateral Raise"), bestLifts(after).map((b) => b.name).join(" | "));
 }
 
+console.log("\n═══ 3.5 ท่าเดียวกันหลายวันต้องเหลือบรรทัดเดียว ═══");
+{
+  // ท่าที่อยู่ทั้งวันหนักและวันปริมาณใช้ id คนละตัว เคยกลายเป็น 2 แถวในสถิติ
+  // ผู้ใช้เห็นท่าเดียวโผล่ซ้ำด้วยตัวเลขคนละชุดแล้วไม่รู้ว่าอันไหนคือสถิติจริง
+  const d = Object.assign(createDefault(), createEmpty());
+  d.exercises = [
+    { id: "a", name: "Cable Lateral Raise", day: "mon", type: "weight", sets: 4, rmin: 12, rmax: 12, unit: "kg", order: 0 },
+    { id: "b", name: "Cable Lateral Raise", day: "thu", type: "weight", sets: 4, rmin: 15, rmax: 15, unit: "kg", order: 1 },
+  ];
+  d.history = {
+    a: [{ date: dk(20), sets: [{ weight: 7.5, reps: 12 }] }],
+    b: [{ date: dk(10), sets: [{ weight: 5, reps: 15 }] }],
+  };
+  const best = bestLifts(d);
+  eq("เหลือบรรทัดเดียว", best.length, 1);
+  eq("เก็บอันที่ 1RM สูงกว่า", best[0]?.weight, 7.5);
+}
+
 console.log("\n═══ 4. ข้อมูลพังต้องไม่ทำสถิติเพี้ยน ═══");
 {
   const d = base();
