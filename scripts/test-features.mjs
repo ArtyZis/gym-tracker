@@ -75,7 +75,10 @@ console.log("\n═══ ฟีเจอร์ 3: น้ำหนักบาร
   ok("บาร์ค่ากลาง 20 กก.", barKgFor(d, bench) === 20);
   bench.barKg = 15;
   ok("ตั้งบาร์รายท่าได้ (ทับค่ากลาง)", barKgFor(d, bench) === 15);
-  ok("ข้อความแผ่นน้ำหนักคำนวณจากบาร์ของท่านั้น", plateText(d, bench, 55) === "บาร์ 15 + (20)×2", plateText(d, bench, 55));
+  // ค่าเริ่มต้นคือไม่นับบาร์ (บันทึกแค่แผ่น) — ฟีเจอร์บาร์รายท่าใช้เมื่อเปิดโหมดนับบาร์เท่านั้น
+  ok("ไม่นับบาร์ = ข้อความไม่พูดถึงบาร์", !/บาร์/.test(plateText(d, bench, 55) ?? ""), plateText(d, bench, 55));
+  d.settings.countBarWeight = true;
+  ok("เปิดนับบาร์แล้วคำนวณจากบาร์ของท่านั้น", plateText(d, bench, 55) === "บาร์ 15 + (20)×2", plateText(d, bench, 55));
 
   const cable = d.exercises.find((e) => e.name === "Cable Fly");
   ok("ท่าเคเบิลไม่คิดเรื่องแผ่น", usesPlates(d, cable) === false && plateText(d, cable, 30) === null);

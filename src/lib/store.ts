@@ -62,6 +62,16 @@ export interface Settings {
   autoRest: boolean;
   restDefault: number;
   barWeight: number;
+  // นับน้ำหนักบาร์รวมในตัวเลขที่บันทึกไหม — ไม่ตั้ง = ไม่นับ (บันทึกแค่แผ่นที่ใส่)
+  //
+  // คนส่วนใหญ่จำน้ำหนักจาก "แผ่นที่ใส่ไป" ไม่ใช่ยอดรวมกับบาร์ และเครื่องอย่างเลกเพรส
+  // ก็ไม่มีทางรู้น้ำหนักตัวเครื่องอยู่แล้ว การบังคับให้บวกบาร์จึงทำให้ตัวเลขไม่ตรงกับที่จำได้
+  countBarWeight?: boolean;
+  // แผ่นเล็กสุดที่ยิมมี (ต่อข้าง) — ใช้กำหนดว่าท่าบาร์เบลขยับได้ทีละเท่าไหร่
+  //
+  // ยิมหลายที่ไม่มีแผ่น 1.25 การแนะนำให้ขึ้น 2.5 kg จึงเป็นคำแนะนำที่ทำตามไม่ได้จริง
+  // ตั้ง 5 = ขึ้นทีละ 10 kg (ใส่ข้างละแผ่น 5) · ไม่ตั้ง = 1.25 ตามมาตรฐานสากล
+  minPlateKg?: number;
   heightCm?: number;
   soundEnabled?: boolean; // เสียงตอนกดติ๊ก/ครบท่า/PR — undefined = เปิด (default)
   sessionClock?: boolean; // แถบนาฬิกาเซสชันในแท็บวันนี้ — undefined = เปิดถ้าตั้งช่องเวลาไว้
@@ -371,6 +381,9 @@ export function normalizeData(d: any): Data | null {
   if (typeof d.settings.barWeight !== "number") d.settings.barWeight = 20;
   d.settings.restDefault = num(d.settings.restDefault, 5, 3600, 90);
   d.settings.barWeight = num(d.settings.barWeight, 0, 500, 20);
+  if (d.settings.countBarWeight !== undefined && typeof d.settings.countBarWeight !== "boolean")
+    d.settings.countBarWeight = undefined;
+  if (d.settings.minPlateKg !== undefined) d.settings.minPlateKg = num(d.settings.minPlateKg, 0.5, 25, 1.25);
   if (d.settings.accent !== undefined && typeof d.settings.accent !== "string") d.settings.accent = undefined;
 
   // ตรวจ "ของข้างใน" ไม่ใช่แค่ชนิดของก้อน — ดูเหตุผลที่ cleanExercise

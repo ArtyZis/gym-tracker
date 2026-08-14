@@ -65,6 +65,19 @@ function groupByWeight(done: SetLog[]): SetGroup[] {
 /** ปัดน้ำหนักให้ลงหมุด/แผ่นที่มีจริง */
 const roundToStep = (w: number, step: number): number => Math.max(step, +(Math.round(w / step) * step).toFixed(2));
 
+/**
+ * สเต็ปที่ขยับได้จริงของท่านี้
+ *
+ * ท่าบาร์เบลถูกจำกัดด้วยแผ่นที่ยิมมี ไม่ใช่ค่า inc ในคลัง — คลังตั้ง 2.5 ไว้โดยสมมติว่า
+ * มีแผ่น 1.25 ให้ใส่ข้างละแผ่น แต่ยิมหลายที่ไม่มี การบอกให้ขึ้น 2.5 จึงทำตามไม่ได้จริง
+ * ท่าเครื่อง/เคเบิล/ดัมเบลไม่เกี่ยว เพราะขยับตามหมุดหรือคู่ดัมเบลที่มี
+ */
+export function stepFor(data: Data, ex: Exercise): number {
+  const base = ex.inc || 2.5;
+  if (!usesPlates(data, ex)) return base;
+  return Math.max(base, barbellStep(data));
+}
+
 /** จำนวนครั้งล่าสุดติดกันที่เล่นน้ำหนักเท่านี้ — ใช้กันคำแนะนำวนไปกลับ */
 function roundsAtWeight(sessions: SessionLog[], weight: number): number {
   let n = 0;
@@ -109,7 +122,7 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
 
   if (ex.type === "weight") {
     const unit = ex.unit || "kg";
-    const inc = ex.inc || 2.5;
+    const inc = stepFor(data, ex);
     const style = liftStyle(ex);
     const groups = groupByWeight(done);
     const rir = done.map((s) => s.rir).filter((v): v is number => typeof v === "number").pop();
@@ -303,12 +316,34 @@ export function usesPlates(data: Data, ex: Exercise): boolean {
   return tpl.equip.includes("barbell");
 }
 
-// ข้อความสั้นบอกว่าต้องใส่แผ่นอะไรข้างละกี่แผ่น เช่น "บาร์ 20 + (15+7.5)×2"
+/**
+ * แผ่นเล็กสุดที่ยิมมี (ต่อข้าง) และสเต็ปที่ขยับได้จริงของท่าบาร์เบล
+ *
+ * ต้องคูณสอง เพราะใส่แผ่นทีละคู่เสมอ — ยิมที่มีแผ่นเล็กสุด 5 kg ขยับได้ทีละ 10 kg
+ * ระบบเคยแนะนำให้ขึ้น 2.5 kg ตลอด ซึ่งเป็นคำแนะนำที่ทำตามไม่ได้ถ้าไม่มีแผ่น 1.25
+ */
+export const minPlate = (data: Data): number => data.settings.minPlateKg ?? 1.25;
+export const barbellStep = (data: Data): number => minPlate(data) * 2;
+
+/** ตัวเลขที่ผู้ใช้บันทึกรวมน้ำหนักบาร์ไว้ด้วยไหม — ไม่ตั้ง = ไม่รวม (บันทึกแค่แผ่น) */
+export const countsBar = (data: Data): boolean => data.settings.countBarWeight === true;
+
+// ข้อความสั้นบอกว่าต้องใส่แผ่นอะไรข้างละกี่แผ่น
+//
+// โหมดเริ่มต้นคือ "ตัวเลขที่บันทึก = แผ่นล้วน" จึงหารสองตรงๆ ไม่ต้องลบบาร์ออกก่อน
+// เปิด countBarWeight เมื่อไหร่ค่อยกลับไปคิดแบบเดิม (ยอดรวมแล้วลบบาร์)
 export function plateText(data: Data, ex: Exercise, target: number): string | null {
   if (!usesPlates(data, ex) || !target) return null;
+  const unit = ex.unit || "kg";
+  if (!countsBar(data)) {
+    const { list, leftover } = plateCalc(target, 0);
+    if (!list.length) return null;
+    const txt = `ข้างละ ${list.join("+")} (รวมแผ่น ${target} ${unit})`;
+    return leftover > 0.01 ? `${txt} · ขาดอีก ${(leftover * 2).toFixed(1)}` : txt;
+  }
   const bar = barKgFor(data, ex);
   const { list, leftover, barOnly } = plateCalc(target, bar);
-  if (barOnly) return `บาร์เปล่า (${bar} ${ex.unit || "kg"})`;
+  if (barOnly) return `บาร์เปล่า (${bar} ${unit})`;
   if (!list.length) return null;
   const txt = `บาร์ ${bar} + (${list.join("+")})×2`;
   return leftover > 0.01 ? `${txt} · ขาดอีก ${(leftover * 2).toFixed(1)}` : txt;

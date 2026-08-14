@@ -44,7 +44,9 @@ export default function ManageView() {
     });
   }
 
-  const bar = parseFloat(barInput) || 20;
+  // ปิดโหมดนับบาร์ = ตัวเลขที่กรอกคือแผ่นล้วน จึงหารสองตรงๆ ไม่ต้องลบบาร์ออกก่อน
+  const countBar = data.settings.countBarWeight === true;
+  const bar = countBar ? parseFloat(barInput) || 20 : 0;
   const target = parseFloat(targetInput) || 0;
   const plates = plateCalc(target, bar);
   const inputCls = "w-full px-3.5 py-2.5 text-[14px]";
@@ -421,7 +423,54 @@ export default function ManageView() {
       </div>
 
       <div className="glass p-4 mb-3">
-        <Kicker>คำนวณแผ่นน้ำหนัก · Plate Calc</Kicker>
+        <Kicker>แผ่นน้ำหนักที่ยิมคุณมี</Kicker>
+        <p className="text-[11.5px] -mt-1 mb-3 leading-relaxed" style={{ color: "var(--mut)" }}>
+          ใช้กำหนดว่าระบบจะแนะนำให้ขึ้นน้ำหนักทีละเท่าไหร่ — ต้องเป็นตัวเลขที่ใส่แผ่นได้จริง
+        </p>
+        <FieldLabel>แผ่นเล็กสุดที่มี (ต่อข้าง)</FieldLabel>
+        <div className="flex gap-1.5 mb-2">
+          {[1.25, 2.5, 5].map((p) => {
+            const on = (data.settings.minPlateKg ?? 1.25) === p;
+            return (
+              <button
+                key={p}
+                className="flex-1 font-mono2 text-[11.5px] py-2"
+                style={{
+                  color: on ? "#050a18" : "var(--mut)",
+                  background: on ? "linear-gradient(180deg, var(--acc), var(--acc-2))" : "rgba(10,20,31,.5)",
+                  border: on ? "none" : "1px solid var(--edge)",
+                  clipPath: "var(--cut-path-sm)",
+                }}
+                onClick={() =>
+                  update((d) => {
+                    d.settings.minPlateKg = p;
+                  })
+                }
+              >
+                {p} kg
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10.5px] mb-3 leading-relaxed" style={{ color: "var(--dim)" }}>
+          ใส่แผ่นทีละคู่เสมอ — เลือก {data.settings.minPlateKg ?? 1.25} kg แปลว่าท่าบาร์เบลขยับได้ทีละ{" "}
+          <b style={{ color: "var(--acc)" }}>{(data.settings.minPlateKg ?? 1.25) * 2} kg</b>
+        </p>
+
+        <ToggleRow
+          label="นับน้ำหนักบาร์ด้วย"
+          desc="ปิดไว้ = บันทึกแค่น้ำหนักแผ่นที่ใส่ (เลกเพรสก็ไม่ต้องรู้น้ำหนักเครื่อง)"
+          on={data.settings.countBarWeight === true}
+          onToggle={() =>
+            update((d) => {
+              d.settings.countBarWeight = d.settings.countBarWeight === true ? undefined : true;
+            })
+          }
+        />
+
+        <div className="hairline mt-3 pt-3">
+          <Kicker>คำนวณแผ่นน้ำหนัก · Plate Calc</Kicker>
+        </div>
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div>
             <FieldLabel>น้ำหนักเป้า (kg)</FieldLabel>
@@ -433,6 +482,8 @@ export default function ManageView() {
               type="number"
               className={inputCls}
               value={barInput}
+              disabled={data.settings.countBarWeight !== true}
+              style={data.settings.countBarWeight !== true ? { opacity: 0.45 } : undefined}
               onChange={(e) => {
                 setBarInput(e.target.value);
                 update((d) => {
