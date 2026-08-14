@@ -98,6 +98,37 @@ $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $e
 **เปิดแอปครั้งแรก = ว่างเปล่า** ไม่มีท่าและไม่มีชื่อวัน (ผู้ใช้สั่งเมื่อ 9 ส.ค. 2026)
 จงใจไม่ยัดตารางสำเร็จรูป เพราะตารางที่ไม่ใช่ของตัวเองกลายเป็นขยะที่ต้องมานั่งลบก่อนใช้
 
+## สองภาษา ไทย/อังกฤษ (v3.7.0)
+
+ทุกข้อความที่ขึ้นจอต้องเขียนเป็น `t("ไทย", "English")` จาก [src/lib/i18n.ts](src/lib/i18n.ts)
+— **ไทยมาก่อนเสมอ** เพราะไทยคือภาษาหลักและ default (`settings.lang` ไม่ตั้ง = ไทย)
+เหตุผลที่เลือกโครงนี้แทน react-i18next / คีย์แบบ `t("key.path")` อยู่หัวไฟล์ i18n.ts
+
+- ข้อความที่นับซ้ำๆ ใช้ helper สำเร็จรูป: `setsText` `repsText` `exText` `daysText`
+  `secText` `minText` — อย่าเขียน `t("เซต","sets")` เองจะได้ไม่มีที่สะกดต่างกัน
+- ตารางข้อมูลทำเป็นคู่ `X_TH` / `X_EN` + accessor (`muscleName`, `equipName`,
+  `dayName`, `rankName`, `liftName`, ...) — **เรียก accessor เสมอเวลาจะขึ้นจอ**
+  ส่วน `X_TH` ที่ยัง export ไว้มีไว้ให้ตัวค้นหาแมตช์คำไทยตรงๆ
+- ค่าคงที่ที่มีข้อความ (`ACCENTS`, `PLANS`, `EQUIP_PRESETS`, `LIFT_STANDARDS`,
+  `TABS`) ต้องเก็บ label เป็น **ฟังก์ชัน** `() => t(...)` ไม่ใช่ string
+  เพราะโมดูลถูกโหลดก่อน `setLang()` ทำงาน ถ้าเก็บเป็น string จะค้างภาษาแรกตลอด
+- **ตัวค้นหาท่าต้องไม่ผูกกับภาษา** — ดัชนีมีทั้งไทยและอังกฤษเสมอ คนไทยที่สลับ
+  เป็น en ยังพิมพ์ "อก" ค้นอยู่ ตัดออกตามภาษา = ของที่เคยหาเจอหายไปเฉยๆ
+- บรรทัดที่ทำสองภาษาด้วยมือ (ternary จาก `isEN()`) หรือของที่จงใจเป็นไทยเสมอ
+  (ปุ่มเลือกภาษา, การเทียบหน่วยเก่า `"kg/ข้าง"`) ปิดเสียงด้วย `// i18n-ok`
+  หรือ `{/* i18n-ok */}` ทีละบรรทัด — ไม่มีแบบปิดทั้งไฟล์โดยตั้งใจ
+
+```powershell
+node scripts\check-i18n.mjs   # ไล่จับข้อความไทยที่ยังไม่ได้แปล (ไม่ต้อง bundle)
+```
+
+ตัวนี้ต้องขึ้น ✅ ก่อน commit ทุกครั้ง — มันจับของหลุดที่ตาไม่เห็นได้จริง
+(ป้าย heatmap · tooltip ใน `<title>` · หัวข้อวันนอกรอบ) ส่วนเทสต์พฤติกรรม
+อยู่ที่ `scripts/test-lang.mjs` เน้นสามข้อ: ข้อมูลเก่าต้องยังเป็นไทย ·
+โหมด en ต้องไม่มีไทยหลุดจากตัววิเคราะห์/ตัวบอกน้ำหนัก · ค้นไทยต้องเจอทั้งสองภาษา
+
+**คอมเมนต์ยังเป็นไทยเหมือนเดิม** ตัวตรวจข้ามคอมเมนต์ให้อยู่แล้ว
+
 ## คำสั่ง
 
 ```powershell
@@ -125,6 +156,12 @@ deploy — **ต้องระบุ `--site` ให้ถูกรุ่น �
 
 ```powershell
 .\node_modules\.bin\esbuild.cmd scripts/test-logic.mjs --bundle --platform=node --format=esm --outfile=t.mjs; node t.mjs
+```
+
+ตอนนี้มี 19 ไฟล์ รวม 447 ข้อ — รันทีเดียวทั้งหมด (`$fail` ต้องเป็น 0):
+
+```powershell
+$fail=0; Get-ChildItem scripts\test-*.mjs | ForEach-Object { .\node_modules\.bin\esbuild.cmd $_.FullName --bundle --platform=node --format=esm --outfile=tt.mjs --log-level=error; $o = node tt.mjs 2>&1 | Out-String; $m=[regex]::Match($o,"ไม่ผ่าน (\d+)"); if($m.Success){$fail+=[int]$m.Groups[1].Value} }; "ไม่ผ่าน: $fail"; rm tt.mjs
 ```
 
 ---
@@ -197,6 +234,8 @@ Secret ที่ตั้งไว้ใน repo แล้ว: `CLOUDFLARE_API_T
   สีอย่า hardcode ให้ใช้ var
 - แอปคุมความกว้าง `max-w-[520px]` และเผื่อ `env(safe-area-inset-*)` ทุกขอบ (iPhone notch)
 - **ระวัง bundle size** — v4 ถอด voice logging + Supabase ออกเพื่อลดจาก 510 → 282 KB
+  (ตัวเลขปัจจุบัน v3.7.0: **498 KB / gzip 147 KB** — โตจาก 282 เพราะฟีเจอร์ที่เพิ่มมาหลังจากนั้น
+  ไม่ใช่ dependency ใหม่ · คำแปลอังกฤษทั้งภาษาคิดเป็นแค่ +15 KB gzip)
   ก่อนเพิ่ม dependency ใหม่ให้ถามผู้ใช้ก่อน ตอนนี้ runtime deps มีแค่ react + react-dom
 
 ---
