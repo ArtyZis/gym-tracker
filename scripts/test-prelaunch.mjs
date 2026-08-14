@@ -121,7 +121,9 @@ console.log("\n═══ 1.5 ลูกค้าจริง: ทดลอง →
 console.log("\n═══ 2. รหัสจากตัวสร้างจริง (make-license.mjs) ═══");
 {
   const script = path.join(process.cwd(), "scripts", "make-license.mjs");
-  const run = (args) => execFileSync(process.execPath, [script, ...args], { encoding: "utf8" });
+  // เขียนบัญชีลงไฟล์ชั่วคราว ห้ามแตะ licenses.log.tsv ของลูกค้าจริง
+  const tmpLog = path.join(process.cwd(), ".test-licenses.tsv");
+  const run = (args) => execFileSync(process.execPath, [script, ...args], { encoding: "utf8", env: { ...process.env, RANKFORGE_LICENSE_LOG: tmpLog } });
 
   // ออกรหัส 3 เดือน 5 ใบ แล้วให้แอปตรวจทีละใบ
   const out3 = run(["3", "5"]);
@@ -145,6 +147,10 @@ console.log("\n═══ 2. รหัสจากตัวสร้างจร�
 
   // ไม่ซ้ำกันเอง — ออกให้ลูกค้าคนละคนต้องไม่ชนกัน
   ok("รหัสที่ออกมาไม่ซ้ำกัน", new Set(keys3).size === keys3.length);
+
+  // ต้องไม่ไปเขียนบัญชีจริง
+  ok("เทสต์เขียนบัญชีชั่วคราว ไม่แตะของลูกค้า", fs.existsSync(tmpLog));
+  try { fs.unlinkSync(tmpLog); } catch { /* ไม่มีก็ข้าม */ }
 }
 
 // ══════════ 3. ต่ออายุและหมดอายุ ══════════
