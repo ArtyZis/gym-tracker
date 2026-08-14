@@ -37,28 +37,26 @@ npm run bundle   # สร้าง bundle.html ไฟล์เดียว (Parc
 .\node_modules\.bin\esbuild.cmd scripts/test-logic.mjs --bundle --platform=node --format=esm --outfile=t.mjs; node t.mjs
 ```
 
-## Deploy (Netlify)
+## Deploy
 
-Live: **https://artytraining.netlify.app** · admin: https://app.netlify.com/projects/artytraining
+**`git push` ขึ้น main แล้วจบ** — GitHub Actions build และขึ้นให้เองทั้งสองรุ่น
 
-> เดิมชื่อ `gym-tracker-artyz` — เปลี่ยนชื่อโปรเจกต์เป็น `artytraining` แล้ว URL เก่า 404
+| ที่ | URL | รุ่น | workflow |
+|---|---|---|---|
+| ของ ARTYZ | https://rankforge-me.pages.dev | personal | `deploy-personal.yml` → Cloudflare Pages |
+| ที่ขาย | https://artyzis.github.io/gym-tracker/ | pro | `deploy.yml` → GitHub Pages |
 
-โฟลเดอร์นี้ link กับ Netlify project แล้ว (`.netlify/` ไม่เข้า git) — deploy รอบถัดไป:
+build ในเครื่อง (`npm run build` / `build:pro`) มีไว้ตรวจก่อน push เท่านั้น
+ตรวจว่าขึ้นจริงไหมโดยเทียบ hash ของ `assets/index-*.js` บนเว็บกับใน `dist/`
 
-```powershell
-$env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $env:PATH
-npm run build
-.\node_modules\.bin\netlify.cmd deploy --prod --dir=dist --no-build
-```
-
-⚠️ ต้องมี `--no-build` เสมอ: โปรเจกต์มีทั้ง Vite และ Parcel — ถ้าไม่ใส่ Netlify CLI
-จะถามว่าจะใช้ตัวไหนแล้ว crash เพราะไม่มี stdin
+> **Netlify เลิกใช้แล้ว (14 ส.ค. 2026)** — `artytraining.netlify.app`,
+> `artycoach.netlify.app`, `gym-tracker-artyz` ใช้ไม่ได้ทั้งหมด
 
 ## สองรูปแบบการใช้งาน
 
 | แบบ | ไฟล์ | ได้อะไร |
 |---|---|---|
-| **PWA เต็มรูปแบบ** | deploy แล้วที่ https://artytraining.netlify.app | ติดตั้งลงหน้าจอโฮม, offline cache ผ่าน Service Worker, Notification จาก SW |
+| **PWA เต็มรูปแบบ** | deploy แล้วที่ https://rankforge-me.pages.dev | ติดตั้งลงหน้าจอโฮม, offline cache ผ่าน Service Worker, Notification จาก SW |
 | **ไฟล์เดียว** | `bundle.html` | เปิด/แชร์ได้ทันทีเหมือนเวอร์ชันเดิม — จับเวลาแม่น, เสียง, สั่น ทำงานครบ แต่**ไม่มี** Service Worker/offline (ข้อจำกัดของไฟล์เดี่ยว ไม่ใช่บั๊ก) |
 
 ข้อมูลทั้งหมดเก็บใน localStorage (key `gymtracker_v1`) — ย้ายข้ามเครื่องด้วยปุ่ม "ย้ายข้อมูลข้ามเครื่อง"

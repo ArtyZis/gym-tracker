@@ -32,9 +32,10 @@
 $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $env:PATH
 ```
 
-### 3. deploy ต้องมี `--no-build` เสมอ
-โปรเจกต์มีทั้ง Vite และ Parcel — ถ้าไม่ใส่ Netlify CLI จะถามว่าจะใช้ตัวไหน
-แล้ว **crash เพราะไม่มี stdin**
+### 3. deploy ด้วย `git push` เท่านั้น — ไม่มี deploy มือแล้ว
+push ขึ้น `main` แล้ว GitHub Actions ขึ้นให้ทั้งสองที่เอง ห้ามพยายาม deploy มือ
+(**เลิกใช้ Netlify แล้วเมื่อ 14 ส.ค. 2026** ตามที่ผู้ใช้สั่ง — คำสั่ง `netlify.cmd`
+กับ site `artytraining`/`artycoach` ในเอกสารเก่าใช้ไม่ได้อีกต่อไป อย่าเอากลับมา)
 
 ---
 
@@ -44,8 +45,8 @@ $env:PATH = "C:\ARTY\COAD\CLAUDE\gym-tracker\.tools\node-v24.18.0-win-x64;" + $e
 
 | รุ่น | คำสั่ง | ออกที่ | เว็บ | ต่างกันตรงไหน |
 |---|---|---|---|---|
-| personal (ของ ARTYZ) | `npm run build` | `dist/` | artytraining | เปิดทุกฟีเจอร์ ไม่มีช่วงทดลอง ไม่มีรหัส |
-| pro (ที่ขาย) | `npm run build:pro` | `dist-pro/` | artycoach | ทดลองฟรี 30 วัน แล้วล็อกฟีเจอร์สมองโค้ช |
+| personal (ของ ARTYZ) | `npm run build` | `dist/` | rankforge-me.pages.dev | เปิดทุกฟีเจอร์ ไม่มีช่วงทดลอง ไม่มีรหัส |
+| pro (ที่ขาย) | `npm run build:pro` | `dist-pro/` | artyzis.github.io/gym-tracker/ | ทดลองฟรี 30 วัน แล้วล็อกฟีเจอร์สมองโค้ช |
 
 **โมเดลขาย** (ดู [src/lib/premium.ts](src/lib/premium.ts)) — ทดลอง 30 วัน → ตกกลับเป็นรุ่นฟรี
 → ซื้อเป็นก้อน 3 เดือน / 1 ปี (แก้ราคาที่ `PLANS` ใน license.ts)
@@ -141,15 +142,15 @@ npm run bundle     # Parcel -> bundle.html ไฟล์เดียว
 npm run license 5  # สร้างรหัสปลดล็อก 5 อัน
 ```
 
-deploy — **ต้องระบุ `--site` ให้ถูกรุ่น ไม่งั้น deploy ทับผิดเว็บ**:
+deploy — **แค่ `git push` ขึ้น main** GitHub Actions build และขึ้นให้เองทั้งสองรุ่น
+ไม่ต้องรันอะไรเพิ่ม (build ในเครื่องมีไว้ตรวจก่อน push เท่านั้น)
 
 ```powershell
-# รุ่นส่วนตัว -> artytraining (โฟลเดอร์ link ไว้กับอันนี้อยู่แล้ว)
-.\node_modules\.bin\netlify.cmd deploy --prod --dir=dist --no-build
-
-# รุ่นที่ขาย -> artycoach (ต้องใส่ --site เพราะ link ไม่ได้ชี้มาที่นี่)
-.\node_modules\.bin\netlify.cmd deploy --prod --dir=dist-pro --no-build --site 8d4dc317-a810-4075-8f7e-4d4311f4ee26
+git push          # -> Cloudflare (personal) + GitHub Pages (pro) พร้อมกัน
 ```
+
+ตรวจว่าขึ้นจริงไหม: เทียบ hash ของ `assets/index-*.js` ในหน้าเว็บกับใน `dist/`
+ถ้าตรง = ของใหม่ขึ้นแล้ว (PWA แคชแรง ดูจากตาอย่างเดียวเชื่อไม่ได้)
 
 เทสต์ logic (parser / rest / forecast) — ต้อง bundle ก่อน เพราะ Node ESM
 ไม่ resolve import แบบไม่มีนามสกุล:
@@ -188,20 +189,18 @@ $fail=0; Get-ChildItem scripts\test-*.mjs | ForEach-Object { .\node_modules\.bin
 Cloudflare (`npm run build`) อยู่แล้ว จึงได้ของเหมือนกันเป๊ะโดยไม่ต้องทำอะไรเพิ่ม
 
 ไฟล์ที่ Cloudflare ใช้ (อยู่ใน `public/` เพื่อให้ Vite คัดลอกเข้า dist ทุก build):
-`_headers` (security header เทียบเท่า netlify.toml — GitHub Pages ตั้งเองไม่ได้)
+`_headers` (security header — GitHub Pages ตั้งเองไม่ได้)
 `_redirects` (SPA fallback) · `.node-version`
 
 Secret ที่ตั้งไว้ใน repo แล้ว: `CLOUDFLARE_API_TOKEN` · `CLOUDFLARE_ACCOUNT_ID`
 ขั้นตอนตั้งค่าเดิมอยู่ที่ [DEPLOY-PERSONAL.md](DEPLOY-PERSONAL.md)
 
-## Deploy target
+### ⛔ Netlify เลิกใช้แล้ว (14 ส.ค. 2026)
 
-- **`artytraining`** → https://artytraining.netlify.app (รุ่น personal — โฟลเดอร์ link ไว้กับอันนี้)
-- **`artycoach`** → https://artycoach.netlify.app (รุ่น coach, siteId `8d4dc317-a810-4075-8f7e-4d4311f4ee26`)
-- ชื่อเดิม `gym-tracker-artyz` **เลิกใช้แล้ว (404)** อย่าอ้างถึงอีก
-- โฟลเดอร์นี้ link ไว้แล้วผ่าน `.netlify/state.json` (gitignored — ห้าม commit)
-- ตรวจว่า deploy ตรงกับเครื่องไหม: เทียบ hash ของ `assets/index-*.js`
-  ในหน้าเว็บจริงกับใน `dist/`
+`artytraining.netlify.app` · `artycoach.netlify.app` · `gym-tracker-artyz`
+**ไม่ใช้แล้วทั้งหมด** อย่าอ้างถึง อย่าเสนอให้ deploy กลับไป และอย่าเอาคำสั่ง
+`netlify.cmd` กลับเข้าเอกสาร — `netlify-cli` ที่ยังค้างใน devDependencies
+ถอดออกได้ถ้าเจอตอนแก้ package.json รอบหน้า
 
 ---
 
@@ -209,7 +208,7 @@ Secret ที่ตั้งไว้ใน repo แล้ว: `CLOUDFLARE_API_T
 
 | แบบ | ไฟล์ | หมายเหตุ |
 |---|---|---|
-| PWA | `dist/` → Netlify | ติดตั้งหน้าจอโฮมได้, offline ผ่าน Service Worker |
+| PWA | `dist/` → Cloudflare Pages · `dist-pro/` → GitHub Pages | ติดตั้งหน้าจอโฮมได้, offline ผ่าน Service Worker |
 | ไฟล์เดียว | `bundle.html` (gitignored, generated) | เปิด/แชร์ได้ทันที แต่**ไม่มี** SW/offline — เป็นข้อจำกัดของไฟล์เดี่ยว ไม่ใช่บั๊ก |
 
 ---
