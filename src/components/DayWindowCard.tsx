@@ -10,6 +10,7 @@ import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
 import { DAYS, dayName, exercisesForDay } from "../lib/store";
 import { estimateMinutes, trainingDays } from "../lib/analyzer";
+import { slotName } from "../lib/loop";
 import { getTimeCap, windowMinutes } from "../lib/profile";
 import { minText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
@@ -101,7 +102,7 @@ export default function DayWindowCard() {
                     : { color: "var(--dim)", background: "rgba(10,20,31,.6)", border: "1px solid var(--edge)" }
                 }
               >
-                {dayName(day)}
+                {slotName(data, day)}
               </span>
               <span className="flex-1 min-w-0 text-[12px] truncate" style={{ color: w ? "var(--ink)" : "var(--dim)" }}>
                 {w ? `${w.start}–${w.end}` : t("ยังไม่ตั้ง (ใช้ค่ากลาง)", "Not set (using default)")}
@@ -153,7 +154,7 @@ export default function DayWindowCard() {
 
                 {tight && (
                   <p className="text-[11px] leading-relaxed mb-2" style={{ color: "var(--warn)" }}>
-                    {t(`ตอนนี้ท่าใน${dayName(day)}ใช้เวลาราว ${used} นาที เกินที่มี ${usable} นาที — ลดเซตหรือย้ายท่าท้ายไปวันอื่น`, `${dayName(day)} currently runs about ${used} min but you only have ${usable} — cut sets or move the tail to another day`)}
+                    {t(`ตอนนี้ท่าใน${slotName(data, day)}ใช้เวลาราว ${used} นาที เกินที่มี ${usable} นาที — ลดเซตหรือย้ายท่าท้ายไปวันอื่น`, `${slotName(data, day)} currently runs about ${used} min but you only have ${usable} — cut sets or move the tail to another day`)}
                   </p>
                 )}
 
@@ -167,7 +168,7 @@ export default function DayWindowCard() {
                         delete d.dayWindows[day];
                         if (!Object.keys(d.dayWindows).length) d.dayWindows = undefined;
                       });
-                      toast(t(`${dayName(day)}: กลับไปใช้ค่ากลาง`, `${dayName(day)}: back to the default`));
+                      toast(t(`${slotName(data, day)}: กลับไปใช้ค่ากลาง`, `${slotName(data, day)}: back to the default`));
                     }}
                   >
                     {t("ล้างค่าวันนี้", "Clear this day")}

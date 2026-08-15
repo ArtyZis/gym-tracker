@@ -239,7 +239,7 @@ export default function TodayView() {
           kind: "complete",
           title: "COMPLETE",
           lines: [
-            { label: t("วัน", "Day"), value: label || dayName(day) },
+            { label: t("วัน", "Day"), value: label || slotName(data, day) },
             { label: t("ท่าทั้งหมด", "Exercises"), value: exText(exs.length) },
             { label: t("เซตที่ทำ", "Sets done"), value: setsText(totalSets), good: true },
             ...(volume > 0 ? [{ label: t("ยกรวม", "Total volume"), value: `${volume.toLocaleString()} kg` }] : []),
@@ -265,7 +265,7 @@ export default function TodayView() {
         {/* หัวเควสต์ของวัน — ชื่อวันเป็นพระเอก แถบแบ่งช่องอ่านค่าจากระยะไกลง่ายกว่าวงแหวน */}
         <div className="relative">
           <div className="sys-label mb-2">
-            {exs.length ? "QUEST" : "REST DAY"} · {dayName(day)}
+            {exs.length ? "QUEST" : "REST DAY"} · {slotName(data, day)}
             {isToday ? t(" · วันนี้", " · TODAY") : ""}
           </div>
           <div className="flex items-center gap-2">

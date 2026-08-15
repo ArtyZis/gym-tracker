@@ -3,6 +3,7 @@ import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
 import { DAYS, applyProgram, dayName, repTargetText } from "../lib/store";
 import { clearProgramFromUrl, decodeProgram } from "../lib/programLink";
+import { slotName } from "../lib/loop";
 import { exText, t } from "../lib/i18n";
 
 // ลูกเทรนกดลิงก์จากโค้ช -> เด้งหน้านี้ให้ดูก่อนว่าได้อะไรบ้าง แล้วค่อยกดรับ
@@ -73,7 +74,7 @@ export default function IncomingProgram({ code, onClose }: { code: string; onClo
               <div key={day} className="glass-inset p-3 mb-2">
                 <div className="flex items-baseline justify-between mb-1.5">
                   <span className="font-disp font-semibold text-[13.5px]" style={{ color: "var(--acc)" }}>
-                    {dayName(day)}
+                    {slotName(data, day)}
                     {program.dayLabels[day] ? (
                       <span style={{ color: "var(--mut)" }}> · {program.dayLabels[day]}</span>
                     ) : null}

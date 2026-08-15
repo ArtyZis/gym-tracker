@@ -4,6 +4,7 @@ import { useApp } from "../AppContext";
 import type { EffectiveExercise, SwapTarget } from "../lib/store";
 import { addExtra, clearSwap, dayName, normName, removeExtra, setSwap } from "../lib/store";
 import { muscleMap } from "../lib/analyzer";
+import { slotName } from "../lib/loop";
 import { incFor, isMachineEx, searchExercises, subName, tierOf, tipOf, unitFor } from "../lib/exerciseDB";
 import { t } from "../lib/i18n";
 
@@ -42,7 +43,7 @@ export default function ExercisePicker({
     // 1) ท่าที่มีในโปรแกรมอยู่แล้ว — ขึ้นก่อนเพราะผู้ใช้คุ้นและมีประวัติสะสมไว้
     for (const o of data.exercises) {
       if (seen.has(normName(o.name))) continue;
-      if (query && !o.name.toLowerCase().includes(query) && !dayName(o.day).includes(query)) continue;
+      if (query && !o.name.toLowerCase().includes(query) && !slotName(data, o.day).includes(query)) continue;
       seen.add(normName(o.name));
       out.push({
         name: o.name,
@@ -54,7 +55,7 @@ export default function ExercisePicker({
         inc: o.inc,
         machine: o.machine,
         amrap: o.amrap,
-        from: dayName(o.day),
+        from: slotName(data, o.day),
         muscles: musclesOf(o.name),
       });
     }

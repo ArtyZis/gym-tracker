@@ -3,6 +3,7 @@ import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
 import { dayName } from "../lib/store";
 import { trainingDays } from "../lib/analyzer";
+import { slotName } from "../lib/loop";
 import type { EquipTag, Experience, Goal, InjuryKey } from "../lib/muscles";
 import { EQUIP_PRESETS, VOLUME_TARGETS, equipName, experienceDesc, experienceName, goalName, injuryName } from "../lib/muscles";
 import { ALL_EQUIP, equipPresetLabel, getDayEquip, getExperience, getGoal, getInjuries, getMaxSetsPerSession, getTimeCap } from "../lib/profile";
@@ -209,7 +210,7 @@ export function DayEquipmentCard() {
                 className="font-mono2 text-[11px] font-bold shrink-0 rounded-lg px-2 py-1"
                 style={{ color: "#031420", background: "linear-gradient(180deg, var(--acc), var(--acc-2))" }}
               >
-                {dayName(day)}
+                {slotName(data, day)}
               </span>
               <span className="flex-1 min-w-0 text-[12px] truncate" style={{ color: isDefault ? "var(--dim)" : "var(--ink)" }}>
                 {isDefault ? t("มีครบทุกอย่าง (ค่าเริ่มต้น)", "Everything available (default)") : equipPresetLabel(equip)}
@@ -233,7 +234,7 @@ export function DayEquipmentCard() {
                         update((d) => {
                           d.dayEquip = { ...d.dayEquip, [day]: [...p.equip] };
                         });
-                        toast(`${dayName(day)}: ${p.label()}`);
+                        toast(`${slotName(data, day)}: ${p.label()}`);
                       }}
                     >
                       {p.label()}
@@ -273,7 +274,7 @@ export function DayEquipmentCard() {
                       update((d) => {
                         if (d.dayEquip) delete d.dayEquip[day];
                       });
-                      toast(t(`${dayName(day)}: กลับเป็นค่าเริ่มต้น`, `${dayName(day)}: back to default`));
+                      toast(t(`${slotName(data, day)}: กลับเป็นค่าเริ่มต้น`, `${slotName(data, day)}: back to default`));
                     }}
                   >
                     {t("คืนค่าเริ่มต้นวันนี้", "Reset this day")}

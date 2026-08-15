@@ -3,6 +3,7 @@ import { useApp } from "../AppContext";
 import type { DayKey } from "../lib/store";
 import { applyProgram, dayName, exercisesForDay, repTargetText, restoreHistory, uid } from "../lib/store";
 import { parseProgram } from "../lib/programParser";
+import { slotName } from "../lib/loop";
 import { daysText, exText, t } from "../lib/i18n";
 
 // ตัวอย่างต้องใช้คำวันในภาษาที่ผู้ใช้เห็น ไม่งั้นกด "ลองใส่ตัวอย่าง" แล้วตัว parser
@@ -45,7 +46,7 @@ Incline DB Curl 3x12`,
 
 // นำเข้าโปรแกรมทีเดียว: วางข้อความ -> preview -> แทนที่/เพิ่ม
 export default function ImportProgramCard() {
-  const { update, toast } = useApp();
+  const { data, update, toast } = useApp();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
 
@@ -148,7 +149,7 @@ export default function ImportProgramCard() {
               {byDay.map(([day, exs]) => (
                 <div key={day} className="mb-2">
                   <div className="font-disp text-[12px] mb-1" style={{ color: "var(--cyan-dim)" }}>
-                    {dayName(day)}
+                    {slotName(data, day)}
                   </div>
                   {exs.map((ex, i) => (
                     <div key={i} className="flex items-baseline gap-2 py-0.5 text-[12px]">

@@ -556,6 +556,80 @@ export function decodeTransfer(code: string): Data | null {
   }
 }
 
+/** สรุปว่าโค้ดที่วางมามีอะไรบ้าง — เอาไปโชว์ในกล่องยืนยันก่อนกู้คืน */
+export function transferSummary(d: Data): { exercises: number; sessions: number; sets: number; days: number } {
+  let sessions = 0;
+  let sets = 0;
+  const dates = new Set<string>();
+  for (const list of Object.values(d.history ?? {}))
+    for (const s of list) {
+      const n = s.sets.filter(Boolean).length;
+      if (!n) continue;
+      sessions++;
+      sets += n;
+      dates.add(s.date);
+    }
+  return { exercises: d.exercises?.length ?? 0, sessions, sets, days: dates.size };
+}
+
+/**
+ * กู้คืนจากโค้ดย้ายเครื่อง — **รวมกับของเดิม ไม่ทับ**
+ *
+ * ของเดิมใช้ Object.assign(d, restored) ซึ่งทับ history ทั้งก้อน
+ * ใครที่เผลอฝึกบนเครื่องใหม่ไปก่อนแล้วค่อยวางโค้ด ประวัติที่เพิ่งทำหายเกลี้ยง
+ * ไม่ถาม ไม่เตือน ไม่มีทางกู้ — ผิดกฎเหล็กข้อ 1 เต็มๆ (มีคนเจอจริงแล้ว)
+ *
+ * ตอนนี้รวมทุกอย่างที่เป็น "ข้อมูลสะสม" เข้าด้วยกัน:
+ *   ประวัติเซต · น้ำหนักตัว · ผลสแกน · โน้ตรายวัน · โปรแกรมที่บันทึก · การนอน
+ * เครื่องปลายทางว่างอยู่แล้ว = ผลลัพธ์เท่ากับทับทุกประการ (เคสปกติไม่เปลี่ยน)
+ * เครื่องปลายทางมีของ = ได้ทั้งสองฝั่ง ไม่มีใครหาย
+ *
+ * ส่วนที่เป็น "การตั้งค่า" (ตาราง ชื่อวัน โปรไฟล์ ธีม) ใช้ของที่วางมาแทน
+ * เพราะจุดประสงค์ของการย้ายเครื่องคือ "เอาตารางจากเครื่องเก่ามาใช้"
+ */
+export function applyTransfer(d: Data, incoming: Data): void {
+  // ── ข้อมูลสะสม: รวม ──
+  const history: Record<string, SessionLog[]> = { ...d.history };
+  for (const [exId, logs] of Object.entries(incoming.history ?? {}))
+    history[exId] = mergeSessions(history[exId] ?? [], logs);
+  d.history = history;
+
+  const archive: Record<string, SessionLog[]> = { ...(d.historyArchive ?? {}) };
+  for (const [key, logs] of Object.entries(incoming.historyArchive ?? {}))
+    archive[key] = mergeSessions(archive[key] ?? [], logs);
+  d.historyArchive = archive;
+
+  const byDate = <T extends { date: string }>(a: T[] = [], b: T[] = []): T[] => {
+    const m = new Map<string, T>();
+    for (const x of [...a, ...b]) m.set(x.date, x); // ฝั่งที่วางมาทับของเดิมวันเดียวกัน
+    return [...m.values()].sort((x, y) => x.date.localeCompare(y.date));
+  };
+  d.bodyweight = byDate(d.bodyweight, incoming.bodyweight);
+  d.bodyScans = byDate(d.bodyScans, incoming.bodyScans);
+  if (d.sleepLog || incoming.sleepLog) d.sleepLog = byDate(d.sleepLog, incoming.sleepLog);
+  if (d.nutritionLog || incoming.nutritionLog) d.nutritionLog = byDate(d.nutritionLog, incoming.nutritionLog);
+
+  if (d.dayNotes || incoming.dayNotes) d.dayNotes = { ...(d.dayNotes ?? {}), ...(incoming.dayNotes ?? {}) };
+  if (d.makeup || incoming.makeup) d.makeup = { ...(d.makeup ?? {}), ...(incoming.makeup ?? {}) };
+  if (d.exNames || incoming.exNames) d.exNames = { ...(d.exNames ?? {}), ...(incoming.exNames ?? {}) };
+
+  // โปรแกรมที่บันทึกไว้ — รวมตาม id ไม่ให้ของเครื่องปลายทางหาย
+  const saved = [...(d.savedPrograms ?? [])];
+  for (const p of incoming.savedPrograms ?? []) if (!saved.some((x) => x.id === p.id)) saved.push(p);
+  if (saved.length) d.savedPrograms = saved.slice(0, 100);
+
+  // ── การตั้งค่า: ใช้ของที่วางมา (จุดประสงค์คือย้ายตารางมาใช้) ──
+  d.exercises = incoming.exercises;
+  d.dayLabels = incoming.dayLabels;
+  d.settings = incoming.settings;
+  d.loop = incoming.loop;
+  d.profile = incoming.profile;
+  d.constraints = incoming.constraints;
+  d.dayEquip = incoming.dayEquip;
+  d.dayWindows = incoming.dayWindows;
+  // swaps เป็นของชั่วคราวรายวัน ไม่ย้ายข้ามเครื่อง
+}
+
 export const store = {
   save(data: Data): boolean {
     try {

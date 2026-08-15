@@ -3,7 +3,7 @@ import { equipName, muscleName } from "../lib/muscles";
 import type { ReactNode } from "react";
 import { useApp } from "../AppContext";
 import type { DayKey, Exercise, ExType } from "../lib/store";
-import { DAYS, archiveOne, createEmpty, decodeTransfer, exercisesForDay, repTargetText, uid } from "../lib/store";
+import { DAYS, applyTransfer, archiveOne, createEmpty, decodeTransfer, exercisesForDay, repTargetText, transferSummary, uid } from "../lib/store";
 import { plateCalc } from "../lib/progression";
 import ImportProgramCard from "./ImportProgramCard";
 import SavedProgramsCard from "./SavedProgramsCard";
@@ -557,8 +557,16 @@ export default function ManageView() {
               toast(t("โค้ดไม่ถูกต้อง", "That code isn't valid"));
               return;
             }
-            update((d) => Object.assign(d, restored));
-            toast(t("กู้คืนแล้ว", "Restored"));
+            // บอกให้เห็นตัวเลขก่อนกด — เดิมกู้คืนเงียบๆ แล้วประวัติบนเครื่องนี้หายโดยไม่มีใครรู้ตัว
+            const inc = transferSummary(restored);
+            const cur = transferSummary(data);
+            const msg = t(
+              `โค้ดนี้มี ${inc.exercises} ท่า · ${inc.sets} เซต · ${inc.days} วันที่ฝึก\nเครื่องนี้มีอยู่ ${cur.exercises} ท่า · ${cur.sets} เซต · ${cur.days} วันที่ฝึก\n\nกู้คืนแล้วประวัติจะถูก "รวมกัน" ทั้งสองฝั่ง ไม่มีอันไหนหาย\nส่วนตารางท่า ชื่อวัน และการตั้งค่า จะใช้ของจากโค้ดนี้แทน`,
+              `This code has ${inc.exercises} exercises · ${inc.sets} sets · ${inc.days} training days\nThis device has ${cur.exercises} exercises · ${cur.sets} sets · ${cur.days} training days\n\nRestoring MERGES both histories — nothing is lost.\nThe program, day names, and settings are replaced by the ones in this code.`,
+            );
+            if (!confirm(msg)) return;
+            update((d) => applyTransfer(d, restored));
+            toast(t("กู้คืนแล้ว — ประวัติรวมกันครบ", "Restored — both histories merged"), true);
           }}
         >
           {t("กู้คืนจากโค้ด", "Restore from code")}
