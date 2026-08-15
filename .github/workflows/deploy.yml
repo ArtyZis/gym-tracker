@@ -55,9 +55,32 @@ jobs:
           mkdir -p site
           cp -r dist-pro/* site/
           # GitHub Pages ไม่มี redirect rule แบบ netlify.toml — ให้ 404 เสิร์ฟหน้าเดียวกับ index
-          # ผลพลอยได้: ไอคอนเก่าที่ยังชี้ไป /me/ จะได้แอป (รุ่นขาย) แทนหน้า 404 เปล่าๆ
-          # และเป็น origin เดิม localStorage จึงยังเป็นกองเดียวกัน ข้อมูลเก่าอ่านได้อยู่
           cp site/index.html site/404.html
+
+      # หน้าเปลี่ยนทางที่ /me/ สำหรับไอคอนเก่าบนหน้าจอโฮมที่ยังชี้มาที่นี่
+      #
+      # ใช้ 404.html แทนไม่ได้ ถึงจะถูกเสิร์ฟจริงก็เถอะ: base เป็น "./" ทุก asset
+      # จึงเป็น relative พอหน้าเดียวกันถูกเสิร์ฟที่ /me/ มันไปหา /me/assets/... ซึ่งไม่มี
+      # = ได้หน้าขาวเปล่า ต้องเป็นไฟล์ที่ไม่พึ่ง asset อะไรเลยแบบนี้เท่านั้น
+      #
+      # ไม่ได้เอารุ่นส่วนตัวกลับมา — แค่พาไปแอปรุ่นขายที่ราก ซึ่งเป็น origin เดียวกัน
+      # localStorage จึงเป็นกองเดิม ประวัติที่ค้างอยู่ยังเปิดอ่านและกดสร้างโค้ดย้ายได้
+      - name: วางหน้าเปลี่ยนทางที่ /me/
+        run: |
+          mkdir -p site/me
+          cat > site/me/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>RANKFORGE</title>
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <meta http-equiv="refresh" content="0;url=../">
+          <style>body{background:#04070D;color:#8FA3BF;font:14px/1.6 system-ui,sans-serif;
+          display:grid;place-items:center;height:100vh;margin:0;text-align:center;padding:1rem}
+          a{color:#5BC8F5}</style>
+          <p>RANKFORGE ย้ายไปที่ <a href="../">artyzis.github.io/gym-tracker/</a> แล้ว<br>
+          กำลังพาไป… ข้อมูลการฝึกของคุณยังอยู่ครบ</p>
+          <script>location.replace("../")</script>
+          HTML
 
       - uses: actions/upload-pages-artifact@v3
         with:

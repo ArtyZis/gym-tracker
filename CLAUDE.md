@@ -202,7 +202,12 @@ node scripts\run-tests.mjs
 **ข้อมูลไม่หายจากการปิดนี้** — localStorage ผูกกับ **origin** ไม่ใช่ path
 ประวัติที่เคยบันทึกผ่าน `/me/` ยังอยู่ที่ origin `artyzis.github.io` เหมือนเดิม
 และเปิดอ่านได้จากรุ่นขายที่ `/gym-tracker/` (คีย์ `gymtracker_v1` เดียวกัน)
-`404.html` เสิร์ฟหน้าเดียวกับ index อยู่แล้ว ไอคอนเก่าที่ชี้ไป `/me/` จึงเด้งเข้าแอป ไม่ใช่ 404
+
+`/me/` ตอนนี้เป็น**หน้าเปลี่ยนทางเปล่าๆ** ที่ deploy.yml เขียนขึ้นมา ไม่ใช่แอป —
+พึ่ง `404.html` แทนไม่ได้ เพราะ `base` เป็น `"./"` ทุก asset จึงเป็น relative
+หน้าเดียวกันถูกเสิร์ฟที่ `/me/` แล้วจะไปหา `/me/assets/...` ที่ไม่มี = **หน้าขาว**
+ด้วยเหตุผลเดียวกัน `navigateFallbackDenylist: [/\/me\//]` ใน vite.config **ต้องอยู่ต่อ**
+ไม่งั้น SW เอา index.html มาทับหน้าเปลี่ยนทางแล้วขาวอีก
 
 ไฟล์ที่ Cloudflare ใช้ (อยู่ใน `public/` เพื่อให้ Vite คัดลอกเข้า dist ทุก build):
 `_headers` (security header — GitHub Pages ตั้งเองไม่ได้)
