@@ -27,27 +27,32 @@ export interface LiftStyle {
   note?: string;
 }
 
-export function liftStyle(ex: Exercise): LiftStyle {
+export function liftStyle(ex: Exercise, toFailure = false): LiftStyle {
   const tpl = findTemplate(ex.name);
   const isolation = tpl?.pattern === "isolation";
   const cable = tpl?.equip?.includes("cable");
   const machine = tpl?.equip?.includes("machine");
   const heavy = tpl?.fatigue === "high";
 
+  // โหมดหมดแรงไม่ได้ "ดันเรปให้เต็มช่วง" — โน้ตเดิมจะขัดกับคำแนะนำหลักที่อยู่ข้างหน้า
   if (isolation && cable)
     return {
       holdRounds: 2,
       stepMul: 1,
-      note: t(
-        "ท่าเดี่ยวแบบเคเบิล — คุมฟอร์มให้นิ่งแล้วดันเรปให้เต็มช่วงก่อน ยังไม่ต้องรีบเพิ่มน้ำหนัก",
-        "Cable isolation — keep the form tight and fill out the rep range first; no rush to add weight.",
-      ),
+      note: toFailure
+        ? t("ท่าเดี่ยวแบบเคเบิล — หมดแรงได้ แต่คุมฟอร์มให้นิ่งจนเซตสุดท้าย", "Cable isolation — go to failure, but keep the form tight to the last rep.")
+        : t(
+            "ท่าเดี่ยวแบบเคเบิล — คุมฟอร์มให้นิ่งแล้วดันเรปให้เต็มช่วงก่อน ยังไม่ต้องรีบเพิ่มน้ำหนัก",
+            "Cable isolation — keep the form tight and fill out the rep range first; no rush to add weight.",
+          ),
     };
   if (isolation)
     return {
       holdRounds: 2,
       stepMul: 1,
-      note: t("ท่าเดี่ยว — เพิ่มเรปให้เต็มช่วงก่อน แล้วค่อยขยับน้ำหนักทีละสเต็ปเล็ก", "Isolation — max out the rep range first, then move up in small steps."),
+      note: toFailure
+        ? t("ท่าเดี่ยว — เหมาะกับการดันจนหมดแรง ขยับน้ำหนักทีละสเต็ปเล็ก", "Isolation — a good place to go to failure; move up in small steps.")
+        : t("ท่าเดี่ยว — เพิ่มเรปให้เต็มช่วงก่อน แล้วค่อยขยับน้ำหนักทีละสเต็ปเล็ก", "Isolation — max out the rep range first, then move up in small steps."),
     };
   if (machine)
     return {
@@ -59,7 +64,10 @@ export function liftStyle(ex: Exercise): LiftStyle {
     return {
       holdRounds: 1,
       stepMul: 1,
-      note: t("ท่าหนัก — ขึ้นทีละน้อยและคงฟอร์มไว้สำคัญกว่าตัวเลข", "Heavy lift — small jumps, and holding form matters more than the number."),
+      // ท่าหนักคือที่ที่การหมดแรงอันตรายที่สุด — เตือนตรงนี้ที่เดียวพอ ไม่ต้องห้าม
+      note: toFailure
+        ? t("ท่าหนัก — เหลือไว้ 1-2 ครั้งดีกว่าหมดแรงจริง ฟอร์มพังตอนล้าคือตอนที่เจ็บ", "Heavy lift — leave 1-2 in reserve rather than true failure; form breaking under fatigue is how people get hurt.")
+        : t("ท่าหนัก — ขึ้นทีละน้อยและคงฟอร์มไว้สำคัญกว่าตัวเลข", "Heavy lift — small jumps, and holding form matters more than the number."),
     };
   return { holdRounds: 1, stepMul: 1 };
 }
@@ -148,7 +156,7 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
   if (ex.type === "weight") {
     const unit = ex.unit || "kg";
     const inc = stepFor(data, ex);
-    const style = liftStyle(ex);
+    const style = liftStyle(ex, data.settings.toFailure === true);
     const groups = groupByWeight(done);
     const rir = done.map((s) => s.rir).filter((v): v is number => typeof v === "number").pop();
     const tail = style.note ? ` · ${style.note}` : "";
@@ -178,9 +186,36 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
     }
 
     const w = groups[0].weight;
-    const allHit = done.every((s) => (s.reps || 0) >= ex.rmax);
     const rounds = roundsAtWeight(sessions, w);
     const worst = Math.min(...done.map((s) => s.reps || 0));
+
+    // ── โหมดเล่นจนหมดแรง ──
+    //
+    // คนที่ดันทุกเซตจนหมดแรงจริง เรปจะตกลงเรื่อยๆ เป็นธรรมชาติ (12/9/7)
+    // ไม่ใช่เพราะน้ำหนักเกินตัว แต่เพราะเซตก่อนหน้าเอาแรงไปแล้ว
+    //
+    // ตรรกะเดิมตัดสินจาก "เซตที่แย่ที่สุด" จึงมองว่าเขาทำไม่ถึงเป้าตลอดกาล
+    // แล้วสั่งลดน้ำหนักทั้งที่กำลังก้าวหน้า (เคสจริง: 26 -> 28 -> 30 ครั้งรวม
+    // ดีขึ้นทุกสัปดาห์ แต่แอปบอกให้ลดจาก 20 เหลือ 17.5)
+    //
+    // โหมดนี้จึงตัดสินจาก **เซตแรก** แทน เพราะเป็นเซตเดียวที่ยังไม่โดนความล้าสะสม
+    // จึงเทียบข้ามสัปดาห์ได้ตรง · ส่วน "ก้าวหน้าไหม" ใช้เรปรวมทั้งท่าเป็นตัวบอก
+    const toFailure = data.settings.toFailure === true;
+    const first = done[0]?.reps ?? 0;
+    const totalReps = done.reduce((a, s) => a + (s.reps || 0), 0);
+    // เรปรวมของครั้งก่อนหน้าที่น้ำหนักเดียวกัน — ใช้บอกว่ารอบนี้ดีขึ้นหรือย่ำอยู่
+    const prevTotal = (() => {
+      for (let i = sessions.length - 2; i >= 0; i--) {
+        const sets = sessions[i].sets.filter(Boolean) as SetLog[];
+        if (!sets.length || sets[0].weight !== w) break;
+        return sets.reduce((a, s) => a + (s.reps || 0), 0);
+      }
+      return null;
+    })();
+
+    // เกณฑ์ "ผ่าน" ต่างกันตามโหมด: หมดแรงดูเซตแรก · ปกติดูครบทุกเซต
+    const allHit = toFailure ? first >= ex.rmax : done.every((s) => (s.reps || 0) >= ex.rmax);
+    const shortfall = toFailure ? first : worst;
 
     if (allHit) {
       const next = roundToStep(w + inc * style.stepMul, inc);
@@ -216,7 +251,11 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
         };
 
       // ท่าเดี่ยวที่ครบเป้าแบบเฉียดฉิว ให้ย้ำอีกรอบเดียว ไม่ใช่ย้ำตลอดกาล
-      if (!easy && rir !== undefined && rir <= 1 && rounds < style.holdRounds)
+      //
+      // ข้ามในโหมดหมดแรง — คนกลุ่มนี้ RIR 0 ทุกเซตอยู่แล้วโดยตั้งใจ
+      // ถ้าไม่ข้าม เขาจะโดนสั่งให้ "ย้ำน้ำหนักเดิมให้สบายขึ้นก่อน" ตลอดไป
+      // ทั้งที่การหมดแรงคือสิ่งที่เขาตั้งใจทำ ไม่ใช่สัญญาณว่าหนักเกิน
+      if (!toFailure && !easy && rir !== undefined && rir <= 1 && rounds < style.holdRounds)
         return {
           weight: w,
           kind: "hold",
@@ -229,10 +268,15 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
       return {
         weight: next,
         kind: "up",
-        msg: t(
-          `ครั้งก่อนครบทุกเซต${easy ? ` และยังเหลือแรง ${rir}` : ""} — วันนี้ขึ้นเป็น ${next} ${unit}${tail}`,
-          `You cleared every set last time${easy ? ` with ${rir} still in the tank` : ""} — go up to ${next} ${unit} today${tail}`,
-        ),
+        msg: toFailure
+          ? t(
+              `เซตแรกได้ ${first} ครั้ง ถึงเพดาน ${ex.rmax} แล้ว — วันนี้ขึ้นเป็น ${next} ${unit} (เรปจะตกลงช่วงแรก ปกติ)${tail}`,
+              `First set hit ${first} reps, at the ${ex.rmax} ceiling — go up to ${next} ${unit} today (reps will dip at first, that's normal)${tail}`,
+            )
+          : t(
+              `ครั้งก่อนครบทุกเซต${easy ? ` และยังเหลือแรง ${rir}` : ""} — วันนี้ขึ้นเป็น ${next} ${unit}${tail}`,
+              `You cleared every set last time${easy ? ` with ${rir} still in the tank` : ""} — go up to ${next} ${unit} today${tail}`,
+            ),
       };
     }
 
@@ -240,31 +284,45 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
     //
     // ลดทันทีที่พลาดครั้งเดียวคือต้นเหตุของการวนไปกลับ: ครั้งแรกที่ขึ้นน้ำหนัก
     // ร่างกายยังไม่ชิน ทำไม่ถึงเป็นเรื่องปกติและมักผ่านได้ในรอบถัดไป
-    if (worst < ex.rmin) {
+    if (shortfall < ex.rmin) {
       if (rounds < 2)
         return {
           weight: w,
           kind: "hold",
-          msg: t(
-            `ครั้งก่อนได้ ${worst} ครั้ง ยังไม่ถึงช่วงเป้า ${ex.rmin}-${ex.rmax} — ลอง ${w} ${unit} อีกรอบก่อน ยังไม่ต้องลด${tail}`,
-            `You got ${worst} reps last time, short of the ${ex.rmin}-${ex.rmax} range — give ${w} ${unit} another go before dropping down${tail}`,
-          ),
+          msg: toFailure
+            ? t(
+                `เซตแรกได้ ${first} ครั้ง ยังไม่ถึง ${ex.rmin} — ลอง ${w} ${unit} อีกรอบก่อน ยังไม่ต้องลด${tail}`,
+                `First set was ${first} reps, under ${ex.rmin} — give ${w} ${unit} another go before dropping down${tail}`,
+              )
+            : t(
+                `ครั้งก่อนได้ ${worst} ครั้ง ยังไม่ถึงช่วงเป้า ${ex.rmin}-${ex.rmax} — ลอง ${w} ${unit} อีกรอบก่อน ยังไม่ต้องลด${tail}`,
+                `You got ${worst} reps last time, short of the ${ex.rmin}-${ex.rmax} range — give ${w} ${unit} another go before dropping down${tail}`,
+              ),
         };
       const down = roundToStep(w - inc, inc);
       return {
         weight: down,
         kind: "settle",
-        msg: t(
-          `ลอง ${w} ${unit} มา ${rounds} รอบแล้วยังไม่ถึง ${ex.rmin} ครั้ง — ลดเป็น ${down} ${unit} แล้วทำให้ครบก่อน${tail}`,
-          `${rounds} tries at ${w} ${unit} and still short of ${ex.rmin} reps — drop to ${down} ${unit} and clear it properly first${tail}`,
-        ),
+        msg: toFailure
+          ? t(
+              `เซตแรกไม่ถึง ${ex.rmin} ครั้งมา ${rounds} รอบแล้ว — ลดเป็น ${down} ${unit} หนักไปจริงๆ${tail}`,
+              `First set has been under ${ex.rmin} reps for ${rounds} rounds — drop to ${down} ${unit}, it really is too heavy${tail}`,
+            )
+          : t(
+              `ลอง ${w} ${unit} มา ${rounds} รอบแล้วยังไม่ถึง ${ex.rmin} ครั้ง — ลดเป็น ${down} ${unit} แล้วทำให้ครบก่อน${tail}`,
+              `${rounds} tries at ${w} ${unit} and still short of ${ex.rmin} reps — drop to ${down} ${unit} and clear it properly first${tail}`,
+            ),
       };
     }
 
     // อยู่ในช่วงเป้าแต่ไม่ถึงเพดาน — คงน้ำหนักดันเรป
     // ถ้าย่ำอยู่ที่เดิมนานเกินไปต้องบอกทางออก ไม่ใช่พูดประโยคเดิมทุกสัปดาห์
     // ต้องคืนน้ำหนักที่ลดแล้วจริงๆ ด้วย ไม่งั้นข้อความบอกให้ลดแต่ช่องกรอกเติมค่าเดิม = ขัดกันเอง
-    if (rounds >= 4) {
+    // โหมดหมดแรง: "ค้าง" ต้องวัดจากเรปรวม ไม่ใช่จำนวนรอบที่น้ำหนักเท่าเดิม
+    // คนกลุ่มนี้อยู่ที่น้ำหนักเดิมได้หลายสัปดาห์โดยยังก้าวหน้า (26 -> 28 -> 30 ครั้ง)
+    // ถ้าสั่งถอยเพราะนับรอบอย่างเดียว = สั่งถอยตอนที่เขากำลังไปได้ดี
+    const stalled = toFailure ? prevTotal !== null && totalReps <= prevTotal : true;
+    if (rounds >= 4 && stalled) {
       const down = roundToStep(w - inc, inc);
       return {
         weight: down,
@@ -272,6 +330,27 @@ export function suggestTarget(data: Data, ex: Exercise): TargetSuggestion {
         msg: t(
           `ค้างที่ ${w} ${unit} มา ${rounds} รอบแล้ว — ถอยมา ${down} ${unit} สัก 1-2 รอบให้ทำครบสบายๆ แล้วค่อยไต่กลับขึ้นไป (หรือเปลี่ยนตัวแปรอื่น เช่น ลงช้าลง เพิ่มเวลาพัก)${tail}`,
           `Stuck at ${w} ${unit} for ${rounds} rounds — back off to ${down} ${unit} for a round or two until it's comfortable, then climb back up (or change something else: slower negatives, longer rest)${tail}`,
+        ),
+      };
+    }
+
+    if (toFailure) {
+      // เรปรวมคือตัวชี้ว่าก้าวหน้าไหม — คนเล่นหมดแรงไม่ได้ดูว่า "ครบช่วงเรปหรือยัง"
+      const gain = prevTotal === null ? null : totalReps - prevTotal;
+      const trend =
+        gain === null
+          ? ""
+          : gain > 0
+            ? t(` (ดีขึ้นจากครั้งก่อน ${prevTotal} ครั้ง)`, ` (up from ${prevTotal} last time)`)
+            : gain === 0
+              ? t(` (เท่าครั้งก่อน ${prevTotal} ครั้ง)`, ` (same as last time)`)
+              : t(` (ครั้งก่อนได้ ${prevTotal} ครั้ง)`, ` (last time was ${prevTotal})`);
+      return {
+        weight: w,
+        kind: "push",
+        msg: t(
+          `ครั้งก่อนรวม ${totalReps} ครั้ง${trend} — คง ${w} ${unit} ดันให้เกิน ${totalReps} ครั้งรวม เซตแรกถึง ${ex.rmax} เมื่อไหร่ค่อยขึ้นน้ำหนัก${tail}`,
+          `${totalReps} total reps last time${trend} — stay at ${w} ${unit} and beat ${totalReps}. Add weight once the first set reaches ${ex.rmax}${tail}`,
         ),
       };
     }

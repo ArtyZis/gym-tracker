@@ -614,6 +614,7 @@ function TrainingSettingsCard() {
   const { data, update, toast } = useApp();
   const soundOn = data.settings.soundEnabled !== false;
   const smartOn = data.settings.smartRest !== false;
+  const failOn = data.settings.toFailure === true;
   return (
     <div className="glass p-4 mb-3">
       <Kicker>{t("ตั้งค่าการฝึก", "Training settings")}</Kicker>
@@ -640,6 +641,20 @@ function TrainingSettingsCard() {
             d.settings.smartRest = !smartOn;
           });
           toast(smartOn ? t("ใช้เวลาพักค่าเดียวแล้ว", "Using one fixed rest time") : t("เปิดเวลาพักอัตโนมัติแล้ว", "Smart rest on"));
+        }}
+      />
+      <ToggleRow
+        label={t("เล่นจนหมดแรงทุกเซต", "I train every set to failure")}
+        desc={t(
+          "เรปตกลงทุกเซตเป็นเรื่องปกติ — ระบบจะดูเซตแรกกับเรปรวมแทนเซตที่แย่ที่สุด และไม่สั่งลดน้ำหนักเพราะเซตท้ายตก",
+          "Reps dropping each set is expected — we judge by your first set and total reps instead of your worst set, and won't tell you to drop weight just because the last set fell off",
+        )}
+        on={failOn}
+        onToggle={() => {
+          update((d) => {
+            d.settings.toFailure = failOn ? undefined : true;
+          });
+          toast(failOn ? t("กลับไปใช้แบบคุมช่วงเรป", "Back to rep-range mode") : t("เปิดโหมดเล่นจนหมดแรงแล้ว", "Training-to-failure mode on"));
         }}
       />
     </div>

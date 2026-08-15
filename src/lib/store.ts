@@ -78,6 +78,11 @@ export interface Settings {
   sessionClock?: boolean; // แถบนาฬิกาเซสชันในแท็บวันนี้ — undefined = เปิดถ้าตั้งช่องเวลาไว้
   tierSOnly?: boolean; // โหมดเสนอเฉพาะท่า tier S — undefined = ปิด (เห็นทุกท่าเหมือนเดิม)
   smartRest?: boolean; // ใช้เวลาพักที่ระบบแนะนำต่อท่า — undefined = เปิด (default)
+  // เล่นจนหมดแรงทุกเซต — undefined = ปิด (ใช้ตรรกะเดิมที่คุมเรปให้อยู่ในช่วง)
+  //
+  // คนกลุ่มนี้เรปจะตกลงทุกเซตโดยธรรมชาติ (12/9/7) ซึ่งไม่ใช่ความผิดพลาด
+  // ตรรกะเดิมดู "เซตที่แย่ที่สุด" เลยสั่งลดน้ำหนักทั้งที่เขากำลังก้าวหน้า
+  toFailure?: boolean;
   accent?: string; // สีธีม (accent) — undefined = cyan #4fd8ff (ค่าเดิมของแบรนด์)
   lang?: "th" | "en"; // ภาษา UI — undefined = ไทย (ผู้ใช้เดิมทุกคนต้องไม่เห็นอะไรเปลี่ยน)
   showCoachNotes?: boolean; // โน้ตโค้ชในการ์ดท่า — undefined = แสดง (default)
