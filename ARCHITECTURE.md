@@ -243,13 +243,17 @@ npm run bundle     # Parcel -> bundle.html ไฟล์เดียว (ไม�
 npm run license 5  # สร้างรหัสปลดล็อก 5 อัน
 ```
 
-### Deploy — GitHub Pages อัตโนมัติ
-push ขึ้น `main` → GitHub Actions build ทั้งสองรุ่นแล้ว deploy เอง
+### Deploy — อัตโนมัติทั้งสองที่
+push ขึ้น `main` → GitHub Actions build ทั้งสองรุ่นแล้ว deploy เอง คนละที่กัน
 
-- รุ่นขาย → https://artyzis.github.io/gym-tracker/
-- รุ่นส่วนตัว → https://artyzis.github.io/gym-tracker/me/
+- รุ่นขาย → https://artyzis.github.io/gym-tracker/ (`deploy.yml` → GitHub Pages)
+- รุ่นส่วนตัว → https://rankforge-me.pages.dev (`deploy-personal.yml` → Cloudflare)
+
+เดิมรุ่นส่วนตัวเคยอยู่ที่ `/gym-tracker/me/` ปิดแล้วเมื่อ 15 ส.ค. 2026 — คนละ path
+บน origin เดียวกันแยกข้อมูลไม่ได้ และ path ที่เดาได้ = แจกรุ่นปลดล็อกฟรี
 
 ตรวจว่าขึ้นจริงไหม: เทียบ hash ของ `assets/index-*.js` ในหน้าเว็บกับใน `dist/`
+(ต้อง build หลังขยับเวอร์ชันแล้ว ไม่งั้นต่างกันที่เลขเวอร์ชันอย่างเดียว)
 
 ---
 

@@ -52,10 +52,10 @@ export default defineConfig(({ mode }) => {
         workbox: {
           globPatterns: ["**/*.{js,css,html,svg,woff2}"],
           navigateFallback: "index.html",
-          // บน GitHub Pages เราวางรุ่นส่วนตัวไว้ที่ /me/ ใต้รุ่นที่ขาย
-          // SW ของรุ่นนอกมี scope ครอบ /me/ ด้วย ถ้าไม่กันไว้ navigateFallback
-          // จะเสิร์ฟ index.html ของรุ่นนอกทับ = เปิด /me/ แล้วได้แอปผิดรุ่น
-          navigateFallbackDenylist: [/\/me\//],
+          // เดิมมี navigateFallbackDenylist กัน /me/ ไว้ เพราะรุ่นส่วนตัวเคยวางอยู่ตรงนั้น
+          // ถอดออกแล้วเมื่อ 15 ส.ค. 2026 ตอนเลิก deploy /me/ — และการถอดออกดีกว่าเก็บไว้:
+          // คนที่ยังมีไอคอนเก่าชี้ไป /me/ จะได้แอปรุ่นขายแทนหน้า 404 เปล่าๆ
+          // origin เดิม = localStorage กองเดิม ประวัติที่ค้างอยู่จึงยังเปิดอ่านได้
         },
       }),
     ],
