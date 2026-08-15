@@ -15,13 +15,24 @@ export const TRIAL_DAYS = 30;
 
 const DAY_MS = 86400000;
 
-// วันเริ่มใช้ — ถ้ายังไม่มีให้ตั้งเป็นวันนี้ (ผู้ใช้เก่าที่มีข้อมูลอยู่แล้วก็ได้ 30 วันเต็มนับจากวันอัปเดต)
-export function ensureStartedAt(d: Data): void {
+/**
+ * เริ่มจับเวลาช่วงทดลอง — เรียกตอน **บันทึกเซตแรก** ไม่ใช่ตอนเปิดแอปครั้งแรก
+ *
+ * เดิมนับตั้งแต่เปิดแอป ซึ่งกินวันทดลองฟรีไปโดยที่ลูกค้ายังไม่ได้ใช้อะไรเลย:
+ * คนโหลดมาดูตอนดึก เจอหน้าว่างเพราะยังไม่ได้สร้างตาราง ปิดไป กลับมาอีกทีตอน
+ * เริ่มเข้ายิมจริงสามสัปดาห์ถัดมา — เหลือ 9 วัน แล้วของหมดอายุก่อนจะทันเห็นค่า
+ * นับจากเซตแรกแปลว่า 30 วันนั้นเป็น 30 วันที่เขาได้ลองจริงเสมอ
+ *
+ * ไม่ตั้งย้อนหลังให้คนที่มีประวัติอยู่แล้ว — undefined = ยังไม่เริ่มนับ = ยังได้ 30 วันเต็ม
+ * (กฎเหล็กข้อ 1: ฟิลด์ optional ต้องตีความ undefined เป็นค่าที่ไม่ทำร้ายผู้ใช้)
+ */
+export function startTrialIfNeeded(d: Data): void {
   if (!d.settings.startedAt) d.settings.startedAt = new Date().toISOString();
 }
 
 export function trialDaysLeft(data: Data): number {
   const started = data.settings.startedAt;
+  // ยังไม่เคยบันทึกเซตเลย = ยังไม่เริ่มนับ ได้ครบ 30 วันรออยู่
   if (!started) return TRIAL_DAYS;
   const ms = Date.parse(started);
   if (!Number.isFinite(ms)) return TRIAL_DAYS;

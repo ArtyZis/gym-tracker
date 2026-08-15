@@ -9,11 +9,12 @@ import PlateCard from "./PlateCard";
 import { plateText, restReason, suggestRest, suggestTarget, warmupRamp } from "../lib/progression";
 import { haptics } from "../lib/haptics";
 import { playExerciseDone, playPR, playTick, unlockAudio } from "../lib/sound";
-import { isPremium } from "../lib/premium";
+import { isPremium, startTrialIfNeeded } from "../lib/premium";
 import { findTemplate } from "../lib/exerciseDB";
 import { activeDays, isLoop, slotName, slotShort, todaySlot } from "../lib/loop";
 import { exText, repsText, secText, setsText, t } from "../lib/i18n";
 import InstallPrompt from "./InstallPrompt";
+import TrialBanner from "./TrialBanner";
 import { shouldPromptInstall } from "../lib/install";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
@@ -65,6 +66,9 @@ export default function TodayView() {
   const [swapFor, setSwapFor] = useState<string | null>(null); // id ท่าที่กำลังเลือกเปลี่ยน
   const [addingExtra, setAddingExtra] = useState(false); // กำลังเพิ่มท่าเข้าวันนี้
   const [pickMakeup, setPickMakeup] = useState(false); // กำลังเลือกวันที่จะดึงมาชดเชย
+
+  // แอปยังว่างทั้งใบ (ไม่ใช่แค่วันนี้ว่าง) — ใช้แยก "วันพัก" ออกจาก "ยังไม่ได้ตั้งค่า"
+  const blankApp = data.exercises.length === 0;
 
   // ชวนเพิ่มลงหน้าจอโฮม — คิดครั้งเดียวตอน mount โดยตั้งใจ
   //
@@ -194,6 +198,8 @@ export default function TodayView() {
     const isPR = lastSetOfEx && ex.type === "weight" && best > 0 && todayBestWeight(ex.id, draft.weight) > best;
 
     update((d) => {
+      // เซตแรกในชีวิต = จุดเริ่มนับช่วงทดลอง (ไม่ใช่ตอนเปิดแอปครั้งแรก — ดู premium.ts)
+      startTrialIfNeeded(d);
       if (!d.history[ex.id]) d.history[ex.id] = [];
       let session = d.history[ex.id].find((s) => s.date === todayStr());
       if (!session) {
@@ -267,6 +273,7 @@ export default function TodayView() {
 
   return (
     <div className="rise">
+      <TrialBanner />
       {showInstall && <InstallPrompt onDone={() => setShowInstall(false)} />}
       <div className="glass p-4 mb-3 relative overflow-hidden">
         {/* glow blob มุมบนขวา */}
@@ -276,13 +283,15 @@ export default function TodayView() {
         />
         {/* หัวเควสต์ของวัน — ชื่อวันเป็นพระเอก แถบแบ่งช่องอ่านค่าจากระยะไกลง่ายกว่าวงแหวน */}
         <div className="relative">
+          {/* แอปยังว่างทั้งใบ ห้ามพาดหัวว่า "วันพัก" — คนใหม่จะอ่านว่าระบบบอกไม่ต้องเล่นวันนี้
+              แล้วปิดแอปไปโดยไม่รู้ว่ายังไม่ได้สร้างตาราง */}
           <div className="sys-label mb-2">
-            {exs.length ? "QUEST" : "REST DAY"} · {slotName(data, day)}
+            {blankApp ? "SETUP" : exs.length ? "QUEST" : "REST DAY"} · {slotName(data, day)}
             {isToday ? t(" · วันนี้", " · TODAY") : ""}
           </div>
           <div className="flex items-center gap-2">
             <h2 className="font-disp font-bold text-[26px] leading-none tracking-wide text-glow">
-              {exs.length ? label || slotName(data, day) : t("วันพัก", "Rest day")}
+              {blankApp ? t("เริ่มต้นที่นี่", "Start here") : exs.length ? label || slotName(data, day) : t("วันพัก", "Rest day")}
             </h2>
             {allDone && (
               <span
@@ -294,7 +303,11 @@ export default function TodayView() {
             )}
           </div>
           <p className="text-[12px] mt-1.5" style={{ color: "var(--mut)" }}>
-            {exs.length ? `${exText(exs.length)} · ${setsText(totalSets)}` : t("พักฟื้นกล้ามเนื้อ", "Muscle recovery")}
+            {blankApp
+              ? t("ตั้งค่าครั้งเดียว ใช้ได้ตลอด", "Set it up once, use it forever")
+              : exs.length
+                ? `${exText(exs.length)} · ${setsText(totalSets)}`
+                : t("พักฟื้นกล้ามเนื้อ", "Muscle recovery")}
           </p>
 
           {exs.length > 0 && (
@@ -399,32 +412,67 @@ export default function TodayView() {
 
       {/* วันพัก = โหมดสแตนด์บาย — กรอบประให้ดูเป็นสถานะที่ตั้งใจ
           ไม่ใช่การ์ดเปล่าที่ดูเหมือนโหลดไม่ขึ้น */}
-      {exs.length === 0 && (
-        <div
-          className="text-center"
-          style={{
-            padding: "26px 18px",
-            border: "1px dashed color-mix(in srgb, var(--acc) 26%, transparent)",
-            background: "#070b1899",
-          }}
-        >
-          <div className="font-mono2 text-[9px] tracking-[.3em]" style={{ color: "var(--acc)" }}>
-            STANDBY
+      {/* วันพักจริง กับ "ยังไม่ได้สร้างตาราง" หน้าตาเหมือนกันไม่ได้เด็ดขาด
+          คนเปิดแอปครั้งแรกเคยเจอ "เสาร์ — พัก · ฟื้นตัว กินให้ถึงเป้า" แล้วเข้าใจว่า
+          แอปบอกว่าวันนี้ไม่ต้องเล่น ปิดทิ้งไปโดยไม่รู้ว่าต้องสร้างตารางเองก่อน
+          — คนที่ไม่เคยเห็นแอปทำงาน ไม่มีทางอยากจ่ายเงิน */}
+      {exs.length === 0 &&
+        (blankApp ? (
+          <div
+            className="text-center"
+            style={{
+              padding: "26px 18px",
+              border: "1px dashed color-mix(in srgb, var(--acc) 34%, transparent)",
+              background: "#070b1899",
+            }}
+          >
+            <div className="font-mono2 text-[9px] tracking-[.3em]" style={{ color: "var(--acc)" }}>
+              SETUP
+            </div>
+            <div className="font-disp font-bold text-[19px] mt-2 tracking-wide" style={{ color: "var(--ink)" }}>
+              {t("ยังไม่มีตารางฝึก", "No program yet")}
+            </div>
+            <p className="text-[11.5px] mt-2 leading-relaxed" style={{ color: "var(--mut)" }}>
+              {t(
+                "แอปเริ่มจากศูนย์เสมอ ไม่ยัดตารางสำเร็จรูปมาให้ — สร้างของตัวเองก่อนแล้วที่เหลือทำงานเอง",
+                "The app always starts empty — no canned program. Build yours and everything else follows.",
+              )}
+            </p>
+            <div className="flex flex-col gap-2 mt-3.5">
+              <button className="btn-cy w-full !py-2.5 !text-[12.5px]" onClick={() => setAddingExtra(true)}>
+                {t("เพิ่มท่าแรกจากคลัง 185 ท่า", "Add your first exercise (185 in the library)")}
+              </button>
+              <button className="btn-gh w-full !py-2.5 !text-[12px]" onClick={() => goTab("manage")}>
+                {t("มีตารางอยู่แล้ว — วางทีเดียวทั้งโปรแกรม", "Already have a program? Paste it all at once")}
+              </button>
+            </div>
           </div>
-          <div className="font-disp font-bold text-[19px] mt-2 tracking-wide" style={{ color: "var(--ink)" }}>
-            {slotName(data, day)} — {t("พัก", "Rest")}
+        ) : (
+          <div
+            className="text-center"
+            style={{
+              padding: "26px 18px",
+              border: "1px dashed color-mix(in srgb, var(--acc) 26%, transparent)",
+              background: "#070b1899",
+            }}
+          >
+            <div className="font-mono2 text-[9px] tracking-[.3em]" style={{ color: "var(--acc)" }}>
+              STANDBY
+            </div>
+            <div className="font-disp font-bold text-[19px] mt-2 tracking-wide" style={{ color: "var(--ink)" }}>
+              {slotName(data, day)} — {t("พัก", "Rest")}
+            </div>
+            <p className="text-[11.5px] mt-2 leading-relaxed" style={{ color: "var(--mut)" }}>
+              {t("ฟื้นตัว · กินให้ถึงเป้า · นอนให้พอ", "Recover · Eat enough · Sleep enough")}
+            </p>
+            <p className="text-[10.5px] mt-1 leading-relaxed" style={{ color: "var(--dim)" }}>
+              {t(
+                "เลือกวันอื่นด้านบนเพื่อดูตาราง · ข้ามวันไหนไปก็ดึงมาชดเชยวันนี้ได้ด้านล่าง",
+                "Tap another day above to see its plan · missed a day? Pull it in below to make it up",
+              )}
+            </p>
           </div>
-          <p className="text-[11.5px] mt-2 leading-relaxed" style={{ color: "var(--mut)" }}>
-            {t("ฟื้นตัว · กินให้ถึงเป้า · นอนให้พอ", "Recover · Eat enough · Sleep enough")}
-          </p>
-          <p className="text-[10.5px] mt-1 leading-relaxed" style={{ color: "var(--dim)" }}>
-            {t(
-              "เลือกวันอื่นด้านบนเพื่อดูตาราง · ข้ามวันไหนไปก็ดึงมาชดเชยวันนี้ได้ด้านล่าง",
-              "Tap another day above to see its plan · missed a day? Pull it in below to make it up",
-            )}
-          </p>
-        </div>
-      )}
+        ))}
 
       {isToday && exs.length > 0 && <DayNote />}
 

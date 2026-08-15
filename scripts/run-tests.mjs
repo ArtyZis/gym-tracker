@@ -20,6 +20,7 @@ const TMP = path.join(ROOT, ".test-bundle.mjs");
 const EXTRA = {
   // ต้อง build เป็นรุ่นที่ขายจริง ไม่งั้น isPro=false แล้วเทสต์สิทธิ์ไม่มีความหมาย
   "test-prelaunch.mjs": ['--define:import.meta.env={"VITE_EDITION":"pro"}'],
+  "test-convert.mjs": ['--define:import.meta.env={"VITE_EDITION":"pro"}'],
 };
 
 const files = fs.readdirSync(path.join(ROOT, "scripts")).filter((f) => /^test-.*\.mjs$/.test(f)).sort();

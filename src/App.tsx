@@ -7,7 +7,6 @@ import { locale, setLang, t } from "./lib/i18n";
 import { appTitle } from "./lib/edition";
 import { setSoundEnabled } from "./lib/sound";
 import { resolveAccent } from "./lib/accent";
-import { ensureStartedAt } from "./lib/premium";
 import { readProgramFromUrl } from "./lib/programLink";
 import { cycleLen, isLoop, todaySlot } from "./lib/loop";
 import IncomingProgram from "./components/IncomingProgram";
@@ -102,11 +101,6 @@ export default function App() {
     document.documentElement.lang = data.settings.lang ?? "th";
     document.title = appTitle();
   }, [data.settings.lang]);
-
-  // ตั้งวันเริ่มใช้ครั้งแรก — ใช้นับช่วงทดลองรุ่น pro
-  useEffect(() => {
-    if (!data.settings.startedAt) setData((cur) => structuredClone({ ...cur, settings: { ...cur.settings, startedAt: new Date().toISOString() } }));
-  }, [data.settings.startedAt]);
 
   // เปิด/ปิดเสียงตามการตั้งค่า (undefined = เปิด)
   useEffect(() => {

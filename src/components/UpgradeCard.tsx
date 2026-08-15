@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
-import { BUY_CONTACT, PLANS, clearKey, formatKey, licenseStatus, saveKey, savedKey } from "../lib/license";
+import { PLANS, clearKey, formatKey, licenseStatus, saveKey, savedKey } from "../lib/license";
+import { buyChannel } from "../lib/contact";
 import { TRIAL_DAYS, isPaid, trialDaysLeft } from "../lib/premium";
 import { daysText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
@@ -109,6 +110,7 @@ export default function UpgradeCard() {
     );
 
   const trialing = left > 0;
+  const channel = buyChannel();
 
   return (
     <div
@@ -184,9 +186,17 @@ export default function UpgradeCard() {
             );
           })}
         </div>
+        {/* ปุ่มที่กดแล้วเปิดแชตให้เลย — จำไอดี เปิดแอป ค้นหา พิมพ์เอง คือสี่ขั้นที่คนหลุด
+            ทั้งที่ตัดสินใจซื้อแล้ว · ไม่มีช่องทางตั้งไว้ = ไม่โชว์ปุ่มหลอก */}
+        {channel.kind !== "none" ? (
+          <a className="btn-cy w-full !py-2.5 !text-[12.5px] mb-2 text-center block" href={channel.href} target="_blank" rel="noopener noreferrer">
+            {channel.action} →
+          </a>
+        ) : null}
+
         <p className="text-[11.5px] leading-relaxed mb-2.5" style={{ color: "var(--mut)" }}>
-          {BUY_CONTACT
-            ? t(`ทักมาที่ ${BUY_CONTACT} เพื่อรับรหัส`, `Message ${BUY_CONTACT} to get a key`)
+          {channel.kind !== "none"
+            ? t(`หรือติดต่อที่ ${channel.display} เอง`, `Or reach us at ${channel.display}`)
             : t("ทักมาขอรหัสได้จากช่องทางที่ประกาศไว้", "Message us on the channel we've listed to get a key")}{" "}
           {t("— หมดอายุแล้วต่อได้ด้วยรหัสใบใหม่ ประวัติการฝึกไม่หายไปไหน", "— when it expires, a new key renews it. Your training history is never touched.")}
         </p>
