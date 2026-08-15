@@ -159,7 +159,7 @@ git push          # -> Cloudflare (personal) + GitHub Pages (pro) พร้อ�
 .\node_modules\.bin\esbuild.cmd scripts/test-logic.mjs --bundle --platform=node --format=esm --outfile=t.mjs; node t.mjs
 ```
 
-**รันทั้งหมดทีเดียวด้วยคำสั่งนี้** (24 ไฟล์ 616 ข้อ — ต้องเขียว 100% ก่อน commit):
+**รันทั้งหมดทีเดียวด้วยคำสั่งนี้** (28 ไฟล์ 754 ข้อ — ต้องเขียว 100% ก่อน commit):
 
 ```powershell
 node scripts\run-tests.mjs
@@ -178,6 +178,10 @@ node scripts\run-tests.mjs
 | `test-localdate` | วันที่ต้องเป็นเวลาท้องถิ่น ไม่ใช่ UTC — เคยพังจนบันทึกผิดวันช่วงเที่ยงคืน-ตี 7 |
 | `test-reference` | ตารางอ้างอิงต้องได้ 100 เต็มเสมอ |
 | `test-sharecard-en` | การ์ดแชร์ภาษาอังกฤษต้องไม่ล้นกรอบ (คำอังกฤษยาวกว่าไทย) |
+| `test-install` | ตัวชวนติดตั้ง: แยกเครื่องถูก · กด "ไว้ทีหลัง" แล้วเงียบจริง · ติดตั้งแล้วต้องไม่ถามซ้ำ |
+
+`scripts/_install-env.mjs` ไม่ใช่เทสต์ (ขึ้นต้นด้วย `_` ตัวรันจึงข้าม) — เป็น window/navigator
+ปลอมที่ `test-install` ต้อง import **ก่อน** `install.ts` เสมอ เพราะ install.ts ผูก event ตั้งแต่โหลดโมดูล
 
 ---
 

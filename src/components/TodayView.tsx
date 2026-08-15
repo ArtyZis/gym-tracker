@@ -13,6 +13,8 @@ import { isPremium } from "../lib/premium";
 import { findTemplate } from "../lib/exerciseDB";
 import { activeDays, isLoop, slotName, slotShort, todaySlot } from "../lib/loop";
 import { exText, repsText, secText, setsText, t } from "../lib/i18n";
+import InstallPrompt from "./InstallPrompt";
+import { shouldPromptInstall } from "../lib/install";
 
 // เวลาพักที่จะใช้จริง: ถ้าเปิด smart rest ใช้ค่าที่แนะนำต่อท่า, ถ้าปิดใช้ค่ากลาง
 function restForExercise(data: Data, ex: Exercise, fallback: number): number {
@@ -63,6 +65,15 @@ export default function TodayView() {
   const [swapFor, setSwapFor] = useState<string | null>(null); // id ท่าที่กำลังเลือกเปลี่ยน
   const [addingExtra, setAddingExtra] = useState(false); // กำลังเพิ่มท่าเข้าวันนี้
   const [pickMakeup, setPickMakeup] = useState(false); // กำลังเลือกวันที่จะดึงมาชดเชย
+
+  // ชวนเพิ่มลงหน้าจอโฮม — คิดครั้งเดียวตอน mount โดยตั้งใจ
+  //
+  // ถ้าคิดใหม่ทุก render การ์ดจะโผล่ขึ้นกลางหน้าทันทีที่ติ๊กเซตแรกเสร็จ ดันของทั้งหน้าลง
+  // ระหว่างที่เขากำลังจดอยู่ · แบบนี้จะไปโผล่รอบหน้าที่เข้าแท็บนี้แทน ซึ่งเป็นจังหวะที่
+  // เขามีข้อมูลจะเสียแล้วจริง และไม่ขัดจังหวะการฝึก
+  const [showInstall, setShowInstall] = useState(() =>
+    shouldPromptInstall(Object.values(data.history).some((logs) => logs.length > 0)),
+  );
 
   // วันนี้ใช้ท่าที่ผ่านการสลับชั่วคราวแล้ว (วันอื่นเป็นท่าตามโปรแกรม)
   const isToday = day === todaySlot(data);
@@ -256,6 +267,7 @@ export default function TodayView() {
 
   return (
     <div className="rise">
+      {showInstall && <InstallPrompt onDone={() => setShowInstall(false)} />}
       <div className="glass p-4 mb-3 relative overflow-hidden">
         {/* glow blob มุมบนขวา */}
         <div

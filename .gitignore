@@ -21,4 +21,4 @@ t.mjs
 t2.mjs
 t3.mjs
 tt.mjs
-.test-bundle.mjs
+.t*.mjs

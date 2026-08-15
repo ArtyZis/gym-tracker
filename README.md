@@ -15,6 +15,7 @@ src/
   lib/haptics.ts      รูปแบบสั่นตามเหตุการณ์ (ติ๊กเซต/ครบท่า/PR/พักครบ)
   lib/programParser.ts วางข้อความโปรแกรมทีเดียว -> รายการท่า (ไทย/อังกฤษ, เซตxเรป, น้ำหนัก, วิ, AMRAP, machine)
   lib/sound.ts        เสียงติ๊กเซต/ครบท่า/PR/พักครบ (Web Audio สังเคราะห์ ปิดได้)
+  lib/install.ts      ชวนเพิ่มลงหน้าจอโฮม — แยกเครื่อง (iOS/Android/เบราว์เซอร์ในแอป) + จำว่ากด "ไว้ทีหลัง"
   components/         TodayView ProgramView AnalyzerView ProgressView ManageView RestTimer
                       + StreakCard BodyCompCard ImportProgramCard
   App.tsx             shell, context, bottom nav
@@ -69,4 +70,8 @@ build ในเครื่อง (`npm run build` / `build:pro`) มีไว�
   การแจ้งเตือนแม่นยำ 100% แม้ปิดแอปนาน ต้องใช้ **Web Push + server คั่นเวลา** (phase ถัดไป)
 - `new Notification()` ใช้ไม่ได้บน iOS — โค้ด fallback เป็น SW notification → เสียง+สั่นเมื่อกลับมาแท็บ
 - Vibration API: Android/Chrome ทำงาน, **iOS Safari ไม่รองรับ** (จะเงียบเฉยๆ ไม่พัง)
+- **iOS ลบ localStorage ทิ้งเมื่อไม่ได้เปิดเว็บนั้นเกิน 7 วัน** (นโยบาย ITP) — ยกเว้นเว็บที่
+  เพิ่มลงหน้าจอโฮมแล้ว จึงมี `lib/install.ts` คอยชวนติดตั้ง เลี่ยงทางอื่นไม่ได้ถ้าไม่มี backend
+- **iOS ไม่มี `beforeinstallprompt`** — ปุ่ม "ติดตั้งเลย" กดได้เฉพาะ Android/desktop
+  ส่วน iOS ทำได้แค่บอกขั้นตอน · เบราว์เซอร์ในแอป (ไลน์/เฟซ) ติดตั้งไม่ได้เลย ต้องไปเปิดในเบราว์เซอร์จริงก่อน
 ```

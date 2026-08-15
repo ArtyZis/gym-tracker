@@ -17,6 +17,7 @@ import { isPro } from "../lib/edition";
 import UpgradeCard from "./UpgradeCard";
 import { EXERCISE_COUNT, findTemplate, incFor, isMachineEx, searchExercises, tipOf, unitFor } from "../lib/exerciseDB";
 import { daysText, exText, isEN, setsText, t } from "../lib/i18n";
+import { InstallCard } from "./InstallPrompt";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
 
@@ -506,6 +507,11 @@ export default function ManageView() {
       <ImportProgramCard />
 
       <SavedProgramsCard />
+
+      {/* วางไว้ก่อน "ย้ายข้อมูล" เพราะเป็นเรื่องเดียวกัน คือกันข้อมูลหาย
+          ต้องมีที่นี่ด้วยแม้จะมีการ์ดชวนในหน้าวันนี้ — คนที่กด "ไว้ทีหลัง" ไปแล้ว
+          ต้องมีที่ให้กลับมาทำเองได้ ไม่ใช่ต้องรอ 7 วันให้มันเด้งอีกที */}
+      <InstallCard />
 
       <div className="glass p-4 mb-3">
         <Kicker>{t("ย้ายข้อมูลข้ามเครื่อง", "Move data to another device")}</Kicker>
