@@ -1,6 +1,100 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, FocusEvent, ReactNode } from "react";
+import { useState } from "react";
 import { useApp } from "../AppContext";
 import { t } from "../lib/i18n";
+
+/**
+ * แตะช่องตัวเลขแล้วเลือกทั้งหมดให้เลย — พิมพ์ทับได้ทันที ไม่ต้องกดลบทีละตัว
+ *
+ * ต้องรอเฟรมถัดไป เพราะ Safari บน iOS ย้าย caret หลัง focus จบ
+ * ถ้า select() ทันทีจะถูกทับแล้วไม่มีอะไรถูกเลือก
+ */
+export function selectAllOnFocus(e: FocusEvent<HTMLInputElement>): void {
+  const el = e.currentTarget;
+  requestAnimationFrame(() => {
+    try {
+      el.select();
+    } catch {
+      /* เบราว์เซอร์บางตัวเลือกช่อง type=number ไม่ได้ — ไม่เป็นไร แค่ไม่ได้ความสะดวก */
+    }
+  });
+}
+
+/**
+ * ช่องกรอกตัวเลขที่ "ลบให้ว่างได้จริง"
+ *
+ * ปัญหาเดิม: ช่องพวกนี้ผูกกับตัวเลขตรงๆ แล้วเขียนแบบ `+e.target.value || 3`
+ * พอผู้ใช้ลบจนว่าง `+""` = 0 ซึ่งเป็น falsy -> ตกไปใช้ค่า default ทันที
+ * (บางที่ใช้ `Number.isFinite(NaN)` = false แล้วไม่อัปเดต ค่าเดิมก็เด้งกลับ)
+ * ผลคือ **ลบไม่ได้เลย** ต้องเอา caret ไปต่อท้ายแล้วกดลบทีละตัว ซึ่งบนมือถือทรมานมาก
+ *
+ * วิธีแก้: เก็บ "ข้อความที่กำลังพิมพ์" ไว้ในตัวเองระหว่างที่โฟกัสอยู่ ปล่อยให้ว่างได้
+ * ส่งค่าออกเฉพาะตอนที่อ่านเป็นตัวเลขในช่วงที่ยอมรับได้ · ออกจากช่องแล้วค่อยบีบเข้าช่วง
+ * ว่างทิ้งไว้แล้วออกจากช่อง = กลับไปใช้ค่าล่าสุดที่ถูกต้อง ไม่เคยกลายเป็น 0 หรือ NaN
+ */
+export function NumberField({
+  value,
+  onCommit,
+  min,
+  max,
+  step,
+  decimals = 0,
+  className = "",
+  style,
+  placeholder,
+  ariaLabel,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number | string;
+  /** > 0 = รับทศนิยม (เปลี่ยนแป้นพิมพ์มือถือให้มีจุด) */
+  decimals?: number;
+  className?: string;
+  style?: CSSProperties;
+  placeholder?: string;
+  ariaLabel?: string;
+}) {
+  // null = ไม่ได้พิมพ์อยู่ ให้แสดงค่าจริงจากข้างนอก
+  const [draft, setDraft] = useState<string | null>(null);
+  const clamp = (n: number): number => Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
+
+  return (
+    <input
+      type="number"
+      inputMode={decimals > 0 ? "decimal" : "numeric"}
+      className={className}
+      style={style}
+      step={step}
+      min={min}
+      max={max}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      value={draft ?? String(value)}
+      onFocus={(e) => {
+        setDraft(String(value));
+        selectAllOnFocus(e);
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw.trim() === "") return; // ว่างได้ระหว่างพิมพ์ ยังไม่ส่งค่าออก
+        const n = Number(raw);
+        // ส่งออกเฉพาะที่อยู่ในช่วงแล้ว — ไม่บีบระหว่างพิมพ์ ไม่งั้นพิมพ์ "1" ของ "150"
+        // จะเด้งเป็นค่าต่ำสุดทันทีแล้วพิมพ์ต่อไม่ได้
+        if (Number.isFinite(n) && n === clamp(n)) onCommit(n);
+      }}
+      onBlur={() => {
+        const raw = (draft ?? "").trim();
+        const n = Number(raw);
+        // ออกจากช่องแล้วค่อยบีบเข้าช่วง · ว่างหรืออ่านไม่ได้ = คงค่าเดิมไว้
+        if (raw !== "" && Number.isFinite(n) && n !== value) onCommit(clamp(n));
+        setDraft(null);
+      }}
+    />
+  );
+}
 
 // หัวข้อย่อยสไตล์หน้าต่างระบบ — label mono เว้นระยะ + เส้นเรืองแสงลากไปจนสุดแถว
 // ใช้ซ้ำทุกสกรีน (Analyze/Progress/Manage/Today) ให้หน้าตาสอดคล้องกัน

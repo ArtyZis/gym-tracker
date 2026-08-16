@@ -7,7 +7,7 @@ import { shareWeeklyCard } from "../lib/share";
 import { t } from "../lib/i18n";
 import StreakCard from "./StreakCard";
 import BodyCompCard from "./BodyCompCard";
-import { Kicker } from "./ui";
+import { Kicker, selectAllOnFocus } from "./ui";
 import { isPremium } from "../lib/premium";
 import SessionHistoryCard from "./SessionHistoryCard";
 import LoadCard from "./LoadCard";
@@ -124,6 +124,7 @@ export default function ProgressView() {
         <div className="flex gap-2 mb-2">
           <input
             type="number"
+            onFocus={selectAllOnFocus}
             step="0.1"
             placeholder="61.0"
             value={bwInput}

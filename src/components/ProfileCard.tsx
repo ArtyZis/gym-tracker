@@ -8,7 +8,7 @@ import type { EquipTag, Experience, InjuryKey } from "../lib/muscles";
 import { EQUIP_PRESETS, VOLUME_TARGETS, equipName, experienceDesc, experienceName, injuryName } from "../lib/muscles";
 import { ALL_EQUIP, equipPresetLabel, getDayEquip, getExperience, getInjuries, getMaxSetsPerSession, getTimeCap } from "../lib/profile";
 import { minText, setsText, t } from "../lib/i18n";
-import { Kicker } from "./ui";
+import { Kicker, NumberField } from "./ui";
 
 const EXPERIENCES: Experience[] = ["beginner", "intermediate", "advanced"];
 const INJURIES: InjuryKey[] = ["lower_back", "shoulder", "knee", "elbow", "wrist"];
@@ -104,30 +104,22 @@ export default function ProfileCard() {
         <div className="flex gap-2">
           <label className="flex-1">
             <span className="block font-mono2 text-[9.5px] mb-1" style={{ color: "var(--mut)" }}>{t("เวลาสูงสุด (นาที)", "Max time (min)")}</span>
-            <input
-              type="number"
+            <NumberField
               className="w-full px-3 py-2 text-[14px]"
               value={timeCap}
               min={20}
               max={240}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (Number.isFinite(v)) update((d) => { d.constraints = { ...d.constraints, sessionTimeCapMinutes: Math.max(20, Math.min(240, v)) }; });
-              }}
+              onCommit={(v) => update((d) => { d.constraints = { ...d.constraints, sessionTimeCapMinutes: v }; })}
             />
           </label>
           <label className="flex-1">
             <span className="block font-mono2 text-[9.5px] mb-1" style={{ color: "var(--mut)" }}>{t("เซตสูงสุด", "Max sets")}</span>
-            <input
-              type="number"
+            <NumberField
               className="w-full px-3 py-2 text-[14px]"
               value={maxSets}
               min={5}
               max={60}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (Number.isFinite(v)) update((d) => { d.constraints = { ...d.constraints, maxSetsPerSession: Math.max(5, Math.min(60, v)) }; });
-              }}
+              onCommit={(v) => update((d) => { d.constraints = { ...d.constraints, maxSetsPerSession: v }; })}
             />
           </label>
         </div>

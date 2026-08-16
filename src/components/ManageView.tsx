@@ -10,7 +10,7 @@ import SavedProgramsCard from "./SavedProgramsCard";
 import SeedWeightsCard from "./SeedWeightsCard";
 import LoopCard from "./LoopCard";
 import { activeDays as slotsOf, slotName } from "../lib/loop";
-import { Kicker } from "./ui";
+import { Kicker, NumberField, selectAllOnFocus } from "./ui";
 import { ACCENTS, accentUnlocked, resolveAccent } from "../lib/accent";
 import { computeStreak } from "../lib/streak";
 import { isPro } from "../lib/edition";
@@ -147,22 +147,24 @@ export default function ManageView() {
             <div className="grid grid-cols-2 gap-2 mb-2.5">
               <div>
                 <FieldLabel>{t("เซต", "Sets")}</FieldLabel>
-                <input
-                  type="number"
+                <NumberField
                   className={inputCls}
                   value={draft.sets ?? 3}
-                  onChange={(e) => setDraft({ ...draft, sets: +e.target.value || 1 })}
+                  min={1}
+                  max={20}
+                  onCommit={(v) => setDraft({ ...draft, sets: v })}
                 />
               </div>
               {draft.type === "weight" && (
                 <div>
                   <FieldLabel>{t("เพิ่มทีละ", "Increment")}</FieldLabel>
-                  <input
-                    type="number"
-                    step="0.5"
+                  <NumberField
                     className={inputCls}
+                    decimals={1}
+                    step="0.5"
+                    min={0.5}
                     value={draft.inc ?? 2.5}
-                    onChange={(e) => setDraft({ ...draft, inc: +e.target.value || 2.5 })}
+                    onCommit={(v) => setDraft({ ...draft, inc: v })}
                   />
                 </div>
               )}
@@ -171,20 +173,22 @@ export default function ManageView() {
               <div className="grid grid-cols-2 gap-2 mb-2.5">
                 <div>
                   <FieldLabel>{draft.type === "time" ? t("วิ ต่ำสุด", "Min seconds") : t("ครั้งต่ำสุด", "Min reps")}</FieldLabel>
-                  <input
-                    type="number"
+                  <NumberField
                     className={inputCls}
                     value={draft.rmin ?? 8}
-                    onChange={(e) => setDraft({ ...draft, rmin: +e.target.value || 1 })}
+                    min={1}
+                    max={999}
+                    onCommit={(v) => setDraft({ ...draft, rmin: v })}
                   />
                 </div>
                 <div>
                   <FieldLabel>{draft.type === "time" ? t("วิ สูงสุด", "Max seconds") : t("ครั้งสูงสุด", "Max reps")}</FieldLabel>
-                  <input
-                    type="number"
+                  <NumberField
                     className={inputCls}
                     value={draft.rmax ?? 12}
-                    onChange={(e) => setDraft({ ...draft, rmax: +e.target.value || 1 })}
+                    min={1}
+                    max={999}
+                    onCommit={(v) => setDraft({ ...draft, rmax: v })}
                   />
                 </div>
               </div>
@@ -210,6 +214,7 @@ export default function ManageView() {
               <FieldLabel>{t("เวลาพัก (วิ) — เว้นว่าง = ให้ระบบแนะนำ", "Rest (sec) — leave blank to use the suggestion")}</FieldLabel>
               <input
                 type="number"
+                onFocus={selectAllOnFocus}
                 className={inputCls}
                 value={draft.restSec ?? ""}
                 placeholder={t("อัตโนมัติ", "Auto")}
@@ -485,6 +490,7 @@ export default function ManageView() {
             <FieldLabel>{t("น้ำหนักแกนบาร์ (kg)", "Bar weight (kg)")}</FieldLabel>
             <input
               type="number"
+              onFocus={selectAllOnFocus}
               className={inputCls}
               value={barInput}
               onChange={(e) => {

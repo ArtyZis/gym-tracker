@@ -11,7 +11,7 @@ import { useApp } from "../AppContext";
 import type { LiftKey, OneRMInput } from "../lib/progression";
 import { epley1RM, estimate1RMs, liftName, seedTargets } from "../lib/progression";
 import { exText, t } from "../lib/i18n";
-import { Kicker } from "./ui";
+import { Kicker, selectAllOnFocus } from "./ui";
 
 const LIFTS: LiftKey[] = ["bench", "squat", "deadlift", "ohp"];
 
@@ -79,6 +79,7 @@ export default function SeedWeightsCard() {
                     className={numCls}
                     style={numStyle}
                     type="number"
+                    onFocus={selectAllOnFocus}
                     inputMode="decimal"
                     placeholder={t("กก.", "kg")}
                     onChange={(e) => setField(k, "weight", parseFloat(e.target.value) || 0)}
@@ -90,6 +91,7 @@ export default function SeedWeightsCard() {
                     className={numCls}
                     style={numStyle}
                     type="number"
+                    onFocus={selectAllOnFocus}
                     inputMode="numeric"
                     placeholder={t("ครั้ง", "reps")}
                     onChange={(e) => setField(k, "reps", parseInt(e.target.value, 10) || 0)}

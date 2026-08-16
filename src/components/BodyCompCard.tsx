@@ -3,6 +3,7 @@ import { useApp } from "../AppContext";
 import { todayStr } from "../lib/store";
 import { t } from "../lib/i18n";
 import { Spark } from "./ProgressView";
+import { selectAllOnFocus } from "./ui";
 
 // บันทึกผลสแกนร่างกาย (Inbody / Accuniq) — กล้ามเนื้อลาย, %ไขมัน + FFMI อัตโนมัติ
 export default function BodyCompCard() {
@@ -66,19 +67,19 @@ export default function BodyCompCard() {
       <div className="grid grid-cols-2 gap-2 mb-2">
         <div>
           <Label>{t("น้ำหนัก (kg)", "Weight (kg)")}</Label>
-          <input type="number" step="0.1" className={inputCls} value={weight} placeholder={last?.weightKg ? String(last.weightKg) : "61.0"} onChange={(e) => setWeight(e.target.value)} />
+          <input type="number" onFocus={selectAllOnFocus} step="0.1" className={inputCls} value={weight} placeholder={last?.weightKg ? String(last.weightKg) : "61.0"} onChange={(e) => setWeight(e.target.value)} />
         </div>
         <div>
           <Label>{t("ไขมัน (%)", "Body fat (%)")}</Label>
-          <input type="number" step="0.1" className={inputCls} value={fat} placeholder={last?.fatPct ? String(last.fatPct) : "18.5"} onChange={(e) => setFat(e.target.value)} />
+          <input type="number" onFocus={selectAllOnFocus} step="0.1" className={inputCls} value={fat} placeholder={last?.fatPct ? String(last.fatPct) : "18.5"} onChange={(e) => setFat(e.target.value)} />
         </div>
         <div>
           <Label>{t("กล้ามเนื้อลาย (kg)", "Skeletal muscle (kg)")}</Label>
-          <input type="number" step="0.1" className={inputCls} value={muscle} placeholder={last?.muscleKg ? String(last.muscleKg) : "27.0"} onChange={(e) => setMuscle(e.target.value)} />
+          <input type="number" onFocus={selectAllOnFocus} step="0.1" className={inputCls} value={muscle} placeholder={last?.muscleKg ? String(last.muscleKg) : "27.0"} onChange={(e) => setMuscle(e.target.value)} />
         </div>
         <div>
           <Label>{t("ส่วนสูง (cm)", "Height (cm)")}</Label>
-          <input type="number" className={inputCls} value={height} placeholder="170" onChange={(e) => setHeight(e.target.value)} />
+          <input type="number" onFocus={selectAllOnFocus} className={inputCls} value={height} placeholder="170" onChange={(e) => setHeight(e.target.value)} />
         </div>
       </div>
       {ffmi != null && (

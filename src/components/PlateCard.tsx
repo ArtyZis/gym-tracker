@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useApp } from "../AppContext";
 import { barbellStep, countsBar, plateCalc } from "../lib/progression";
 import { t } from "../lib/i18n";
-import { Kicker } from "./ui";
+import { Kicker, NumberField } from "./ui";
 
 export default function PlateCard() {
   const { data } = useApp();
@@ -48,13 +48,14 @@ export default function PlateCard() {
           −{step}
         </button>
         <div className="flex-1 text-center">
-          <input
-            type="number"
-            inputMode="decimal"
+          <NumberField
             className="w-full text-center font-disp font-bold text-[26px] py-1"
             style={{ background: "transparent", border: "none", color: "var(--ink)" }}
+            decimals={1}
+            step="0.5"
+            min={0}
             value={w}
-            onChange={(e) => setW(Math.max(0, parseFloat(e.target.value) || 0))}
+            onCommit={setW}
           />
           <div className="font-mono2 text-[9px] -mt-1" style={{ color: "var(--dim)" }}>
             {countsBar(data) ? t("รวมบาร์", "bar included") : t("น้ำหนักแผ่นรวม", "plates only")} · kg
