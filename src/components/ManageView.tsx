@@ -18,6 +18,7 @@ import UpgradeCard from "./UpgradeCard";
 import { EXERCISE_COUNT, findTemplate, incFor, isMachineEx, searchExercises, tipOf, unitFor } from "../lib/exerciseDB";
 import { daysText, exText, isEN, setsText, t } from "../lib/i18n";
 import { InstallCard } from "./InstallPrompt";
+import { encodeTransferCode } from "../lib/transferCode";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
 
@@ -525,8 +526,11 @@ export default function ManageView() {
           <button
             className="btn-gh flex-1 !py-2.5 !text-[12px]"
             onClick={() => {
-              setTransferCode(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
-              toast(t("สร้างโค้ดแล้ว", "Code generated"));
+              // บีบอัดก่อนเสมอ — โค้ดดิบยาวเกินขีดจำกัดข้อความของไลน์ตั้งแต่ใช้ไปไม่กี่สัปดาห์
+              void encodeTransferCode(data).then((code) => {
+                setTransferCode(code);
+                toast(t("สร้างโค้ดแล้ว", "Code generated"));
+              });
             }}
           >
             {t("สร้างโค้ด", "Generate code")}
@@ -556,9 +560,10 @@ export default function ManageView() {
         />
         <button
           className="btn-cy w-full !text-[12.5px]"
-          onClick={() => {
+          onClick={async () => {
             // decodeTransfer ตรวจชนิดข้อมูลผ่าน normalizeData แล้ว — คืน null = โค้ดพัง/ปลอม
-            const restored = decodeTransfer(transferCode);
+            // async เพราะโค้ดรุ่นใหม่ต้องคลายบีบอัดก่อน (รับโค้ดเก่าได้เหมือนเดิม)
+            const restored = await decodeTransfer(transferCode);
             if (!restored) {
               toast(t("โค้ดไม่ถูกต้อง", "That code isn't valid"));
               return;

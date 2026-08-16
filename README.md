@@ -16,6 +16,7 @@ src/
   lib/programParser.ts วางข้อความโปรแกรมทีเดียว -> รายการท่า (ไทย/อังกฤษ, เซตxเรป, น้ำหนัก, วิ, AMRAP, machine)
   lib/sound.ts        เสียงติ๊กเซต/ครบท่า/PR/พักครบ (Web Audio สังเคราะห์ ปิดได้)
   lib/install.ts      ชวนเพิ่มลงหน้าจอโฮม — แยกเครื่อง (iOS/Android/เบราว์เซอร์ในแอป) + จำว่ากด "ไว้ทีหลัง"
+  lib/transferCode.ts โค้ดย้ายข้อมูลแบบบีบอัด gzip (ย่อ ~97%) — รับโค้ดเก่าแบบไม่บีบอัดได้ตลอดไป
   components/         TodayView ProgramView AnalyzerView ProgressView ManageView RestTimer
                       + StreakCard BodyCompCard ImportProgramCard
   App.tsx             shell, context, bottom nav

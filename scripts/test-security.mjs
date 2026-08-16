@@ -69,16 +69,16 @@ console.log("\n═══ 3. กันตัวเลขเพี้ยนจา�
 }
 
 console.log("\n═══ 4. โค้ดย้ายข้อมูลจากคนอื่น ═══");
-ok("โค้ดขยะ = ปฏิเสธ ไม่ crash", decodeTransfer("!!!ไม่ใช่base64!!!") === null);
-ok("โค้ดว่าง = ปฏิเสธ", decodeTransfer("") === null);
-ok("โค้ดยาวเกินขนาด = ปฏิเสธก่อนถอด", decodeTransfer("A".repeat(6_000_000)) === null);
+ok("โค้ดขยะ = ปฏิเสธ ไม่ crash", (await decodeTransfer("!!!ไม่ใช่base64!!!")) === null);
+ok("โค้ดว่าง = ปฏิเสธ", (await decodeTransfer("")) === null);
+ok("โค้ดยาวเกินขนาด = ปฏิเสธก่อนถอด", (await decodeTransfer("A".repeat(6_000_000))) === null);
 {
   const evil = btoa(unescape(encodeURIComponent(JSON.stringify({ exercises: "PWNED" }))));
-  ok("exercises ไม่ใช่ array = ปฏิเสธทั้งก้อน", decodeTransfer(evil) === null);
+  ok("exercises ไม่ใช่ array = ปฏิเสธทั้งก้อน", (await decodeTransfer(evil)) === null);
 }
 {
   const evil = btoa(unescape(encodeURIComponent(JSON.stringify({ exercises: [null], settings: {}, dayLabels: { mon: {} } }))));
-  const d = decodeTransfer(evil);
+  const d = await decodeTransfer(evil);
   ok("payload พังบางส่วน = ซ่อมแล้วใช้ได้ ไม่ crash", d !== null && d.exercises.length === 0 && typeof d.dayLabels.mon === "string");
 }
 

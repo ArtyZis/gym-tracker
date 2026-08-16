@@ -2,6 +2,7 @@
 
 import type { EquipTag, Experience, Goal, InjuryKey } from "./muscles";
 import { pick, t } from "./i18n";
+import { decodeTransferCode } from "./transferCode";
 
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export type ExType = "weight" | "bodyweight" | "time";
@@ -551,11 +552,14 @@ export function normalizeData(d: any): Data | null {
 
 // ถอดรหัส "โค้ดย้ายข้อมูล" ที่รับจากคนอื่น — ต้องผ่าน normalizeData เสมอ ไม่ assign ดิบ
 // คืน null ถ้าถอดไม่ได้/ชนิดผิด (โค้ดเรียกต้องเช็ค null แล้วแจ้งผู้ใช้)
-export function decodeTransfer(code: string): Data | null {
+//
+// async เพราะโค้ดรุ่นใหม่ถูกบีบอัดด้วย DecompressionStream ซึ่งเป็น stream API
+// ตัวถอดรับได้ทั้งโค้ดใหม่และโค้ดเก่าที่ผู้ใช้เก็บไว้ (ดู lib/transferCode.ts)
+export async function decodeTransfer(code: string): Promise<Data | null> {
   try {
-    const c = code.trim();
-    if (!c || c.length > 5_000_000) return null; // กัน payload ยักษ์ที่หน่วงเบราว์เซอร์
-    return normalizeData(JSON.parse(decodeURIComponent(escape(atob(c)))));
+    const json = await decodeTransferCode(code);
+    if (json === null) return null;
+    return normalizeData(JSON.parse(json));
   } catch {
     return null;
   }

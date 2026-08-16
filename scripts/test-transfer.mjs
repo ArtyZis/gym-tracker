@@ -121,7 +121,7 @@ console.log("\n═══ 4. ไป-กลับผ่านโค้ดจริ
 {
   const source = oldPhone();
   const code = btoa(unescape(encodeURIComponent(JSON.stringify(source))));
-  const decoded = decodeTransfer(code);
+  const decoded = await decodeTransfer(code);
   ok("ถอดรหัสได้", decoded !== null);
 
   const target = newPhone();
@@ -145,12 +145,12 @@ console.log("\n═══ 6. โค้ดพัง/ปลอม ต้องไ�
   // ต้องเข้ารหัสแบบเดียวกับที่แอปใช้ — btoa เปล่าๆ รับตัวอักษรไทยไม่ได้
   const enc = (s) => btoa(unescape(encodeURIComponent(s)));
   for (const bad of ["", "ไม่ใช่โค้ด", "eyJ", enc("null"), enc('{"exercises":"พัง"}'), enc("[]"), enc("{}")]) {
-    ok(`โค้ด "${bad.slice(0, 12)}" = ปฏิเสธ`, decodeTransfer(bad) === null);
+    ok(`โค้ด "${bad.slice(0, 12)}" = ปฏิเสธ`, (await decodeTransfer(bad)) === null);
   }
   // ปฏิเสธแล้ว UI จะ return ก่อนถึง applyTransfer — ข้อมูลเดิมไม่ถูกแตะ
   const target = newPhone();
   const snapshot = JSON.stringify(target);
-  const bad = decodeTransfer("ขยะ");
+  const bad = await decodeTransfer("ขยะ");
   if (bad) applyTransfer(target, bad);
   ok("ข้อมูลเดิมไม่ถูกแตะเมื่อโค้ดพัง", JSON.stringify(target) === snapshot);
 }
