@@ -17,6 +17,7 @@ src/
   lib/sound.ts        เสียงติ๊กเซต/ครบท่า/PR/พักครบ (Web Audio สังเคราะห์ ปิดได้)
   lib/install.ts      ชวนเพิ่มลงหน้าจอโฮม — แยกเครื่อง (iOS/Android/เบราว์เซอร์ในแอป) + จำว่ากด "ไว้ทีหลัง"
   lib/transferCode.ts โค้ดย้ายข้อมูลแบบบีบอัด gzip (ย่อ ~97%) — รับโค้ดเก่าแบบไม่บีบอัดได้ตลอดไป
+  lib/load.ts         งานจริงต่อสัปดาห์ (เซต/น้ำหนักรวม) + จับการไต่เร็วเกิน + จังหวะสัปดาห์เบา
   components/         TodayView ProgramView AnalyzerView ProgressView ManageView RestTimer
                       + StreakCard BodyCompCard ImportProgramCard
   App.tsx             shell, context, bottom nav

@@ -202,10 +202,22 @@ console.log("\n═══ 4. ขอบเขตการล็อก — กั�
     .filter((f) => f !== "lib/premium.ts")
     .sort();
 
-  // เฉพาะ 3 หน้านี้เท่านั้นที่ล็อกได้: เป้าน้ำหนัก+warm-up / วิเคราะห์ / พยากรณ์ PR
-  const ALLOWED = ["components/AnalyzerView.tsx", "components/ProgressView.tsx", "components/TodayView.tsx"];
+  // เฉพาะไฟล์เหล่านี้เท่านั้นที่ล็อกได้: เป้าน้ำหนัก+warm-up / วิเคราะห์ / พยากรณ์ PR
+  // + LoadCard ที่ล็อกเฉพาะ "คำแนะนำว่าควรทำอะไรต่อ" ซึ่งเป็นสมองโค้ชแบบเดียวกับวิเคราะห์โปรแกรม
+  //   ส่วนกราฟกับตัวเลขงานรายสัปดาห์เป็นประวัติที่ผู้ใช้บันทึกเอง ต้องฟรีเสมอ (เช็คด้านล่าง)
+  const ALLOWED = ["components/AnalyzerView.tsx", "components/LoadCard.tsx", "components/ProgressView.tsx", "components/TodayView.tsx"];
   const unexpected = users.filter((f) => !ALLOWED.includes(f));
   ok("ไม่มีการล็อกโผล่ในไฟล์ที่ไม่ควรล็อก", unexpected.length === 0, unexpected.join(", "));
+
+  // LoadCard ล็อกได้เฉพาะคำแนะนำ — ตัวเลขต้องอยู่นอกกำแพงเสมอ
+  // ถ้าวันหนึ่งมีคนย้ายตัวเลขเข้าไปในล็อก เท่ากับจับประวัติผู้ใช้เป็นตัวประกัน เทสต์นี้ต้องจับได้
+  {
+    const src = fs.readFileSync(path.join(SRC, "components/LoadCard.tsx"), "utf8");
+    const numbersAt = src.indexOf("last.volume.toLocaleString()");
+    const gateAt = src.indexOf("isPremium(data)");
+    ok("LoadCard: ตัวเลขงานรายสัปดาห์อยู่นอกกำแพงจ่ายเงิน", numbersAt > 0 && gateAt > 0 && numbersAt < gateAt, `ตัวเลข@${numbersAt} กำแพง@${gateAt}`);
+    ok("LoadCard: กราฟไม่ได้อยู่ใต้เงื่อนไข premium", src.indexOf("weeklyLoad(data") > 0 && src.indexOf("weeklyLoad(data") < gateAt);
+  }
 
   const FORBIDDEN = [
     ["StreakCard.tsx", "สตรีค"],

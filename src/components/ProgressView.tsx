@@ -10,6 +10,7 @@ import BodyCompCard from "./BodyCompCard";
 import { Kicker } from "./ui";
 import { isPremium } from "../lib/premium";
 import SessionHistoryCard from "./SessionHistoryCard";
+import LoadCard from "./LoadCard";
 import RankCard from "./RankCard";
 
 // อัตราส่วนน้ำหนักที่ยกได้ต่อน้ำหนักตัว: [เริ่มต้น, กลาง, สูง]
@@ -82,6 +83,10 @@ export default function ProgressView() {
       <SessionHistoryCard />
 
       <StreakCard />
+
+      {/* วางต่อจากสตรีคเพราะเป็นเรื่องเดียวกัน คือ "ที่ผ่านมาทำอะไรไปบ้าง"
+          ต่างกันตรงสตรีคนับว่าไปกี่วัน ส่วนอันนี้นับว่างานหนักแค่ไหน */}
+      <LoadCard />
 
       <div className="glass p-4 mb-3">
         <div className="flex items-center justify-between gap-3">
