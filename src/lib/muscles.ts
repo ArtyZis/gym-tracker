@@ -258,23 +258,15 @@ export const EXPERIENCE_DESC_EN: Record<Experience, string> = {
 
 export const experienceDesc = (k: Experience): string => pick(EXPERIENCE_DESC, EXPERIENCE_DESC_EN, k);
 
+/**
+ * เป้าหมายการฝึก — **ไม่มีที่ไหนอ่านค่านี้แล้ว** ปุ่มเลือกถูกเอาออกเมื่อ 16 ส.ค. 2026
+ * เพราะตัววิเคราะห์กับตัวบอกน้ำหนักไม่เคยใช้มันเลย (ถามแล้วไม่ใช้ = หลอกผู้ใช้)
+ *
+ * ชนิดยังต้องอยู่ เพราะ `Profile.goal` ยังเก็บค่าที่ผู้ใช้เคยเลือกไว้ในเครื่องจริง
+ * ลบทิ้งแล้วข้อมูลเก่าจะอ่านไม่ผ่านชนิด — ตารางชื่อ (GOAL_TH/EN) ลบไปแล้วเพราะไม่มีที่แสดง
+ * ถ้าวันหนึ่งจะเอามาใช้จริง ค่าเดิมของลูกค้ายังอยู่ครบ
+ */
 export type Goal = "hypertrophy" | "strength" | "fatloss" | "general";
-
-export const GOAL_TH: Record<Goal, string> = {
-  hypertrophy: "สร้างกล้าม",
-  strength: "เพิ่มความแข็งแรง",
-  fatloss: "ลดไขมัน",
-  general: "สุขภาพทั่วไป",
-};
-
-export const GOAL_EN: Record<Goal, string> = {
-  hypertrophy: "Build muscle",
-  strength: "Get stronger",
-  fatloss: "Lose fat",
-  general: "General health",
-};
-
-export const goalName = (k: Goal): string => pick(GOAL_TH, GOAL_EN, k);
 
 export interface VolumeTarget {
   min: number; // ขอบล่างของช่วงเป้าหมาย

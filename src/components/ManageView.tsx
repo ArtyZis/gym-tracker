@@ -19,6 +19,7 @@ import { EXERCISE_COUNT, findTemplate, incFor, isMachineEx, searchExercises, tip
 import { daysText, exText, isEN, setsText, t } from "../lib/i18n";
 import { InstallCard } from "./InstallPrompt";
 import { encodeTransferCode } from "../lib/transferCode";
+import ProfileCard from "./ProfileCard";
 
 type ExerciseDraft = Omit<Exercise, "id" | "order"> & Partial<Pick<Exercise, "id" | "order">>;
 
@@ -498,6 +499,12 @@ export default function ManageView() {
       </div>
 
       <TrainingSettingsCard />
+
+      {/* หลุดหายไปตั้งแต่ 30 ก.ค. 2026 (commit 5615256) โดยไม่มีใครสังเกต — ตอนนั้นตั้งใจถอด
+          การ์ดอุปกรณ์รายวัน/ช่องเวลา แต่ ProfileCard ถูกลบตามไปด้วยเพราะ import มาจากไฟล์เดียวกัน
+          ผลคือ 2 สัปดาห์ที่ผ่านมาไม่มีใครตั้งค่าที่ตัววิเคราะห์ใช้จริงได้เลย
+          (บาดเจ็บ · เพดานเซต · เพดานเวลา · ระดับประสบการณ์ที่กำหนดช่วงเป้าหมายเซตต่อสัปดาห์) */}
+      <ProfileCard />
 
       <AppearanceCard />
 

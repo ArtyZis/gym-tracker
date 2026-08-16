@@ -4,14 +4,13 @@ import type { DayKey } from "../lib/store";
 import { dayName } from "../lib/store";
 import { trainingDays } from "../lib/analyzer";
 import { slotName } from "../lib/loop";
-import type { EquipTag, Experience, Goal, InjuryKey } from "../lib/muscles";
-import { EQUIP_PRESETS, VOLUME_TARGETS, equipName, experienceDesc, experienceName, goalName, injuryName } from "../lib/muscles";
-import { ALL_EQUIP, equipPresetLabel, getDayEquip, getExperience, getGoal, getInjuries, getMaxSetsPerSession, getTimeCap } from "../lib/profile";
+import type { EquipTag, Experience, InjuryKey } from "../lib/muscles";
+import { EQUIP_PRESETS, VOLUME_TARGETS, equipName, experienceDesc, experienceName, injuryName } from "../lib/muscles";
+import { ALL_EQUIP, equipPresetLabel, getDayEquip, getExperience, getInjuries, getMaxSetsPerSession, getTimeCap } from "../lib/profile";
 import { minText, setsText, t } from "../lib/i18n";
 import { Kicker } from "./ui";
 
 const EXPERIENCES: Experience[] = ["beginner", "intermediate", "advanced"];
-const GOALS: Goal[] = ["hypertrophy", "strength", "fatloss", "general"];
 const INJURIES: InjuryKey[] = ["lower_back", "shoulder", "knee", "elbow", "wrist"];
 // เรียงตามที่คนนึกถึง ไม่ใช่ตามตัวอักษร
 const EQUIP_ORDER: EquipTag[] = [
@@ -35,12 +34,11 @@ function Pick({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   );
 }
 
-// โปรไฟล์การฝึก — ระดับ เป้าหมาย อาการบาดเจ็บ เวลาต่อครั้ง
+// โปรไฟล์การฝึก — ระดับ อาการบาดเจ็บ เวลาต่อครั้ง อุปกรณ์
 // ทั้งหมดมีค่า default ที่ใช้ได้ทันที ไม่บังคับกรอกก่อนใช้แอป
 export default function ProfileCard() {
   const { data, update, toast } = useApp();
   const exp = getExperience(data);
-  const goal = getGoal(data);
   const injuries = getInjuries(data);
   const timeCap = getTimeCap(data);
   const maxSets = getMaxSetsPerSession(data);
@@ -68,14 +66,10 @@ export default function ProfileCard() {
         {t("ต่อกล้ามเนื้อ", "per muscle")}
       </p>
 
-      <div className="text-[12.5px] mb-1.5" style={{ color: "var(--ink)" }}>{t("เป้าหมาย", "Goal")}</div>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {GOALS.map((g) => (
-          <Pick key={g} on={goal === g} onClick={() => update((d) => { d.profile = { ...d.profile, goal: g }; })}>
-            {goalName(g)}
-          </Pick>
-        ))}
-      </div>
+      {/* เคยมีปุ่มเลือก "เป้าหมาย" (สร้างกล้าม/แรง/ลดไขมัน/ทั่วไป) ตรงนี้ — เอาออกเมื่อ 16 ส.ค. 2026
+          เพราะไม่มีโค้ดไหนอ่านค่านั้นเลย ตัววิเคราะห์กับตัวบอกน้ำหนักไม่แตะ
+          ถามลูกค้าแล้วไม่เอาคำตอบไปใช้ = หลอกว่าตั้งแล้วมีผล แย่กว่าไม่ถามเลย
+          ค่าที่ผู้ใช้เคยเลือกไว้ยังอยู่ใน settings ไม่ได้ลบ (ดู Profile.goal ใน store.ts) */}
 
       <div className="text-[12.5px] mb-1" style={{ color: "var(--ink)" }}>{t("อาการบาดเจ็บ (ถ้ามี)", "Injuries (if any)")}</div>
       <p className="text-[11px] mb-1.5" style={{ color: "var(--mut)" }}>

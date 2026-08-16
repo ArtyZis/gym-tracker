@@ -7,7 +7,7 @@
 // ผู้ใช้ที่ยังไม่ได้ตั้งค่าอุปกรณ์ ถือว่ามีครบทุกอย่าง ดีกว่าเดาว่าไม่มีแล้วซ่อนคำแนะนำที่เขาทำได้จริง
 
 import type { Data, DayKey } from "./store";
-import type { EquipTag, Experience, Goal, InjuryKey, VolumeTarget } from "./muscles";
+import type { EquipTag, Experience, InjuryKey, VolumeTarget } from "./muscles";
 import { DEFAULT_MAX_SETS_PER_SESSION, DEFAULT_SESSION_TIME_CAP_MINUTES, EQUIP_PRESETS, VOLUME_TARGETS, equipName } from "./muscles";
 import { t } from "./i18n";
 
@@ -27,7 +27,6 @@ export const ALL_EQUIP: EquipTag[] = [
 ];
 
 export const getExperience = (d: Data): Experience => d.profile?.experience ?? "intermediate";
-export const getGoal = (d: Data): Goal => d.profile?.goal ?? "hypertrophy";
 export const getInjuries = (d: Data): InjuryKey[] => d.profile?.injuries ?? [];
 
 export const getTimeCap = (d: Data): number =>

@@ -9,7 +9,7 @@
 //   .\node_modules\.bin\esbuild.cmd scripts/test-lang.mjs --bundle --platform=node --format=esm --outfile=t.mjs; node t.mjs
 
 import { getLang, setLang, t, plural, setsText, daysText, secText, locale } from "../src/lib/i18n";
-import { MUSCLE_KEYS, muscleName, equipName, patternName, goalName, injuryName, experienceName } from "../src/lib/muscles";
+import { MUSCLE_KEYS, muscleName, equipName, patternName, injuryName, experienceName } from "../src/lib/muscles";
 import { DAYS, dayName, dayShort, createDefault, createEmpty, repTargetText } from "../src/lib/store";
 import { EXERCISE_DB, searchExercises, tipOf, subName } from "../src/lib/exerciseDB";
 import { RANKS, rankName } from "../src/lib/rank";
@@ -89,7 +89,6 @@ ok("ชื่อแรงค์ครบ 6 ระดับ", missingRank.length 
 
 noThai("equipName(barbell)", equipName("barbell"));
 noThai("patternName(squat)", patternName("squat"));
-noThai("goalName(hypertrophy)", goalName("hypertrophy"));
 noThai("injuryName(knee)", injuryName("knee"));
 noThai("experienceName(beginner)", experienceName("beginner"));
 noThai("liftName(bench)", liftName("bench"));
