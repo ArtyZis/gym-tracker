@@ -786,6 +786,8 @@ export interface Recommendation {
   dayType?: DayType; // addDay
   splitDays?: number; // buildProgram
   exerciseId?: string;
+  /** increaseSets: เพิ่มกี่เซต — คิดจากจำนวนที่ทำให้พ้นเกณฑ์จริง ไม่ใช่ 1 เสมอ */
+  addSets?: number;
   fromDay?: DayKey;
   toDay?: DayKey;
 }
@@ -1168,14 +1170,23 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
       (ex) => canIncreaseSets(data, ex) && muscleMap(ex.name).some((h) => h.m === s.muscle && h.w >= 1),
     );
     for (const bump of bumpable) {
+      // เสนอ "จำนวนเซตที่พอจะพ้นเกณฑ์จริง" ไม่ใช่ +1 เสมอ
+      //
+      // เดิมเสนอ +1 ทุกครั้ง ถ้าเพิ่มแล้วยังไม่พ้นเกณฑ์ = คะแนนไม่ขยับสักคะแนน
+      // ผู้ใช้กดตามแล้วเห็นเลขเดิม เลยสรุปว่าแอปโกหก (เจอจริงกับเคสน่อง 8 เซต)
+      // ตัวหารคือน้ำหนักของท่านั้นต่อมัด — ท่าที่มัดนี้เป็นกล้ามรองได้ครึ่งเดียวต่อเซต
+      const w = muscleMap(bump.name).find((h) => h.m === s.muscle)?.w ?? 1;
+      const need = Math.max(1, Math.ceil((target.warnLow - s.sets) / w));
+      const addSets = Math.min(need, MAX_SETS_PER_EX - bump.sets);
       const candidateRec: Recommendation = {
         id: mkId(),
         kind: "increaseSets",
         exerciseId: bump.id,
-        title: t(`เพิ่มเซต ${bump.name}`, `Add a set to ${bump.name}`),
+        addSets,
+        title: t(`เพิ่มเซต ${bump.name}`, `Add sets to ${bump.name}`),
         detail: t(
-          `เพิ่มจาก ${bump.sets} เป็น ${bump.sets + 1} เซต — ท่านี้มีอยู่แล้ว ยังไม่ถึงเพดานต่อท่า`,
-          `${bump.sets} → ${bump.sets + 1} sets — it's already in the program and under the per-exercise cap`,
+          `เพิ่มจาก ${bump.sets} เป็น ${bump.sets + addSets} เซต — ท่านี้มีอยู่แล้ว ยังไม่ถึงเพดานต่อท่า`,
+          `${bump.sets} → ${bump.sets + addSets} sets — it's already in the program and under the per-exercise cap`,
         ),
         reason: t(
           `${muscleName(s.muscle)}ได้ ${s.sets} เซต/สัปดาห์ ต่ำกว่าเป้า ${target.min}`,
@@ -1196,8 +1207,34 @@ export function buildRecommendations(data: Data, analysis: Analysis): Recommenda
     if (bestOption) {
       const chosen = bestOption as { rec: Recommendation; predicted: number; ceiling: number };
       chosen.rec.gain = chosen.predicted - analysis.execution;
-      recs.push(chosen.rec);
-      placed = true;
+      // ทำตามแล้วคะแนนไม่ขยับ และไม่ได้ปลดเพดานให้ก้าวต่อไปด้วย = ไม่ควรโชว์เป็นปุ่มให้กด
+      //
+      // เคสจริง: น่อง 8 เซตของผู้ใช้ระดับขั้นสูง (เกณฑ์ 10) ท่าน่องทั้งสองตัวเพิ่มได้อีกตัวละ 1 เซต
+      // เท่านั้น (เพดานต่อท่า 5) เพิ่มตัวเดียวได้ 9 ยังไม่พ้นเกณฑ์ คะแนนเลยเท่าเดิม
+      // ผู้ใช้กดแล้วเห็น 98 เหมือนเดิม -> สรุปว่าแอปโกหก
+      // บอกตรงๆ ว่าต้องเพิ่มอีกเท่าไหร่และทำไมกดปุ่มเดียวไม่พอ ดีกว่าให้ปุ่มที่ไม่มีผล
+      // (ตรงกับหลักเดิมของไฟล์นี้: ห้ามผ่อนกฎเพื่อให้มีอะไรแสดง ให้บอกต้นเหตุแทน)
+      if (chosen.rec.gain > 0 || chosen.ceiling > analysis.ceiling) {
+        recs.push(chosen.rec);
+        placed = true;
+      } else {
+        const short = Math.max(0, +(target.warnLow - s.sets).toFixed(1));
+        blockedInsight(analysis, {
+          issue: t(
+            `${muscleName(s.muscle)}ได้ ${s.sets} เซต/สัปดาห์ (เกณฑ์ขั้นต่ำ ${target.warnLow})`,
+            `${muscleName(s.muscle)} gets ${s.sets} sets/week (minimum is ${target.warnLow})`,
+          ),
+          whyCannotFix: t(
+            `ต้องเพิ่มอีก ${short} เซตถึงจะพ้นเกณฑ์ แต่ท่าที่มีอยู่เพิ่มได้ไม่ถึง (เพดานต่อท่า ${MAX_SETS_PER_EX} เซต) เพิ่มท่าเดียวจึงยังไม่ทำให้คะแนนขยับ`,
+            `It needs ${short} more sets to clear the bar, but no single lift can add that much (cap is ${MAX_SETS_PER_EX} sets each), so bumping just one won't move the score`,
+          ),
+          realSolution: t(
+            `เพิ่มเซตในท่า${muscleName(s.muscle)}หลายท่าพร้อมกัน หรือเพิ่มท่าใหม่ให้กลุ่มนี้ — และถ้าคุณพอใจกับปริมาณเท่านี้อยู่แล้ว ปล่อยไว้ก็ได้ ไม่ใช่ความผิดพลาดของตาราง`,
+            `Add sets across several ${muscleName(s.muscle).toLowerCase()} lifts at once, or add another one — and if you're happy with the current amount, leaving it is fine, it isn't a flaw in the program`,
+          ),
+        });
+        placed = true; // บอกไปแล้วว่าติดตรงไหน ไม่ต้องซ้ำด้วยข้อความ "ไม่มีที่ลง" ด้านล่าง
+      }
     }
 
     // ไม่มีท่าไหนลงในตารางเดิมได้เลย — ห้ามผ่อนกฎเพื่อให้มีอะไรแสดง ให้บอกต้นเหตุแทน
@@ -1469,7 +1506,8 @@ export function applyRecommendation(d: Data, rec: Recommendation) {
     reorderDay(d, rec.day);
   } else if (rec.kind === "increaseSets" && rec.exerciseId) {
     const ex = d.exercises.find((e) => e.id === rec.exerciseId);
-    if (ex && ex.sets < MAX_SETS_PER_EX) ex.sets += 1;
+    // ต้องเพิ่มให้ครบตามจำนวนที่การ์ดเขียนไว้ ไม่งั้นสิ่งที่บอกกับสิ่งที่ทำไม่ตรงกัน
+    if (ex && ex.sets < MAX_SETS_PER_EX) ex.sets = Math.min(MAX_SETS_PER_EX, ex.sets + (rec.addSets ?? 1));
   } else if (rec.kind === "reduceSets" && rec.exerciseId) {
     const ex = d.exercises.find((e) => e.id === rec.exerciseId);
     if (ex && ex.sets > MIN_SETS_PER_EX) ex.sets -= 1;
