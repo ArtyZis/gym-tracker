@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import type { Data, DayKey, EffectiveExercise, Exercise } from "../lib/store";
-import { DAYS, JS_DAYS, addMakeup, dayName, effectiveExercisesForDay, exercisesForDay, makeupSlots, removeExtra, removeMakeup, repTargetText, todayStr } from "../lib/store";
+import { DAYS, JS_DAYS, addMakeup, dayName, effectiveExercisesForDay, exercisesForDay, makeupSlots, removeExtra, removeMakeup, repTargetText, skippedToday, todayStr, toggleSkip } from "../lib/store";
 import ExercisePicker from "./ExercisePicker";
 import { Icon } from "./ui";
 import DayNote from "./DayNote";
@@ -104,8 +104,14 @@ export default function TodayView() {
   // คนจำวันเป็น "วันขา" ไม่ใช่ "พฤหัส" — ถ้าตั้งชื่อวันไว้ให้ใช้ชื่อนั้นก่อน
   const dayTitle = (s: DayKey) => data.dayLabels[s]?.trim() || slotName(data, s);
 
-  const totalSets = exs.reduce((a, e) => a + e.sets, 0);
-  const doneSets = exs.reduce((a, e) => a + Math.min(doneCount(e.id), e.sets), 0);
+  // ท่าที่กดข้ามไว้วันนี้ — ต้องไม่ถูกนับในความคืบหน้า ไม่งั้นแถบพลังไม่มีวันเต็ม
+  // และไม่ขึ้น CLEAR ทั้งที่ผู้ใช้ตั้งใจข้ามเอง (กลายเป็นลงโทษคนที่ตัดสินใจถูก)
+  const skipped = isToday ? skippedToday(data) : [];
+  const isSkipped = (id: string) => skipped.includes(id);
+  const counted = exs.filter((e) => !isSkipped(e.id));
+
+  const totalSets = counted.reduce((a, e) => a + e.sets, 0);
+  const doneSets = counted.reduce((a, e) => a + Math.min(doneCount(e.id), e.sets), 0);
   const allDone = totalSets > 0 && doneSets >= totalSets;
 
   const volume = useMemo(
@@ -575,6 +581,31 @@ export default function TodayView() {
                   </span>
                 </span>
               </button>
+
+              {/* ข้ามท่านี้วันนี้ — สำหรับวันที่ท่านั้นเสี่ยงเกินจะทำ (หลังตึงแล้วจะเดดลิฟต์)
+                  ต่างจากการลบท่าออกจากตาราง: นี่คือ "วันนี้ไม่ไหว" ไม่ใช่ "เลิกเล่นท่านี้"
+                  พรุ่งนี้กลับมาเองอัตโนมัติเพราะผูกกับวันที่ */}
+              {isToday && (
+                <button
+                  className="w-8 h-8 cut-sm shrink-0 flex items-center justify-center text-[12px] transition-all"
+                  style={{
+                    background: isSkipped(ex.id) ? "color-mix(in srgb, var(--warn) 20%, transparent)" : "var(--acc-08)",
+                    border: `1px solid ${isSkipped(ex.id) ? "color-mix(in srgb, var(--warn) 50%, transparent)" : "color-mix(in srgb, var(--acc) 24%, transparent)"}`,
+                    color: isSkipped(ex.id) ? "var(--warn)" : "var(--acc)",
+                  }}
+                  aria-label={isSkipped(ex.id) ? t("เอากลับมาเล่นวันนี้", "Put it back for today") : t("ข้ามท่านี้วันนี้", "Skip this exercise today")}
+                  onClick={() => {
+                    update((d) => toggleSkip(d, ex.id));
+                    toast(
+                      isSkipped(ex.id)
+                        ? t(`เอา ${ex.name} กลับมาแล้ว`, `${ex.name} is back`)
+                        : t(`ข้าม ${ex.name} วันนี้ — พรุ่งนี้กลับมาเอง`, `Skipping ${ex.name} today — back tomorrow`),
+                    );
+                  }}
+                >
+                  {isSkipped(ex.id) ? "↺" : "⊘"}
+                </button>
+              )}
 
               {/* ปุ่มเล็กเปลี่ยนท่า — เฉพาะวันนี้ */}
               {isToday && (

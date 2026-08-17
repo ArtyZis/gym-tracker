@@ -118,6 +118,14 @@ export interface Swaps {
   date: string; // ใช้ได้เฉพาะวันนี้ — วันเปลี่ยนแล้วกลับไปท่าเดิมอัตโนมัติ
   map: Record<string, SwapTarget>; // key = id ท่าเดิม (สลับแทนท่านั้น)
   extras?: SwapTarget[]; // ท่าที่เพิ่มเข้ามาเล่นวันนี้เพิ่มเติม (ไม่ได้แทนท่าไหน)
+  /**
+   * ท่าที่ "ข้ามวันนี้" — เก็บ id ไว้เฉยๆ ไม่ลบท่าออกจากโปรแกรม
+   *
+   * มีไว้สำหรับวันที่ท่านั้นเสี่ยงเกินจะทำ (หลังตึงแล้วจะเดดลิฟต์ · ไหล่ไม่โอเคแล้วจะเบนช์)
+   * ต้องแยกจากการลบท่าออกจากตาราง เพราะนี่คือ "วันนี้ไม่ไหว" ไม่ใช่ "เลิกเล่นท่านี้"
+   * และต้องแยกจากการไม่ติ๊กเฉยๆ ด้วย — ข้ามทั้งที่ตั้งใจ ไม่ควรถูกนับว่าทำไม่ครบ
+   */
+  skipped?: string[];
 }
 
 // ── โปรไฟล์และข้อจำกัดของผู้ใช้ (ทั้งหมด optional — ไม่กรอกก็ใช้แอปได้ปกติ) ──
@@ -470,7 +478,12 @@ export function normalizeData(d: any): Data | null {
   // swaps ต้องเป็น object ที่มี map เป็น object จริง ไม่งั้น activeSwapMap จะพังตอนอ่าน
   if (d.swaps !== undefined) {
     if (!isObj(d.swaps) || typeof d.swaps.date !== "string" || !isObj(d.swaps.map)) d.swaps = undefined;
-    else if (d.swaps.extras !== undefined && !Array.isArray(d.swaps.extras)) d.swaps.extras = undefined;
+    else {
+      if (d.swaps.extras !== undefined && !Array.isArray(d.swaps.extras)) d.swaps.extras = undefined;
+      // ต้องเป็น array ของสตริงล้วน ไม่งั้น includes() เจอของแปลกแล้วพฤติกรรมเพี้ยน
+      if (d.swaps.skipped !== undefined && (!Array.isArray(d.swaps.skipped) || d.swaps.skipped.some((x: unknown) => typeof x !== "string")))
+        d.swaps.skipped = undefined;
+    }
   }
   // ฟิลด์ใหม่ที่เพิ่มทีหลัง — ชนิดผิดให้ทิ้งไป ระบบจะกลับไปใช้ค่า default เอง
   if (d.profile !== undefined && !isObj(d.profile)) d.profile = undefined;
@@ -803,6 +816,19 @@ export const extraIdFor = (name: string) => "x~" + normName(name).replace(/\s+/g
 
 export function activeExtras(data: Data): SwapTarget[] {
   return data.swaps && data.swaps.date === todayStr() ? (data.swaps.extras ?? []) : [];
+}
+
+/** id ท่าที่ถูกข้ามไว้วันนี้ — วันอื่นคืนค่าว่างเสมอ (ของชั่วคราวรายวัน) */
+export function skippedToday(data: Data): string[] {
+  return data.swaps && data.swaps.date === todayStr() ? (data.swaps.skipped ?? []) : [];
+}
+
+/** สลับสถานะข้าม/ไม่ข้ามของท่าหนึ่งในวันนี้ */
+export function toggleSkip(d: Data, exId: string): void {
+  if (!d.swaps || d.swaps.date !== todayStr()) d.swaps = { date: todayStr(), map: {} };
+  const cur = d.swaps.skipped ?? [];
+  d.swaps.skipped = cur.includes(exId) ? cur.filter((x) => x !== exId) : [...cur, exId];
+  if (!d.swaps.skipped.length) d.swaps.skipped = undefined;
 }
 
 // ท่าที่ใช้จริงในวันนั้น — วันนี้จะผ่านการสลับ/เพิ่มชั่วคราว, วันอื่นเป็นท่าตามโปรแกรม
